@@ -70,6 +70,21 @@ void Commands::checkForPeriodicalActions(bool allowNewMoves) {
 		Printer::isPaused = getPaused;
 	}
 #endif
+#if SPEED_DIAL && SPEED_DIAL_PIN > -1
+    uint8 maxSpeedValue = 1 << SPEED_DIAL_BITS;
+    uint8 minSpeedValue = (uint)maxSpeedValue * SPEED_DIAL_MIN_PERCENT / 100;
+    uint8 speedDivisor  = (ANALOG_MAX_VALUE >> SPEED_DIAL_BITS) * 100 / (100 - SPEED_DIAL_MIN_PERCENT);
+#if SPEED_DIAL_INVERT
+    uint8 value = (ANALOG_MAX_VALUE - AnalogIn::values[SPEED_DIAL_ANALOG_INDEX]) / speedDivisor + minSpeedValue;
+#else
+    uint8 value = AnalogIn::values[SPEED_DIAL_ANALOG_INDEX] / speedDivisor + minSpeedValue;
+#endif
+    if (value > maxSpeedValue) {
+        value = maxSpeedValue;
+    }
+   
+    Printer::speed_dial = value;
+#endif
 	EVENT_TIMER_100MS;
 	if(--counter500ms == 0) {
         counter500ms = 5;
@@ -817,6 +832,15 @@ void Commands::processMCode(GCode *com) {
 			Printer::enableAStepper();
     }
     break;
+#if SPEED_DIAL && SPEED_DIAL_PIN > -1
+    case 105: // M105  get speed. Always returns the speed
+        Com::writeToAll = false;
+        Com::printF(Com::tTColon, (Printer::speed_dial * 100) >> SPEED_DIAL_BITS);
+        Com::printF(Com::tSpaceSlash, 0, 0);
+        Com::printF(Com::tSpaceAtColon, 0);
+        Com::println();
+        break;
+#endif
 
 #if FAN_PIN > -1 && FEATURE_FAN_CONTROL
     case 106: // M106 Fan On

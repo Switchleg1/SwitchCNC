@@ -700,6 +700,11 @@ ISR(PWM_TIMER_VECTOR) {
 #endif
 	}
 
+    // read analog values
+#if ANALOG_INPUTS > 0
+    AnalogIn::read();
+#endif
+
 #if FEATURE_WATCHDOG
     if(HAL::wdPinged) {
         wdt_reset();

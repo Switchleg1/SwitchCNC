@@ -1150,8 +1150,8 @@ int32_t PrintLine::bresenhamStep() { // version for Cartesian printer
 			max_loops = cur->stepsRemaining;
 
 #if defined(PAUSE_PIN) && PAUSE_PIN>-1
-		if(Printer::isPaused && max_loops+Printer::pauseSteps > PAUSE_STEPS)
-			max_loops = PAUSE_STEPS-Printer::pauseSteps;
+		if(Printer::isPaused && max_loops + Printer::pauseSteps > PAUSE_STEPS)
+			max_loops = PAUSE_STEPS - Printer::pauseSteps;
 #endif
 
 		for(fast8_t loop = 0; loop < max_loops; loop++) {
@@ -1192,13 +1192,13 @@ int32_t PrintLine::bresenhamStep() { // version for Cartesian printer
 #endif
 				}
 
-#if STEPPER_HIGH_DELAY>0
+#if STEPPER_HIGH_DELAY > 0
 			HAL::delayMicroseconds(STEPPER_HIGH_DELAY);
 #endif
 			cur->stepsRemaining--;
 			Printer::endXYZASteps();
 		} // for loop
-#if defined(PAUSE_PIN) && PAUSE_PIN>-1
+#if defined(PAUSE_PIN) && PAUSE_PIN > -1
 		if(Printer::isPaused)
 		{
 			Printer::pauseSteps += max_loops;
@@ -1256,11 +1256,14 @@ int32_t PrintLine::bresenhamStep() { // version for Cartesian printer
     Printer::stepsPerTimerCall = 1;
     Printer::interval = cur->fullInterval; // without RAMPS always use full speed
 #endif // RAMP_ACCELERATION    
-	long interval = Printer::interval;
-#if defined(PAUSE_PIN) && PAUSE_PIN>-1
+	uint32 interval = Printer::interval;
+#if defined(PAUSE_PIN) && PAUSE_PIN > -1
 	if(Printer::pauseSteps)
-		interval += interval*Printer::pauseSteps/PAUSE_SLOPE;
+		interval += interval * Printer::pauseSteps / PAUSE_SLOPE;
 #endif // PAUSE
+#if SPEED_DIAL && SPEED_DIAL_PIN > -1
+        interval = (interval << SPEED_DIAL_BITS) / Printer::speed_dial;
+#endif // SPEED_DIAL
 	if(cur->stepsRemaining <= 0 || cur->isNoMove()) { // line finished
 #ifdef DEBUG_STEPCOUNT
         if(cur->totalStepsRemaining) {

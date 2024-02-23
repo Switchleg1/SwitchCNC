@@ -105,6 +105,9 @@ int16_t Printer::pauseSteps = 0;
 int8_t Printer::pauseSteps = 0;
 #endif
 #endif //PAUSE
+#if SPEED_DIAL && SPEED_DIAL_PIN > -1
+uint8_t Printer::speed_dial = SPEED_DIAL_MIN_PERCENT;
+#endif
 #if MULTI_XENDSTOP_HOMING
 fast8_t Printer::multiXHomeFlags;  // 1 = move X0, 2 = move X1
 #endif
@@ -706,6 +709,9 @@ void Printer::setup() {
 #if TMC_2_TYPE==TMC_5160
 	configTMC5160(&tmcStepper2, TMC_2_INTPOL, TMC_2_RMS, TMC_2_HOLD, TMC_2_HOLDDELAY, TMC_2_TPWRDOWN, TMC_2_HSTART, TMC_2_HEND, TMC_2_TOFF, TMC_2_TBL, TMC_2_TPFD, TMC_2_PWM_FREQ, TMC_2_TPWMTHRS, TMC_2_TCOOLTHRS, TMC_2_THIGHTHRS, TMC_2_SEMIN, TMC_2_SEMAX, TMC_2_SGT, TMC_2_S2VS, TMC_2_S2G, TMC_2_SFILTER, TMC_2_MICROSTEP, TMC_2_PWM_GRAD, TMC_2_PWM_OFS, TMC_2_PWM_LIM, TMC_2_MODE);
 #endif
+#endif
+#if ANALOG_INPUTS > 0
+    AnalogIn::start();
 #endif
 }
 

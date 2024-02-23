@@ -581,6 +581,7 @@ public:
     static int getFreeRam();
     static void resetHardware();
 
+
     // SPI related functions
     static void spiBegin(uint8_t ssPin = 0)
     {

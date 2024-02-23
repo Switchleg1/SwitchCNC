@@ -572,6 +572,7 @@ extern millis_t previousMillisCmd;
 extern millis_t maxInactiveTime;
 extern millis_t stepperInactiveTime;
 
+#include "AnalogIn.h"
 #include "Printer.h"
 #include "motion.h"
 extern long baudrate;

@@ -264,6 +264,9 @@ public:
 	static int8_t pauseSteps;
 #endif
 #endif //PAUSE
+#if SPEED_DIAL && SPEED_DIAL_PIN > -1
+    static uint8_t speed_dial;
+#endif
 
     static void handleInterruptEvent();
 
