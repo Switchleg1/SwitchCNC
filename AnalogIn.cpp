@@ -1,4 +1,4 @@
-#include "Repetier.h"
+#include "SwitchCNC.h"
 #include <compat/twi.h>
 
 #if ANALOG_INPUTS > 0
@@ -24,9 +24,9 @@ const uint8_t AnalogIn::inputChannels[ANALOG_INPUTS] PROGMEM = ANALOG_INPUT_CHAN
 void AnalogIn::start() {
     ADMUX = ANALOG_REF; // reference voltage
     for (uint8_t i = 0; i < ANALOG_INPUTS; i++) {
-        AnalogIn::inputCounter[i] = 0;
-        AnalogIn::inputValues[i] = 0;
-        AnalogIn::values[i] = 0;
+        inputCounter[i] = 0;
+        inputValues[i] = 0;
+        values[i] = 0;
     }
     ADCSRA = _BV(ADEN) | _BV(ADSC) | ANALOG_PRESCALER;
     //ADCSRA |= _BV(ADSC);                  // start ADC-conversion
@@ -35,7 +35,7 @@ void AnalogIn::start() {
     //uint dummyADCResult;
     //dummyADCResult = ADCW;
     // Enable interrupt driven conversion loop
-    uint8_t channel = pgm_read_byte(&AnalogIn::inputChannels[AnalogIn::inputPosition]);
+    uint8_t channel = pgm_read_byte(&inputChannels[inputPosition]);
 #if defined(ADCSRB) && defined(MUX5)
     if (channel & 8)  // Reading channel 0-7 or 8-15?
         ADCSRB |= _BV(MUX5);
@@ -48,25 +48,25 @@ void AnalogIn::start() {
 
 void AnalogIn::read() {
     if ((ADCSRA & _BV(ADSC)) == 0) { // Conversion finished?
-        AnalogIn::inputValues[AnalogIn::inputPosition] += ADCW;
-        if (++AnalogIn::inputCounter[AnalogIn::inputPosition] >= _BV(ANALOG_INPUT_SAMPLE)) {
+        inputValues[inputPosition] += ADCW;
+        if (++inputCounter[inputPosition] >= _BV(ANALOG_INPUT_SAMPLE)) {
 #if ANALOG_INPUT_BITS + ANALOG_INPUT_SAMPLE < ANALOG_OUTPUT_BITS
-            AnalogIn::values[AnalogIn::inputPosition] =
-                AnalogIn::inputValues[AnalogIn::inputPosition] << (ANALOG_OUTPUT_BITS - ANALOG_INPUT_BITS - ANALOG_INPUT_SAMPLE);
+            values[inputPosition] =
+                inputValues[inputPosition] << (ANALOG_OUTPUT_BITS - ANALOG_INPUT_BITS - ANALOG_INPUT_SAMPLE);
 #endif
 #if ANALOG_INPUT_BITS + ANALOG_INPUT_SAMPLE > ANALOG_OUTPUT_BITS
-            AnalogIn::values[AnalogIn::inputPosition] =
-                AnalogIn::inputValues[AnalogIn::inputPosition] >> (ANALOG_INPUT_BITS + ANALOG_INPUT_SAMPLE - ANALOG_OUTPUT_BITS);
+            values[inputPosition] =
+                inputValues[inputPosition] >> (ANALOG_INPUT_BITS + ANALOG_INPUT_SAMPLE - ANALOG_OUTPUT_BITS);
 #endif
 #if ANALOG_INPUT_BITS + ANALOG_INPUT_SAMPLE == ANALOG_OUTPUT_BITS
-            AnalogIn::outputValues[AnalogIn::inputPosition] = inputValues[inputPosition];
+            outputValues[inputPosition] = inputValues[inputPosition];
 #endif
-            AnalogIn::inputValues[AnalogIn::inputPosition] = 0;
-            AnalogIn::inputCounter[AnalogIn::inputPosition] = 0;
+            inputValues[inputPosition] = 0;
+            inputCounter[inputPosition] = 0;
 
             // Start next conversion
-            if (++AnalogIn::inputPosition >= ANALOG_INPUTS)  AnalogIn::inputPosition = 0;
-            uint8_t channel = pgm_read_byte(&AnalogIn::inputChannels[AnalogIn::inputPosition]);
+            if (++inputPosition >= ANALOG_INPUTS)  inputPosition = 0;
+            uint8_t channel = pgm_read_byte(&inputChannels[inputPosition]);
 #if defined(ADCSRB) && defined(MUX5)
             if (channel & 8)  // Reading channel 0-7 or 8-15?
                 ADCSRB |= _BV(MUX5);

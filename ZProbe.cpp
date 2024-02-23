@@ -1,4 +1,4 @@
-#include "Repetier.h"
+#include "SwitchCNC.h"
 
 #if FEATURE_Z_PROBE
 void Printer::prepareForProbing() {

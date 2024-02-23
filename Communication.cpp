@@ -1,35 +1,6 @@
-/*
-    This file is part of Repetier-Firmware.
+#include "SwitchCNC.h"
 
-    Repetier-Firmware is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    Repetier-Firmware is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Repetier-Firmware.  If not, see <http://www.gnu.org/licenses/>.
-
-    This firmware is a nearly complete rewrite of the sprinter firmware
-    by kliment (https://github.com/kliment/Sprinter)
-    which based on Tonokip RepRap firmware rewrite based off of Hydra-mmm firmware.
-*/
-
-#include "Repetier.h"
-
-#ifndef MACHINE_TYPE
-#define MACHINE_TYPE "MILL"
-#endif
-
-#ifndef FIRMWARE_URL
-#define FIRMWARE_URL "https://github.com/repetier/Repetier-Firmware/"
-#endif // FIRMWARE_URL
-
-FSTRINGVALUE(Com::tFirmware, "FIRMWARE_NAME:Repetier_" REPETIER_VERSION " COMPILED:" __DATE__ " FIRMWARE_URL:" FIRMWARE_URL " PROTOCOL_VERSION:1.0 MACHINE_TYPE:" MACHINE_TYPE " EXTRUDER_COUNT: 0 REPETIER_PROTOCOL:3")
+FSTRINGVALUE(Com::tFirmware, "FIRMWARE_NAME:SwitchCNC " SWITCHCNC_VERSION " COMPILED:" __DATE__ " FIRMWARE_URL:" FIRMWARE_URL " PROTOCOL_VERSION:1.0 MACHINE_TYPE:" MACHINE_TYPE " EXTRUDER_COUNT: 0 REPETIER_PROTOCOL:3")
 FSTRINGVALUE(Com::tDebug, "Debug:")
 FSTRINGVALUE(Com::tOk, "ok")
 FSTRINGVALUE(Com::tNewline, "\r\n")

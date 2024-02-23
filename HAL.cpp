@@ -1,4 +1,4 @@
-#include "Repetier.h"
+#include "SwitchCNC.h"
 #include <compat/twi.h>
 
 #if FEATURE_WATCHDOG
