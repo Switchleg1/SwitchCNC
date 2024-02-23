@@ -634,8 +634,8 @@ ISR(TIMER1_COMPA_vect) {
     cbi(TIMSK1, OCIE1A); // prevent retrigger timer by disabling timer interrupt. Should be faster the guarding with insideTimer1.
     // insideTimer1 = 1;
     OCR1A = 61000;
-    if(PrintLine::hasLines()) {
-        setTimer(PrintLine::bresenhamStep());
+    if(MachineLine::hasLines()) {
+        setTimer(MachineLine::bresenhamStep());
     }
 	else {
         stepperWait = 0; // Important because of optimization in asm at begin

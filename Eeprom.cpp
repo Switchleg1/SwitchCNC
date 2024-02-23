@@ -42,51 +42,51 @@ void EEPROM::restoreEEPROMSettingsFromConfiguration()
     baudrate = BAUDRATE;
     maxInactiveTime = MAX_INACTIVE_TIME * 1000L;
     stepperInactiveTime = STEPPER_INACTIVE_TIME * 1000L;
-    Printer::axisStepsPerMM[X_AXIS] = XAXIS_STEPS_PER_MM;
-	Printer::axisStepsPerMM[Y_AXIS] = YAXIS_STEPS_PER_MM;
-	Printer::axisStepsPerMM[Z_AXIS] = ZAXIS_STEPS_PER_MM;
-	Printer::axisStepsPerMM[A_AXIS] = AAXIS_STEPS_PER_MM;
-    Printer::maxFeedrate[X_AXIS] = MAX_FEEDRATE_X;
-    Printer::maxFeedrate[Y_AXIS] = MAX_FEEDRATE_Y;
-	Printer::maxFeedrate[Z_AXIS] = MAX_FEEDRATE_Z;
-	Printer::maxFeedrate[A_AXIS] = MAX_FEEDRATE_A;
-	Printer::homingFeedrate[X_AXIS] = HOMING_FEEDRATE_X;
-    Printer::homingFeedrate[Y_AXIS] = HOMING_FEEDRATE_Y;
-    Printer::homingFeedrate[Z_AXIS] = HOMING_FEEDRATE_Z;
-	Printer::maxJerk[X_AXIS] = MAX_XJERK;
-	Printer::maxJerk[Y_AXIS] = MAX_YJERK;
-	Printer::maxJerk[Z_AXIS] = MAX_ZJERK;
-	Printer::maxJerk[A_AXIS] = MAX_AJERK;
+    Machine::axisStepsPerMM[X_AXIS] = XAXIS_STEPS_PER_MM;
+	Machine::axisStepsPerMM[Y_AXIS] = YAXIS_STEPS_PER_MM;
+	Machine::axisStepsPerMM[Z_AXIS] = ZAXIS_STEPS_PER_MM;
+	Machine::axisStepsPerMM[A_AXIS] = AAXIS_STEPS_PER_MM;
+    Machine::maxFeedrate[X_AXIS] = MAX_FEEDRATE_X;
+    Machine::maxFeedrate[Y_AXIS] = MAX_FEEDRATE_Y;
+	Machine::maxFeedrate[Z_AXIS] = MAX_FEEDRATE_Z;
+	Machine::maxFeedrate[A_AXIS] = MAX_FEEDRATE_A;
+	Machine::homingFeedrate[X_AXIS] = HOMING_FEEDRATE_X;
+    Machine::homingFeedrate[Y_AXIS] = HOMING_FEEDRATE_Y;
+    Machine::homingFeedrate[Z_AXIS] = HOMING_FEEDRATE_Z;
+	Machine::maxJerk[X_AXIS] = MAX_XJERK;
+	Machine::maxJerk[Y_AXIS] = MAX_YJERK;
+	Machine::maxJerk[Z_AXIS] = MAX_ZJERK;
+	Machine::maxJerk[A_AXIS] = MAX_AJERK;
 #if RAMP_ACCELERATION
-	Printer::maxAccelerationMMPerSquareSecond[X_AXIS] = MAX_ACCELERATION_UNITS_PER_SQ_SECOND_X;
-    Printer::maxAccelerationMMPerSquareSecond[Y_AXIS] = MAX_ACCELERATION_UNITS_PER_SQ_SECOND_Y;
-	Printer::maxAccelerationMMPerSquareSecond[Z_AXIS] = MAX_ACCELERATION_UNITS_PER_SQ_SECOND_Z;
-	Printer::maxAccelerationMMPerSquareSecond[A_AXIS] = MAX_ACCELERATION_UNITS_PER_SQ_SECOND_A;
+	Machine::maxAccelerationMMPerSquareSecond[X_AXIS] = MAX_ACCELERATION_UNITS_PER_SQ_SECOND_X;
+    Machine::maxAccelerationMMPerSquareSecond[Y_AXIS] = MAX_ACCELERATION_UNITS_PER_SQ_SECOND_Y;
+	Machine::maxAccelerationMMPerSquareSecond[Z_AXIS] = MAX_ACCELERATION_UNITS_PER_SQ_SECOND_Z;
+	Machine::maxAccelerationMMPerSquareSecond[A_AXIS] = MAX_ACCELERATION_UNITS_PER_SQ_SECOND_A;
 #endif
-	Printer::axisLength[X_AXIS] = X_MAX_LENGTH;
-	Printer::axisLength[Y_AXIS] = Y_MAX_LENGTH;
-	Printer::axisLength[Z_AXIS] = Z_MAX_LENGTH;
-	Printer::axisMin[X_AXIS] = X_MIN_POS;
-	Printer::axisMin[Y_AXIS] = Y_MIN_POS;
-	Printer::axisMin[Z_AXIS] = Z_MIN_POS;
+	Machine::axisLength[X_AXIS] = X_MAX_LENGTH;
+	Machine::axisLength[Y_AXIS] = Y_MAX_LENGTH;
+	Machine::axisLength[Z_AXIS] = Z_MAX_LENGTH;
+	Machine::axisMin[X_AXIS] = X_MIN_POS;
+	Machine::axisMin[Y_AXIS] = Y_MIN_POS;
+	Machine::axisMin[Z_AXIS] = Z_MIN_POS;
 #if ENABLE_BACKLASH_COMPENSATION
-	Printer::backlash[X_AXIS] = X_BACKLASH;
-	Printer::backlash[Y_AXIS] = Y_BACKLASH;
-	Printer::backlash[Z_AXIS] = Z_BACKLASH;
-	Printer::backlash[A_AXIS] = A_BACKLASH;
+	Machine::backlash[X_AXIS] = X_BACKLASH;
+	Machine::backlash[Y_AXIS] = Y_BACKLASH;
+	Machine::backlash[Z_AXIS] = Z_BACKLASH;
+	Machine::backlash[A_AXIS] = A_BACKLASH;
 #endif
 #if DISTORTION_CORRECTION
-	Printer::distortionXMIN	= DISTORTION_XMIN; //SL
-	Printer::distortionXMAX = DISTORTION_XMAX; //SL
-	Printer::distortionYMIN = DISTORTION_YMIN; //SL
-	Printer::distortionYMAX = DISTORTION_YMAX; //SL
-	Printer::distortionPoints = DISTORTION_CORRECTION_POINTS; //SL
-	Printer::distortionStart = DISTORTION_START; //SL
-	Printer::distortionEnd = DISTORTION_END; //SL
-	Printer::distortionUseOffset = DISTORTION_USE_OFFSET; //SL
+	Machine::distortionXMIN	= DISTORTION_XMIN; //SL
+	Machine::distortionXMAX = DISTORTION_XMAX; //SL
+	Machine::distortionYMIN = DISTORTION_YMIN; //SL
+	Machine::distortionYMAX = DISTORTION_YMAX; //SL
+	Machine::distortionPoints = DISTORTION_CORRECTION_POINTS; //SL
+	Machine::distortionStart = DISTORTION_START; //SL
+	Machine::distortionEnd = DISTORTION_END; //SL
+	Machine::distortionUseOffset = DISTORTION_USE_OFFSET; //SL
 #endif
     initalizeUncached();
-	Printer::updateDerivedParameter();
+	Machine::updateDerivedParameter();
 	Com::printInfoFLN(Com::tEPRConfigResetDefaults);
 #else
     Com::printErrorFLN(Com::tNoEEPROMSupport);
@@ -99,48 +99,48 @@ void EEPROM::storeDataIntoEEPROM(uint8_t corrupted)
     HAL::eprSetInt32(EPR_BAUDRATE,baudrate);
     HAL::eprSetInt32(EPR_MAX_INACTIVE_TIME,maxInactiveTime);
     HAL::eprSetInt32(EPR_STEPPER_INACTIVE_TIME,stepperInactiveTime);
-	HAL::eprSetFloat(EPR_XAXIS_STEPS_PER_MM,Printer::axisStepsPerMM[X_AXIS]);
-    HAL::eprSetFloat(EPR_YAXIS_STEPS_PER_MM,Printer::axisStepsPerMM[Y_AXIS]);
-	HAL::eprSetFloat(EPR_ZAXIS_STEPS_PER_MM,Printer::axisStepsPerMM[Z_AXIS]);
-	HAL::eprSetFloat(EPR_AAXIS_STEPS_PER_MM,Printer::axisStepsPerMM[A_AXIS]);
-	HAL::eprSetFloat(EPR_X_MAX_FEEDRATE,Printer::maxFeedrate[X_AXIS]);
-    HAL::eprSetFloat(EPR_Y_MAX_FEEDRATE,Printer::maxFeedrate[Y_AXIS]);
-	HAL::eprSetFloat(EPR_Z_MAX_FEEDRATE,Printer::maxFeedrate[Z_AXIS]);
-	HAL::eprSetFloat(EPR_A_MAX_FEEDRATE,Printer::maxFeedrate[A_AXIS]);
-	HAL::eprSetFloat(EPR_X_HOMING_FEEDRATE,Printer::homingFeedrate[X_AXIS]);
-    HAL::eprSetFloat(EPR_Y_HOMING_FEEDRATE,Printer::homingFeedrate[Y_AXIS]);
-	HAL::eprSetFloat(EPR_Z_HOMING_FEEDRATE,Printer::homingFeedrate[Z_AXIS]);
-	HAL::eprSetFloat(EPR_MAX_XJERK,Printer::maxJerk[X_AXIS]);
-	HAL::eprSetFloat(EPR_MAX_YJERK,Printer::maxJerk[Y_AXIS]);
-	HAL::eprSetFloat(EPR_MAX_ZJERK,Printer::maxJerk[Z_AXIS]);
-	HAL::eprSetFloat(EPR_MAX_AJERK,Printer::maxJerk[A_AXIS]);
+	HAL::eprSetFloat(EPR_XAXIS_STEPS_PER_MM,Machine::axisStepsPerMM[X_AXIS]);
+    HAL::eprSetFloat(EPR_YAXIS_STEPS_PER_MM,Machine::axisStepsPerMM[Y_AXIS]);
+	HAL::eprSetFloat(EPR_ZAXIS_STEPS_PER_MM,Machine::axisStepsPerMM[Z_AXIS]);
+	HAL::eprSetFloat(EPR_AAXIS_STEPS_PER_MM,Machine::axisStepsPerMM[A_AXIS]);
+	HAL::eprSetFloat(EPR_X_MAX_FEEDRATE,Machine::maxFeedrate[X_AXIS]);
+    HAL::eprSetFloat(EPR_Y_MAX_FEEDRATE,Machine::maxFeedrate[Y_AXIS]);
+	HAL::eprSetFloat(EPR_Z_MAX_FEEDRATE,Machine::maxFeedrate[Z_AXIS]);
+	HAL::eprSetFloat(EPR_A_MAX_FEEDRATE,Machine::maxFeedrate[A_AXIS]);
+	HAL::eprSetFloat(EPR_X_HOMING_FEEDRATE,Machine::homingFeedrate[X_AXIS]);
+    HAL::eprSetFloat(EPR_Y_HOMING_FEEDRATE,Machine::homingFeedrate[Y_AXIS]);
+	HAL::eprSetFloat(EPR_Z_HOMING_FEEDRATE,Machine::homingFeedrate[Z_AXIS]);
+	HAL::eprSetFloat(EPR_MAX_XJERK,Machine::maxJerk[X_AXIS]);
+	HAL::eprSetFloat(EPR_MAX_YJERK,Machine::maxJerk[Y_AXIS]);
+	HAL::eprSetFloat(EPR_MAX_ZJERK,Machine::maxJerk[Z_AXIS]);
+	HAL::eprSetFloat(EPR_MAX_AJERK,Machine::maxJerk[A_AXIS]);
 #if RAMP_ACCELERATION
-	HAL::eprSetFloat(EPR_X_MAX_ACCEL,Printer::maxAccelerationMMPerSquareSecond[X_AXIS]);
-    HAL::eprSetFloat(EPR_Y_MAX_ACCEL,Printer::maxAccelerationMMPerSquareSecond[Y_AXIS]);
-	HAL::eprSetFloat(EPR_Z_MAX_ACCEL,Printer::maxAccelerationMMPerSquareSecond[Z_AXIS]);
-	HAL::eprSetFloat(EPR_A_MAX_ACCEL,Printer::maxAccelerationMMPerSquareSecond[A_AXIS]);
+	HAL::eprSetFloat(EPR_X_MAX_ACCEL,Machine::maxAccelerationMMPerSquareSecond[X_AXIS]);
+    HAL::eprSetFloat(EPR_Y_MAX_ACCEL,Machine::maxAccelerationMMPerSquareSecond[Y_AXIS]);
+	HAL::eprSetFloat(EPR_Z_MAX_ACCEL,Machine::maxAccelerationMMPerSquareSecond[Z_AXIS]);
+	HAL::eprSetFloat(EPR_A_MAX_ACCEL,Machine::maxAccelerationMMPerSquareSecond[A_AXIS]);
 #endif
-	HAL::eprSetFloat(EPR_X_HOME_OFFSET,Printer::axisMin[X_AXIS]);
-	HAL::eprSetFloat(EPR_Y_HOME_OFFSET,Printer::axisMin[Y_AXIS]);
-	HAL::eprSetFloat(EPR_Z_HOME_OFFSET,Printer::axisMin[Z_AXIS]);
-	HAL::eprSetFloat(EPR_X_LENGTH,Printer::axisLength[X_AXIS]);
-	HAL::eprSetFloat(EPR_Y_LENGTH,Printer::axisLength[Y_AXIS]);
-	HAL::eprSetFloat(EPR_Z_LENGTH,Printer::axisLength[Z_AXIS]);
+	HAL::eprSetFloat(EPR_X_HOME_OFFSET,Machine::axisMin[X_AXIS]);
+	HAL::eprSetFloat(EPR_Y_HOME_OFFSET,Machine::axisMin[Y_AXIS]);
+	HAL::eprSetFloat(EPR_Z_HOME_OFFSET,Machine::axisMin[Z_AXIS]);
+	HAL::eprSetFloat(EPR_X_LENGTH,Machine::axisLength[X_AXIS]);
+	HAL::eprSetFloat(EPR_Y_LENGTH,Machine::axisLength[Y_AXIS]);
+	HAL::eprSetFloat(EPR_Z_LENGTH,Machine::axisLength[Z_AXIS]);
 #if ENABLE_BACKLASH_COMPENSATION
-	HAL::eprSetFloat(EPR_BACKLASH_X,Printer::backlash[X_AXIS]);
-	HAL::eprSetFloat(EPR_BACKLASH_Y,Printer::backlash[Y_AXIS]);
-	HAL::eprSetFloat(EPR_BACKLASH_Z,Printer::backlash[Z_AXIS]);
-	HAL::eprSetFloat(EPR_BACKLASH_Z,Printer::backlash[A_AXIS]);
+	HAL::eprSetFloat(EPR_BACKLASH_X,Machine::backlash[X_AXIS]);
+	HAL::eprSetFloat(EPR_BACKLASH_Y,Machine::backlash[Y_AXIS]);
+	HAL::eprSetFloat(EPR_BACKLASH_Z,Machine::backlash[Z_AXIS]);
+	HAL::eprSetFloat(EPR_BACKLASH_Z,Machine::backlash[A_AXIS]);
 #endif
 #if DISTORTION_CORRECTION
-	HAL::eprSetInt16(EPR_DISTORTION_XMIN, Printer::distortionXMIN); //SL
-	HAL::eprSetInt16(EPR_DISTORTION_XMAX, Printer::distortionXMAX); //SL
-	HAL::eprSetInt16(EPR_DISTORTION_YMIN, Printer::distortionYMIN); //SL
-	HAL::eprSetInt16(EPR_DISTORTION_YMAX, Printer::distortionYMAX); //SL
-	HAL::eprSetByte(EPR_DISTORTION_POINTS, Printer::distortionPoints); //SL
-	HAL::eprSetFloat(EPR_DISTORTION_START, Printer::distortionStart); //SL
-	HAL::eprSetFloat(EPR_DISTORTION_END, Printer::distortionEnd); //SL
-	HAL::eprSetByte(EPR_DISTORTION_USE_OFFSET, Printer::distortionUseOffset); //SL
+	HAL::eprSetInt16(EPR_DISTORTION_XMIN, Machine::distortionXMIN); //SL
+	HAL::eprSetInt16(EPR_DISTORTION_XMAX, Machine::distortionXMAX); //SL
+	HAL::eprSetInt16(EPR_DISTORTION_YMIN, Machine::distortionYMIN); //SL
+	HAL::eprSetInt16(EPR_DISTORTION_YMAX, Machine::distortionYMAX); //SL
+	HAL::eprSetByte(EPR_DISTORTION_POINTS, Machine::distortionPoints); //SL
+	HAL::eprSetFloat(EPR_DISTORTION_START, Machine::distortionStart); //SL
+	HAL::eprSetFloat(EPR_DISTORTION_END, Machine::distortionEnd); //SL
+	HAL::eprSetByte(EPR_DISTORTION_USE_OFFSET, Machine::distortionUseOffset); //SL
 #endif
     if(corrupted)
     {
@@ -168,53 +168,53 @@ void EEPROM::readDataFromEEPROM()
     baudrate = HAL::eprGetInt32(EPR_BAUDRATE);
     maxInactiveTime = HAL::eprGetInt32(EPR_MAX_INACTIVE_TIME);
     stepperInactiveTime = HAL::eprGetInt32(EPR_STEPPER_INACTIVE_TIME);
-	Printer::axisStepsPerMM[X_AXIS] = HAL::eprGetFloat(EPR_XAXIS_STEPS_PER_MM);
-    Printer::axisStepsPerMM[Y_AXIS] = HAL::eprGetFloat(EPR_YAXIS_STEPS_PER_MM);
-	Printer::axisStepsPerMM[Z_AXIS] = HAL::eprGetFloat(EPR_ZAXIS_STEPS_PER_MM);
-	Printer::axisStepsPerMM[A_AXIS] = HAL::eprGetFloat(EPR_AAXIS_STEPS_PER_MM);
-	Printer::maxFeedrate[X_AXIS] = HAL::eprGetFloat(EPR_X_MAX_FEEDRATE);
-	Printer::maxFeedrate[Y_AXIS] = HAL::eprGetFloat(EPR_Y_MAX_FEEDRATE);
-	Printer::maxFeedrate[Z_AXIS] = HAL::eprGetFloat(EPR_Z_MAX_FEEDRATE);
-	Printer::maxFeedrate[A_AXIS] = HAL::eprGetFloat(EPR_A_MAX_FEEDRATE);
-	Printer::homingFeedrate[X_AXIS] = HAL::eprGetFloat(EPR_X_HOMING_FEEDRATE);
-	Printer::homingFeedrate[Y_AXIS] = HAL::eprGetFloat(EPR_Y_HOMING_FEEDRATE);
-    Printer::homingFeedrate[Z_AXIS] = HAL::eprGetFloat(EPR_Z_HOMING_FEEDRATE);
-	Printer::maxJerk[X_AXIS] = HAL::eprGetFloat(EPR_MAX_XJERK);
-	Printer::maxJerk[Y_AXIS] = HAL::eprGetFloat(EPR_MAX_YJERK);
-	Printer::maxJerk[Z_AXIS] = HAL::eprGetFloat(EPR_MAX_ZJERK);
-	Printer::maxJerk[A_AXIS] = HAL::eprGetFloat(EPR_MAX_AJERK);
+	Machine::axisStepsPerMM[X_AXIS] = HAL::eprGetFloat(EPR_XAXIS_STEPS_PER_MM);
+    Machine::axisStepsPerMM[Y_AXIS] = HAL::eprGetFloat(EPR_YAXIS_STEPS_PER_MM);
+	Machine::axisStepsPerMM[Z_AXIS] = HAL::eprGetFloat(EPR_ZAXIS_STEPS_PER_MM);
+	Machine::axisStepsPerMM[A_AXIS] = HAL::eprGetFloat(EPR_AAXIS_STEPS_PER_MM);
+	Machine::maxFeedrate[X_AXIS] = HAL::eprGetFloat(EPR_X_MAX_FEEDRATE);
+	Machine::maxFeedrate[Y_AXIS] = HAL::eprGetFloat(EPR_Y_MAX_FEEDRATE);
+	Machine::maxFeedrate[Z_AXIS] = HAL::eprGetFloat(EPR_Z_MAX_FEEDRATE);
+	Machine::maxFeedrate[A_AXIS] = HAL::eprGetFloat(EPR_A_MAX_FEEDRATE);
+	Machine::homingFeedrate[X_AXIS] = HAL::eprGetFloat(EPR_X_HOMING_FEEDRATE);
+	Machine::homingFeedrate[Y_AXIS] = HAL::eprGetFloat(EPR_Y_HOMING_FEEDRATE);
+    Machine::homingFeedrate[Z_AXIS] = HAL::eprGetFloat(EPR_Z_HOMING_FEEDRATE);
+	Machine::maxJerk[X_AXIS] = HAL::eprGetFloat(EPR_MAX_XJERK);
+	Machine::maxJerk[Y_AXIS] = HAL::eprGetFloat(EPR_MAX_YJERK);
+	Machine::maxJerk[Z_AXIS] = HAL::eprGetFloat(EPR_MAX_ZJERK);
+	Machine::maxJerk[A_AXIS] = HAL::eprGetFloat(EPR_MAX_AJERK);
 #if RAMP_ACCELERATION
-	Printer::maxAccelerationMMPerSquareSecond[X_AXIS] = HAL::eprGetFloat(EPR_X_MAX_ACCEL);
-	Printer::maxAccelerationMMPerSquareSecond[Y_AXIS] = HAL::eprGetFloat(EPR_Y_MAX_ACCEL);
-	Printer::maxAccelerationMMPerSquareSecond[Z_AXIS] = HAL::eprGetFloat(EPR_Z_MAX_ACCEL);
-	Printer::maxAccelerationMMPerSquareSecond[A_AXIS] = HAL::eprGetFloat(EPR_A_MAX_ACCEL);
+	Machine::maxAccelerationMMPerSquareSecond[X_AXIS] = HAL::eprGetFloat(EPR_X_MAX_ACCEL);
+	Machine::maxAccelerationMMPerSquareSecond[Y_AXIS] = HAL::eprGetFloat(EPR_Y_MAX_ACCEL);
+	Machine::maxAccelerationMMPerSquareSecond[Z_AXIS] = HAL::eprGetFloat(EPR_Z_MAX_ACCEL);
+	Machine::maxAccelerationMMPerSquareSecond[A_AXIS] = HAL::eprGetFloat(EPR_A_MAX_ACCEL);
 #endif
-	Printer::axisMin[X_AXIS] = HAL::eprGetFloat(EPR_X_HOME_OFFSET);
-	Printer::axisMin[Y_AXIS] = HAL::eprGetFloat(EPR_Y_HOME_OFFSET);
-	Printer::axisMin[Z_AXIS] = HAL::eprGetFloat(EPR_Z_HOME_OFFSET);
-	Printer::axisLength[X_AXIS] = HAL::eprGetFloat(EPR_X_LENGTH);
-	Printer::axisLength[Y_AXIS] = HAL::eprGetFloat(EPR_Y_LENGTH);
-	Printer::axisLength[Z_AXIS] = HAL::eprGetFloat(EPR_Z_LENGTH);
+	Machine::axisMin[X_AXIS] = HAL::eprGetFloat(EPR_X_HOME_OFFSET);
+	Machine::axisMin[Y_AXIS] = HAL::eprGetFloat(EPR_Y_HOME_OFFSET);
+	Machine::axisMin[Z_AXIS] = HAL::eprGetFloat(EPR_Z_HOME_OFFSET);
+	Machine::axisLength[X_AXIS] = HAL::eprGetFloat(EPR_X_LENGTH);
+	Machine::axisLength[Y_AXIS] = HAL::eprGetFloat(EPR_Y_LENGTH);
+	Machine::axisLength[Z_AXIS] = HAL::eprGetFloat(EPR_Z_LENGTH);
 #if ENABLE_BACKLASH_COMPENSATION
-	Printer::backlash[X_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_X);
-	Printer::backlash[Y_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_Y);
-	Printer::backlash[Z_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_Z);
-	Printer::backlash[A_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_A);
+	Machine::backlash[X_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_X);
+	Machine::backlash[Y_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_Y);
+	Machine::backlash[Z_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_Z);
+	Machine::backlash[A_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_A);
 #endif
 #if DISTORTION_CORRECTION
-	Printer::distortionXMIN = HAL::eprGetInt16(EPR_DISTORTION_XMIN); //SL
-	Printer::distortionXMAX = HAL::eprGetInt16(EPR_DISTORTION_XMAX); //SL
-	Printer::distortionYMIN = HAL::eprGetInt16(EPR_DISTORTION_YMIN); //SL
-	Printer::distortionYMAX = HAL::eprGetInt16(EPR_DISTORTION_YMAX); //SL
-	Printer::distortionPoints = HAL::eprGetByte(EPR_DISTORTION_POINTS); //SL
-	if(Printer::distortionPoints > DISTORTION_CORRECTION_POINTS)
-		Printer::distortionPoints = DISTORTION_CORRECTION_POINTS;
-	if(Printer::distortionPoints < 2)
-		Printer::distortionPoints = 2;
-	Printer::distortionStart = HAL::eprGetFloat(EPR_DISTORTION_START); //SL
-	Printer::distortionEnd = HAL::eprGetFloat(EPR_DISTORTION_END); //SL
-	Printer::distortionUseOffset = HAL::eprGetByte(EPR_DISTORTION_USE_OFFSET); //SL
-	Printer::distortion.SetStartEnd(Printer::distortionStart, Printer::distortionEnd);
+	Machine::distortionXMIN = HAL::eprGetInt16(EPR_DISTORTION_XMIN); //SL
+	Machine::distortionXMAX = HAL::eprGetInt16(EPR_DISTORTION_XMAX); //SL
+	Machine::distortionYMIN = HAL::eprGetInt16(EPR_DISTORTION_YMIN); //SL
+	Machine::distortionYMAX = HAL::eprGetInt16(EPR_DISTORTION_YMAX); //SL
+	Machine::distortionPoints = HAL::eprGetByte(EPR_DISTORTION_POINTS); //SL
+	if(Machine::distortionPoints > DISTORTION_CORRECTION_POINTS)
+		Machine::distortionPoints = DISTORTION_CORRECTION_POINTS;
+	if(Machine::distortionPoints < 2)
+		Machine::distortionPoints = 2;
+	Machine::distortionStart = HAL::eprGetFloat(EPR_DISTORTION_START); //SL
+	Machine::distortionEnd = HAL::eprGetFloat(EPR_DISTORTION_END); //SL
+	Machine::distortionUseOffset = HAL::eprGetByte(EPR_DISTORTION_USE_OFFSET); //SL
+	Machine::distortion.SetStartEnd(Machine::distortionStart, Machine::distortionEnd);
 #endif
 	if(version != EEPROM_PROTOCOL_VERSION)
     {
@@ -229,7 +229,7 @@ void EEPROM::readDataFromEEPROM()
 
         storeDataIntoEEPROM(false); // Store new fields for changed version
 	}
-	Printer::updateDerivedParameter();
+	Machine::updateDerivedParameter();
 #endif
 }
 

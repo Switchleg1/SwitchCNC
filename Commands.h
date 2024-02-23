@@ -16,7 +16,6 @@ public:
     static void setFanSpeed(int speed, bool immediately = false); /// Set fan speed 0..255
     static void setFan2Speed(int speed); /// Set fan speed 0..255
     static void changeFeedrateMultiply(int factorInPercent);
-    static void reportPrinterUsage();
     static void emergencyStop();
     static void checkFreeMemory();
     static void writeLowestFreeRAM();

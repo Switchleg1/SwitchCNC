@@ -132,7 +132,7 @@ Custom M Codes
 
 void setup()
 {
-    Printer::setup();
+    Machine::setup();
 }
 
 void loop()

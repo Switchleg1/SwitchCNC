@@ -18,8 +18,8 @@ Level 5: Nonlinear motor step position, only for nonlinear drive systems
 
 */
 
-#ifndef PRINTER_H_INCLUDED
-#define PRINTER_H_INCLUDED
+#ifndef MACHINE_H_INCLUDED
+#define MACHINE_H_INCLUDED
 
 #if TMC_DRIVERS
 #include <TMCStepper.h>
@@ -34,7 +34,7 @@ Level 5: Nonlinear motor step position, only for nonlinear drive systems
 
 
 #if defined(AUTOMATIC_POWERUP) && AUTOMATIC_POWERUP && PS_ON_PIN > -1
-#define ENSURE_POWER {Printer::enablePowerIfNeeded();}
+#define ENSURE_POWER {Machine::enablePowerIfNeeded();}
 #else
 #undef AUTOMATIC_POWERUP
 #define AUTOMATIC_POWERUP 0
@@ -49,26 +49,26 @@ union floatLong {
 #endif
 };
 
-#define PRINTER_FLAG0_STEPPER_DISABLED      1
-#define PRINTER_FLAG0_FORCE_CHECKSUM        2
-#define PRINTER_FLAG0_MANUAL_MOVE_MODE      4
-#define PRINTER_FLAG0_ZPROBEING             8
-#define PRINTER_FLAG0_PAUSED         		16
-#define PRINTER_FLAG0_AUTOMOUNT             32
-#define PRINTER_FLAG0_ANIMATION             64
-#define PRINTER_FLAG0_ALLKILLED             128
-#define PRINTER_FLAG1_HOMED_ALL             1
-#define PRINTER_FLAG1_X_HOMED               2
-#define PRINTER_FLAG1_Y_HOMED               4
-#define PRINTER_FLAG1_Z_HOMED               8
-#define PRINTER_FLAG1_NO_DESTINATION_CHECK  16
-#define PRINTER_FLAG1_POWER_ON              32
-#define PRINTER_FLAG1_HOMING                64
-#define PRINTER_FLAG1_IGNORE_M106_COMMAND   128
+#define MACHINE_FLAG0_STEPPER_DISABLED      1
+#define MACHINE_FLAG0_FORCE_CHECKSUM        2
+#define MACHINE_FLAG0_MANUAL_MOVE_MODE      4
+#define MACHINE_FLAG0_ZPROBEING             8
+#define MACHINE_FLAG0_PAUSED         		16
+#define MACHINE_FLAG0_AUTOMOUNT             32
+#define MACHINE_FLAG0_ANIMATION             64
+#define MACHINE_FLAG0_ALLKILLED             128
+#define MACHINE_FLAG1_HOMED_ALL             1
+#define MACHINE_FLAG1_X_HOMED               2
+#define MACHINE_FLAG1_Y_HOMED               4
+#define MACHINE_FLAG1_Z_HOMED               8
+#define MACHINE_FLAG1_NO_DESTINATION_CHECK  16
+#define MACHINE_FLAG1_POWER_ON              32
+#define MACHINE_FLAG1_HOMING                64
+#define MACHINE_FLAG1_IGNORE_M106_COMMAND   128
 
 
 // define an integer number of steps more than large enough to get to end stop from anywhere
-#define HOME_DISTANCE_STEPS (Printer::zMaxSteps-Printer::axisMinSteps[Z_AXIS]+1000)
+#define HOME_DISTANCE_STEPS (Machine::zMaxSteps-Machine::axisMinSteps[Z_AXIS]+1000)
 #define HOME_DISTANCE_MM (HOME_DISTANCE_STEPS * invAxisStepsPerMM[Z_AXIS])
 
 #include "Distortion.h"
@@ -128,7 +128,7 @@ Given:
 
 Step 1: Convert to ROTC
 
-    transformToPrinter(x_rwc + Printer::offsetX, y_rwc + Printer::offsetY, z_rwc +  Printer::offsetZ, x_rotc, y_rotc, z_rotc);
+    transformToPrinter(x_rwc + Machine::offsetX, y_rwc + Machine::offsetY, z_rwc +  Machine::offsetZ, x_rotc, y_rotc, z_rotc);
     z_rotc += offsetZ2
 
 Step 2: Compute CMC
@@ -150,11 +150,11 @@ Step 1: Convert to ROTC
 Step 2: Convert to RWC
 
     transformFromPrinter(x_rotc, y_rotc, z_rotc,x_rwc, y_rwc, z_rwc);
-	x_rwc -= Printer::offsetX; // Offset from active extruder or z probe
-    y_rwc -= Printer::offsetY;
-    z_rwc -= Printer::offsetZ;
+	x_rwc -= Machine::offsetX; // Offset from active extruder or z probe
+    y_rwc -= Machine::offsetY;
+    z_rwc -= Machine::offsetZ;
 */
-class Printer {
+class Machine {
     static uint8_t debugLevel;
 public:
 	static float axisStepsPerMM[]; ///< Resolution of each axis in steps per mm.
@@ -441,92 +441,92 @@ public:
 	}
 
     static INLINE uint8_t isHomedAll() {
-        return flag1 & PRINTER_FLAG1_HOMED_ALL;
+        return flag1 & MACHINE_FLAG1_HOMED_ALL;
     }
 
     static INLINE void unsetHomedAll() {
-        flag1 &= ~PRINTER_FLAG1_HOMED_ALL;
-		flag1 &= ~(PRINTER_FLAG1_X_HOMED | PRINTER_FLAG1_Y_HOMED | PRINTER_FLAG1_Z_HOMED);
+        flag1 &= ~MACHINE_FLAG1_HOMED_ALL;
+		flag1 &= ~(MACHINE_FLAG1_X_HOMED | MACHINE_FLAG1_Y_HOMED | MACHINE_FLAG1_Z_HOMED);
     }
 
     static INLINE void updateHomedAll() {
         bool b = isXHomed() && isYHomed() && isZHomed();
-        flag1 = (b ? flag1 | PRINTER_FLAG1_HOMED_ALL : flag1 & ~PRINTER_FLAG1_HOMED_ALL);
+        flag1 = (b ? flag1 | MACHINE_FLAG1_HOMED_ALL : flag1 & ~MACHINE_FLAG1_HOMED_ALL);
     }
 
     static INLINE uint8_t isXHomed() {
-		return flag1 & PRINTER_FLAG1_X_HOMED;
+		return flag1 & MACHINE_FLAG1_X_HOMED;
     }
 
     static INLINE void setXHomed(uint8_t b) {
-		flag1 = (b ? flag1 | PRINTER_FLAG1_X_HOMED : flag1 & ~PRINTER_FLAG1_X_HOMED);
+		flag1 = (b ? flag1 | MACHINE_FLAG1_X_HOMED : flag1 & ~MACHINE_FLAG1_X_HOMED);
 		updateHomedAll();
     }
 
     static INLINE uint8_t isYHomed() {
-		return flag1 & PRINTER_FLAG1_Y_HOMED;
+		return flag1 & MACHINE_FLAG1_Y_HOMED;
     }
 
     static INLINE void setYHomed(uint8_t b) {
-		flag1 = (b ? flag1 | PRINTER_FLAG1_Y_HOMED : flag1 & ~PRINTER_FLAG1_Y_HOMED);
+		flag1 = (b ? flag1 | MACHINE_FLAG1_Y_HOMED : flag1 & ~MACHINE_FLAG1_Y_HOMED);
         updateHomedAll();
     }
 
     static INLINE uint8_t isZHomed() {
-		return flag1 & PRINTER_FLAG1_Z_HOMED;
+		return flag1 & MACHINE_FLAG1_Z_HOMED;
     }
 
     static INLINE void setZHomed(uint8_t b) {
-        flag1 = (b ? flag1 | PRINTER_FLAG1_Z_HOMED : flag1 & ~PRINTER_FLAG1_Z_HOMED);
+        flag1 = (b ? flag1 | MACHINE_FLAG1_Z_HOMED : flag1 & ~MACHINE_FLAG1_Z_HOMED);
         updateHomedAll();
     }
 
     static INLINE uint8_t isAllKilled() {
-		return flag0 & PRINTER_FLAG0_ALLKILLED;
+		return flag0 & MACHINE_FLAG0_ALLKILLED;
     }
 
 	static INLINE void setAllKilled(uint8_t b) {
-		flag0 = (b ? flag0 | PRINTER_FLAG0_ALLKILLED : flag0 & ~PRINTER_FLAG0_ALLKILLED);
+		flag0 = (b ? flag0 | MACHINE_FLAG0_ALLKILLED : flag0 & ~MACHINE_FLAG0_ALLKILLED);
     }
 
     static INLINE uint8_t isAutomount() {
-		return flag0 & PRINTER_FLAG0_AUTOMOUNT;
+		return flag0 & MACHINE_FLAG0_AUTOMOUNT;
     }
 
     static INLINE void setAutomount(uint8_t b) {
-		flag0 = (b ? flag0 | PRINTER_FLAG0_AUTOMOUNT : flag1 & ~PRINTER_FLAG0_AUTOMOUNT);
+		flag0 = (b ? flag0 | MACHINE_FLAG0_AUTOMOUNT : flag1 & ~MACHINE_FLAG0_AUTOMOUNT);
     }
 
     static INLINE uint8_t isAnimation() {
-		return flag1 & PRINTER_FLAG0_ANIMATION;
+		return flag1 & MACHINE_FLAG0_ANIMATION;
     }
 
     static INLINE void setAnimation(uint8_t b) {
-		flag0 = (b ? flag0 | PRINTER_FLAG0_ANIMATION : flag0 & ~PRINTER_FLAG0_ANIMATION);
+		flag0 = (b ? flag0 | MACHINE_FLAG0_ANIMATION : flag0 & ~MACHINE_FLAG0_ANIMATION);
     }
 
     static INLINE uint8_t isNoDestinationCheck() {
-		return flag1 & PRINTER_FLAG1_NO_DESTINATION_CHECK;
+		return flag1 & MACHINE_FLAG1_NO_DESTINATION_CHECK;
     }
 
     static INLINE void setNoDestinationCheck(uint8_t b) {
-        flag1 = (b ? flag1 | PRINTER_FLAG1_NO_DESTINATION_CHECK : flag1 & ~PRINTER_FLAG1_NO_DESTINATION_CHECK);
+        flag1 = (b ? flag1 | MACHINE_FLAG1_NO_DESTINATION_CHECK : flag1 & ~MACHINE_FLAG1_NO_DESTINATION_CHECK);
     }
 
     static INLINE uint8_t isPowerOn() {
-        return flag1 & PRINTER_FLAG1_POWER_ON;
+        return flag1 & MACHINE_FLAG1_POWER_ON;
     }
 
     static INLINE void setPowerOn(uint8_t b) {
-        flag1 = (b ? flag1 | PRINTER_FLAG1_POWER_ON : flag1 & ~PRINTER_FLAG1_POWER_ON);
+        flag1 = (b ? flag1 | MACHINE_FLAG1_POWER_ON : flag1 & ~MACHINE_FLAG1_POWER_ON);
 	}
 
     static INLINE uint8_t isHoming() {
-		return flag1 & PRINTER_FLAG1_HOMING;
+		return flag1 & MACHINE_FLAG1_HOMING;
     }
 
     static INLINE void setHoming(uint8_t b) {
-        flag1 = (b ? flag1 | PRINTER_FLAG1_HOMING : flag1 & ~PRINTER_FLAG1_HOMING);
+        flag1 = (b ? flag1 | MACHINE_FLAG1_HOMING : flag1 & ~MACHINE_FLAG1_HOMING);
 	}
 
     static INLINE void toggleAnimation() {
@@ -536,39 +536,39 @@ public:
         return (unitIsInches ? x * 25.4 : x);
     }
 	static INLINE bool areAllSteppersDisabled() {
-		return flag0 & PRINTER_FLAG0_STEPPER_DISABLED;
+		return flag0 & MACHINE_FLAG0_STEPPER_DISABLED;
     }
 	static INLINE void setAllSteppersDiabled() {
-		flag0 |= PRINTER_FLAG0_STEPPER_DISABLED;
+		flag0 |= MACHINE_FLAG0_STEPPER_DISABLED;
 #if FAN_BOARD_PIN > -1
 		pwm_pos[PWM_BOARD_FAN] = BOARD_FAN_MIN_SPEED;
 #endif // FAN_BOARD_PIN
     }
 	static INLINE void unsetAllSteppersDisabled() {
-        flag0 &= ~PRINTER_FLAG0_STEPPER_DISABLED;
+        flag0 &= ~MACHINE_FLAG0_STEPPER_DISABLED;
 #if FAN_BOARD_PIN > -1
 		pwm_pos[PWM_BOARD_FAN] = BOARD_FAN_SPEED;
 #endif // FAN_BOARD_PIN
 	}
     static INLINE bool isManualMoveMode() {
-        return (flag0 & PRINTER_FLAG0_MANUAL_MOVE_MODE);
+        return (flag0 & MACHINE_FLAG0_MANUAL_MOVE_MODE);
     }
     static INLINE void setManualMoveMode(bool on) {
-        flag0 = (on ? flag0 | PRINTER_FLAG0_MANUAL_MOVE_MODE : flag0 & ~PRINTER_FLAG0_MANUAL_MOVE_MODE);
+        flag0 = (on ? flag0 | MACHINE_FLAG0_MANUAL_MOVE_MODE : flag0 & ~MACHINE_FLAG0_MANUAL_MOVE_MODE);
 	}
     static INLINE void setZProbingActive(bool on) {
-        flag0 = (on ? flag0 | PRINTER_FLAG0_ZPROBEING : flag0 & ~PRINTER_FLAG0_ZPROBEING);
+        flag0 = (on ? flag0 | MACHINE_FLAG0_ZPROBEING : flag0 & ~MACHINE_FLAG0_ZPROBEING);
     }
     static INLINE bool isZProbingActive() {
-        return (flag0 & PRINTER_FLAG0_ZPROBEING);
+        return (flag0 & MACHINE_FLAG0_ZPROBEING);
 	}
 	static INLINE void startXStep() {
 #if MULTI_XENDSTOP_HOMING
-        if(Printer::multiXHomeFlags & 1) {
+        if(Machine::multiXHomeFlags & 1) {
             WRITE(X_STEP_PIN, START_STEP_WITH_HIGH);
         }
 #if FEATURE_TWO_XSTEPPER
-        if(Printer::multiXHomeFlags & 2) {
+        if(Machine::multiXHomeFlags & 2) {
             WRITE(X2_STEP_PIN, START_STEP_WITH_HIGH);
         }
 #endif
@@ -581,11 +581,11 @@ public:
     }
     static INLINE void startYStep() {
 #if MULTI_YENDSTOP_HOMING
-        if(Printer::multiYHomeFlags & 1) {
+        if(Machine::multiYHomeFlags & 1) {
             WRITE(Y_STEP_PIN, START_STEP_WITH_HIGH);
         }
 #if FEATURE_TWO_YSTEPPER
-        if(Printer::multiYHomeFlags & 2) {
+        if(Machine::multiYHomeFlags & 2) {
             WRITE(Y2_STEP_PIN, START_STEP_WITH_HIGH);
         }
 #endif
@@ -598,11 +598,11 @@ public:
     }
     static INLINE void startZStep() {
 #if MULTI_ZENDSTOP_HOMING
-        if(Printer::multiZHomeFlags & 1) {
+        if(Machine::multiZHomeFlags & 1) {
             WRITE(Z_STEP_PIN, START_STEP_WITH_HIGH);
         }
 #if FEATURE_TWO_ZSTEPPER
-        if(Printer::multiZHomeFlags & 2) {
+        if(Machine::multiZHomeFlags & 2) {
             WRITE(Z2_STEP_PIN, START_STEP_WITH_HIGH);
         }
 #endif
@@ -635,18 +635,18 @@ public:
         if(vbase > STEP_DOUBLER_FREQUENCY) {
 #if ALLOW_QUADSTEPPING
             if(vbase > STEP_DOUBLER_FREQUENCY * 2) {
-                Printer::stepsPerTimerCall = 4;
+                Machine::stepsPerTimerCall = 4;
                 return vbase >> 2;
             } else {
-                Printer::stepsPerTimerCall = 2;
+                Machine::stepsPerTimerCall = 2;
                 return vbase >> 1;
             }
 #else
-            Printer::stepsPerTimerCall = 2;
+            Machine::stepsPerTimerCall = 2;
             return vbase >> 1;
 #endif
         } else {
-            Printer::stepsPerTimerCall = 1;
+            Machine::stepsPerTimerCall = 1;
         }
         return vbase;
     }
@@ -786,4 +786,4 @@ public:
 #endif
 };
 
-#endif // PRINTER_H_INCLUDED
+#endif // MACHINE_H_INCLUDED

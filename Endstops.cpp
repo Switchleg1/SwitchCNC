@@ -47,7 +47,7 @@ void Endstops::update() {
 #if Z_PROBE_PIN == Z_MIN_PIN && MIN_HARDWARE_ENDSTOP_Z
     if(newRead & ENDSTOP_Z_MIN_ID) // prevent different results causing confusion
         newRead |= ENDSTOP_Z_PROBE_ID;
-    if(!Printer::isHoming())
+    if(!Machine::isHoming())
         newRead &= ~ENDSTOP_Z_MIN_ID; // could cause wrong signals depending on probe position
 #else
     if(Z_PROBE_ON_HIGH ? READ(Z_PROBE_PIN) : !READ(Z_PROBE_PIN))
@@ -102,7 +102,7 @@ void Endstops::update() {
         lastState2 = lastRead2;
         accumulator2 |= lastState2;
 #endif
-        if (Printer::debugEndStop())  Endstops::report();
+        if (Machine::debugEndStop())  Endstops::report();
     } else {
         lastState = lastRead;
 #ifdef EXTENDED_ENDSTOPS

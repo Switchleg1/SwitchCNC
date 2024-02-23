@@ -3,107 +3,107 @@
 unsigned int counterPeriodical = 0;
 volatile uint8_t executePeriodical = 0;
 uint8_t counter500ms = 5;
-uint8_t Printer::unitIsInches = 0; ///< 0 = Units are mm, 1 = units are inches.
+uint8_t Machine::unitIsInches = 0; ///< 0 = Units are mm, 1 = units are inches.
 //Stepper Movement Variables
-float Printer::axisStepsPerMM[A_AXIS_ARRAY] = {XAXIS_STEPS_PER_MM, YAXIS_STEPS_PER_MM, ZAXIS_STEPS_PER_MM, AAXIS_STEPS_PER_MM}; ///< Number of steps per mm needed.
-float Printer::invAxisStepsPerMM[A_AXIS_ARRAY]; ///< Inverse of axisStepsPerMM for faster conversion
-float Printer::maxFeedrate[A_AXIS_ARRAY] = {MAX_FEEDRATE_X, MAX_FEEDRATE_Y, MAX_FEEDRATE_Z, MAX_FEEDRATE_A}; ///< Maximum allowed feedrate.
-float Printer::homingFeedrate[Z_AXIS_ARRAY] = {HOMING_FEEDRATE_X, HOMING_FEEDRATE_Y, HOMING_FEEDRATE_Z};
+float Machine::axisStepsPerMM[A_AXIS_ARRAY] = {XAXIS_STEPS_PER_MM, YAXIS_STEPS_PER_MM, ZAXIS_STEPS_PER_MM, AAXIS_STEPS_PER_MM}; ///< Number of steps per mm needed.
+float Machine::invAxisStepsPerMM[A_AXIS_ARRAY]; ///< Inverse of axisStepsPerMM for faster conversion
+float Machine::maxFeedrate[A_AXIS_ARRAY] = {MAX_FEEDRATE_X, MAX_FEEDRATE_Y, MAX_FEEDRATE_Z, MAX_FEEDRATE_A}; ///< Maximum allowed feedrate.
+float Machine::homingFeedrate[Z_AXIS_ARRAY] = {HOMING_FEEDRATE_X, HOMING_FEEDRATE_Y, HOMING_FEEDRATE_Z};
 #if RAMP_ACCELERATION
 //  float max_start_speed_units_per_second[A_AXIS_ARRAY] = MAX_START_SPEED_UNITS_PER_SECOND; ///< Speed we can use, without acceleration.
-float Printer::maxAccelerationMMPerSquareSecond[A_AXIS_ARRAY] = {MAX_ACCELERATION_UNITS_PER_SQ_SECOND_X, MAX_ACCELERATION_UNITS_PER_SQ_SECOND_Y, MAX_ACCELERATION_UNITS_PER_SQ_SECOND_Z, MAX_ACCELERATION_UNITS_PER_SQ_SECOND_A}; ///< X, Y, Z and E max acceleration in mm/s^2 for printing moves or retracts
+float Machine::maxAccelerationMMPerSquareSecond[A_AXIS_ARRAY] = {MAX_ACCELERATION_UNITS_PER_SQ_SECOND_X, MAX_ACCELERATION_UNITS_PER_SQ_SECOND_Y, MAX_ACCELERATION_UNITS_PER_SQ_SECOND_Z, MAX_ACCELERATION_UNITS_PER_SQ_SECOND_A}; ///< X, Y, Z and E max acceleration in mm/s^2 for printing moves or retracts
 /** Acceleration in steps/s^3 in printing mode.*/
-unsigned long Printer::maxAccelerationStepsPerSquareSecond[A_AXIS_ARRAY];
+unsigned long Machine::maxAccelerationStepsPerSquareSecond[A_AXIS_ARRAY];
 #endif
-int32_t Printer::zCorrectionStepsIncluded = 0;
-uint8_t Printer::relativeCoordinateMode = false;  ///< Determines absolute (false) or relative Coordinates (true).
+int32_t Machine::zCorrectionStepsIncluded = 0;
+uint8_t Machine::relativeCoordinateMode = false;  ///< Determines absolute (false) or relative Coordinates (true).
 
-long Printer::currentPositionSteps[A_AXIS_ARRAY];
-float Printer::currentPosition[A_AXIS_ARRAY];
-float Printer::lastCmdPos[A_AXIS_ARRAY];
-long Printer::destinationSteps[A_AXIS_ARRAY];
-float Printer::coordinateOffset[Z_AXIS_ARRAY] = {0, 0, 0};
-uint8_t Printer::flag0 = 0;
-uint8_t Printer::flag1 = 0;
-uint8_t Printer::debugLevel = 6; ///< Bitfield defining debug output. 1 = echo, 2 = info, 4 = error, 8 = dry run., 16 = Only communication, 32 = No moves
-fast8_t Printer::stepsPerTimerCall = 1;
-uint8_t Printer::fanSpeed = 0; // Last fan speed set with M106/M107
-uint8_t Printer::interruptEvent = 0;
+long Machine::currentPositionSteps[A_AXIS_ARRAY];
+float Machine::currentPosition[A_AXIS_ARRAY];
+float Machine::lastCmdPos[A_AXIS_ARRAY];
+long Machine::destinationSteps[A_AXIS_ARRAY];
+float Machine::coordinateOffset[Z_AXIS_ARRAY] = {0, 0, 0};
+uint8_t Machine::flag0 = 0;
+uint8_t Machine::flag1 = 0;
+uint8_t Machine::debugLevel = 6; ///< Bitfield defining debug output. 1 = echo, 2 = info, 4 = error, 8 = dry run., 16 = Only communication, 32 = No moves
+fast8_t Machine::stepsPerTimerCall = 1;
+uint8_t Machine::fanSpeed = 0; // Last fan speed set with M106/M107
+uint8_t Machine::interruptEvent = 0;
 #if DISTORTION_CORRECTION
-int16_t Printer::distortionXMIN;
-int16_t Printer::distortionXMAX;
-int16_t Printer::distortionYMIN;
-int16_t Printer::distortionYMAX;
-uint8_t Printer::distortionPoints;
-float Printer::distortionStart;
-float Printer::distortionEnd;
-uint8_t Printer::distortionUseOffset;
+int16_t Machine::distortionXMIN;
+int16_t Machine::distortionXMAX;
+int16_t Machine::distortionYMIN;
+int16_t Machine::distortionYMAX;
+uint8_t Machine::distortionPoints;
+float Machine::distortionStart;
+float Machine::distortionEnd;
+uint8_t Machine::distortionUseOffset;
 #endif
-uint32_t Printer::interval = 30000;           ///< Last step duration in ticks.
-uint32_t Printer::timer;              ///< used for acceleration/deceleration timing
-uint32_t Printer::stepNumber;         ///< Step number in current move.
+uint32_t Machine::interval = 30000;           ///< Last step duration in ticks.
+uint32_t Machine::timer;              ///< used for acceleration/deceleration timing
+uint32_t Machine::stepNumber;         ///< Step number in current move.
 #if FEATURE_Z_PROBE || MAX_HARDWARE_ENDSTOP_Z
-int32_t Printer::stepsRemainingAtZHit;
+int32_t Machine::stepsRemainingAtZHit;
 #endif
-int32_t Printer::axisMaxSteps[Z_AXIS_ARRAY];      ///< For software endstops, limit of move in positive direction.
-int32_t Printer::axisMinSteps[Z_AXIS_ARRAY];      ///< For software endstops, limit of move in negative direction.
-float Printer::axisLength[Z_AXIS_ARRAY];
-float Printer::axisMin[Z_AXIS_ARRAY];
-float Printer::feedrate;                   ///< Last requested feedrate.
-int Printer::feedrateMultiply;             ///< Multiplier for feedrate in percent (factor 1 = 100)
-float Printer::maxJerk[A_AXIS_ARRAY];      ///< Maximum allowed jerk in mm/s
-speed_t Printer::vMaxReached;               ///< Maximum reached speed
+int32_t Machine::axisMaxSteps[Z_AXIS_ARRAY];      ///< For software endstops, limit of move in positive direction.
+int32_t Machine::axisMinSteps[Z_AXIS_ARRAY];      ///< For software endstops, limit of move in negative direction.
+float Machine::axisLength[Z_AXIS_ARRAY];
+float Machine::axisMin[Z_AXIS_ARRAY];
+float Machine::feedrate;                   ///< Last requested feedrate.
+int Machine::feedrateMultiply;             ///< Multiplier for feedrate in percent (factor 1 = 100)
+float Machine::maxJerk[A_AXIS_ARRAY];      ///< Maximum allowed jerk in mm/s
+speed_t Machine::vMaxReached;               ///< Maximum reached speed
 #if ENABLE_BACKLASH_COMPENSATION
-float Printer::backlash[A_AXIS_ARRAY];
-uint8_t Printer::backlashDir;
+float Machine::backlash[A_AXIS_ARRAY];
+uint8_t Machine::backlashDir;
 #endif
-float Printer::memoryPosition[A_AXIS_ARRAY] = {IGNORE_COORDINATE, IGNORE_COORDINATE, IGNORE_COORDINATE, IGNORE_COORDINATE};
-float Printer::memoryF = -1;
+float Machine::memoryPosition[A_AXIS_ARRAY] = {IGNORE_COORDINATE, IGNORE_COORDINATE, IGNORE_COORDINATE, IGNORE_COORDINATE};
+float Machine::memoryF = -1;
 #ifdef DEBUG_SEGMENT_LENGTH
-float Printer::maxRealSegmentLength = 0;
+float Machine::maxRealSegmentLength = 0;
 #endif
 #ifdef DEBUG_REAL_JERK
-float Printer::maxRealJerk = 0;
+float Machine::maxRealJerk = 0;
 #endif
 #if TMC_DRIVERS
 #if TMC_X_TYPE==TMC_5160
-TMC5160Stepper Printer::tmcStepperX(TMC_X_CS, TMC_X_RSENSE);
+TMC5160Stepper Machine::tmcStepperX(TMC_X_CS, TMC_X_RSENSE);
 #endif
 #if TMC_Y_TYPE==TMC_5160
-TMC5160Stepper Printer::tmcStepperY(TMC_Y_CS, TMC_Y_RSENSE);
+TMC5160Stepper Machine::tmcStepperY(TMC_Y_CS, TMC_Y_RSENSE);
 #endif
 #if TMC_Z_TYPE==TMC_5160
-TMC5160Stepper Printer::tmcStepperZ(TMC_Z_CS, TMC_Z_RSENSE);
+TMC5160Stepper Machine::tmcStepperZ(TMC_Z_CS, TMC_Z_RSENSE);
 #endif
 #if TMC_2_TYPE==TMC_5160
-TMC5160Stepper Printer::tmcStepper2(TMC_2_CS, TMC_2_RSENSE);
+TMC5160Stepper Machine::tmcStepper2(TMC_2_CS, TMC_2_RSENSE);
 #endif
 #endif
 #if defined(PAUSE_PIN) && PAUSE_PIN>-1
-uint8_t  Printer::isPaused = 0;
+uint8_t  Machine::isPaused = 0;
 #if PAUSE_STEPS > 120
-int16_t Printer::pauseSteps = 0;
+int16_t Machine::pauseSteps = 0;
 #else
-int8_t Printer::pauseSteps = 0;
+int8_t Machine::pauseSteps = 0;
 #endif
 #endif //PAUSE
 #if SPEED_DIAL && SPEED_DIAL_PIN > -1
-uint8_t Printer::speed_dial = SPEED_DIAL_MIN_PERCENT;
+uint8_t Machine::speed_dial = SPEED_DIAL_MIN_PERCENT;
 #endif
 #if MULTI_XENDSTOP_HOMING
-fast8_t Printer::multiXHomeFlags;  // 1 = move X0, 2 = move X1
+fast8_t Machine::multiXHomeFlags;  // 1 = move X0, 2 = move X1
 #endif
 #if MULTI_YENDSTOP_HOMING
-fast8_t Printer::multiYHomeFlags;  // 1 = move Y0, 2 = move Y1
+fast8_t Machine::multiYHomeFlags;  // 1 = move Y0, 2 = move Y1
 #endif
 #if MULTI_ZENDSTOP_HOMING
-fast8_t Printer::multiZHomeFlags;  // 1 = move Z0, 2 = move Z1
+fast8_t Machine::multiZHomeFlags;  // 1 = move Z0, 2 = move Z1
 #endif
-#ifdef DEBUG_PRINT
+#ifdef DEBUG_MACHINE
 int debugWaitLoop = 0;
 #endif
 
-void Printer::constrainDestinationCoords() {
+void Machine::constrainDestinationCoords() {
     if(isNoDestinationCheck() || isHoming()) return;
 #if min_software_endstop_x
 	if (destinationSteps[X_AXIS] < axisMinSteps[X_AXIS]) destinationSteps[X_AXIS] = axisMinSteps[X_AXIS];
@@ -127,38 +127,38 @@ void Printer::constrainDestinationCoords() {
 	EVENT_CONTRAIN_DESTINATION_COORDINATES
 }
 
-void Printer::setDebugLevel(uint8_t newLevel) {
+void Machine::setDebugLevel(uint8_t newLevel) {
     if(newLevel != debugLevel) {
 		debugLevel = newLevel;
     }
     Com::printFLN(PSTR("DebugLevel:"), (int)newLevel);
 }
 
-void Printer::toggleEcho() {
+void Machine::toggleEcho() {
     setDebugLevel(debugLevel ^ 1);
 }
 
-void Printer::toggleInfo() {
+void Machine::toggleInfo() {
     setDebugLevel(debugLevel ^ 2);
 }
 
-void Printer::toggleErrors() {
+void Machine::toggleErrors() {
     setDebugLevel(debugLevel ^ 4);
 }
 
-void Printer::toggleCommunication() {
+void Machine::toggleCommunication() {
     setDebugLevel(debugLevel ^ 16);
 }
 
-void Printer::toggleNoMoves() {
+void Machine::toggleNoMoves() {
     setDebugLevel(debugLevel ^ 32);
 }
 
-void Printer::toggleEndStop() {
+void Machine::toggleEndStop() {
     setDebugLevel(debugLevel ^ 64);
 }
 
-bool Printer::isPositionAllowed(float x, float y, float z) {
+bool Machine::isPositionAllowed(float x, float y, float z) {
     if(isNoDestinationCheck()) return true;
 	bool allowed = true;
     if(!isHoming()) {
@@ -170,13 +170,13 @@ bool Printer::isPositionAllowed(float x, float y, float z) {
 		allowed = allowed && z <= axisMin[Z_AXIS] + axisLength[Z_AXIS] + ENDSTOP_Z_BACK_ON_HOME + 0.01;
 	}
     if(!allowed) {
-        Printer::updateCurrentPosition(true);
+        Machine::updateCurrentPosition(true);
         Commands::printCurrentPosition();
     }
     return allowed;
 }
 
-void Printer::setFanSpeedDirectly(uint8_t speed) {
+void Machine::setFanSpeedDirectly(uint8_t speed) {
 	uint8_t trimmedSpeed = TRIM_FAN_PWM(speed);
 #if FAN_PIN > -1 && FEATURE_FAN_CONTROL
     if(pwm_pos[PWM_FAN1] == trimmedSpeed)
@@ -190,7 +190,7 @@ void Printer::setFanSpeedDirectly(uint8_t speed) {
     pwm_pos[PWM_FAN1] = trimmedSpeed;
 #endif
 }
-void Printer::setFan2SpeedDirectly(uint8_t speed) {
+void Machine::setFan2SpeedDirectly(uint8_t speed) {
 	uint8_t trimmedSpeed = TRIM_FAN_PWM(speed);
 #if FAN2_PIN > -1 && FEATURE_FAN2_CONTROL
     if(pwm_pos[PWM_FAN2] == trimmedSpeed)
@@ -205,7 +205,7 @@ void Printer::setFan2SpeedDirectly(uint8_t speed) {
 #endif
 }
 
-void Printer::updateDerivedParameter() {
+void Machine::updateDerivedParameter() {
 	for(uint8_t i = 0; i < Z_AXIS_ARRAY; i++) {
 		axisMaxSteps[i] = static_cast<int32_t>(axisStepsPerMM[i] * (axisMin[i] + axisLength[i]));
 		axisMinSteps[i] = static_cast<int32_t>(axisStepsPerMM[i] * axisMin[i]);
@@ -257,11 +257,11 @@ void Printer::updateDerivedParameter() {
     EVENT_UPDATE_DERIVED;
 }
 #if AUTOMATIC_POWERUP
-void Printer::enablePowerIfNeeded() {
-	if(Printer::isPowerOn())
+void Machine::enablePowerIfNeeded() {
+	if(Machine::isPowerOn())
 		return;
     SET_OUTPUT(PS_ON_PIN); //GND
-    Printer::setPowerOn(true);
+    Machine::setPowerOn(true);
     WRITE(PS_ON_PIN, (POWER_INVERTING ? HIGH : LOW));
 	HAL::delayMilliseconds(500); // Just to ensure power is up and stable
 }
@@ -270,10 +270,10 @@ void Printer::enablePowerIfNeeded() {
 /**
   \brief Stop stepper motors. Disable power,if possible.
 */
-void Printer::kill(uint8_t onlySteppers) {
+void Machine::kill(uint8_t onlySteppers) {
     EVENT_KILL(onlySteppers);
     if(areAllSteppersDisabled() && onlySteppers) return;
-    if(Printer::isAllKilled()) return;
+    if(Machine::isAllKilled()) return;
 #if defined(NUM_MOTOR_DRIVERS) && NUM_MOTOR_DRIVERS > 0
     disableAllMotorDrivers();
 #endif // defined
@@ -293,9 +293,9 @@ void Printer::kill(uint8_t onlySteppers) {
         //pinMode(PS_ON_PIN,INPUT);
         SET_OUTPUT(PS_ON_PIN); //GND
         WRITE(PS_ON_PIN, (POWER_INVERTING ? LOW : HIGH));
-        Printer::setPowerOn(false);
+        Machine::setPowerOn(false);
 #endif
-        Printer::setAllKilled(true);
+        Machine::setAllKilled(true);
 	}
 #if FAN_BOARD_PIN > -1
         pwm_pos[PWM_BOARD_FAN] = BOARD_FAN_MIN_SPEED;
@@ -303,7 +303,7 @@ void Printer::kill(uint8_t onlySteppers) {
 }
 
 // This is for untransformed move to coordinates in printers absolute Cartesian space
-uint8_t Printer::moveTo(float x, float y, float z, float a, float f) {
+uint8_t Machine::moveTo(float x, float y, float z, float a, float f) {
     if(x != IGNORE_COORDINATE)
 		destinationSteps[X_AXIS] = x * axisStepsPerMM[X_AXIS];
     if(y != IGNORE_COORDINATE)
@@ -314,12 +314,12 @@ uint8_t Printer::moveTo(float x, float y, float z, float a, float f) {
 		destinationSteps[A_AXIS] = a * axisStepsPerMM[A_AXIS];
 	if(f != IGNORE_COORDINATE)
 		feedrate = f;
-	PrintLine::queueCartesianMove(ALWAYS_CHECK_ENDSTOPS, true);
+	MachineLine::queueCartesianMove(ALWAYS_CHECK_ENDSTOPS, true);
     updateCurrentPosition(false);
     return 1;
 }
 
-uint8_t Printer::moveToReal(float x, float y, float z, float a, float f, bool pathOptimize) {
+uint8_t Machine::moveToReal(float x, float y, float z, float a, float f, bool pathOptimize) {
     if(x == IGNORE_COORDINATE)
         x = currentPosition[X_AXIS];
     else
@@ -345,18 +345,18 @@ uint8_t Printer::moveToReal(float x, float y, float z, float a, float f, bool pa
 	if(f != IGNORE_COORDINATE)
         feedrate = f;
 
-	PrintLine::queueCartesianMove(ALWAYS_CHECK_ENDSTOPS, pathOptimize);
+	MachineLine::queueCartesianMove(ALWAYS_CHECK_ENDSTOPS, pathOptimize);
     return 1;
 }
 
-void Printer::setOrigin(float xOff, float yOff, float zOff) {
+void Machine::setOrigin(float xOff, float yOff, float zOff) {
 	coordinateOffset[X_AXIS] = xOff;// offset from G92
 	coordinateOffset[Y_AXIS] = yOff;
 	coordinateOffset[Z_AXIS] = zOff;
 }
 
 /** Computes currentPosition from currentPositionSteps including correction for offset. */
-void Printer::updateCurrentPosition(bool copyLastCmd) {
+void Machine::updateCurrentPosition(bool copyLastCmd) {
 	currentPosition[X_AXIS] = static_cast<float>(currentPositionSteps[X_AXIS]) * invAxisStepsPerMM[X_AXIS];
 	currentPosition[Y_AXIS] = static_cast<float>(currentPositionSteps[Y_AXIS]) * invAxisStepsPerMM[Y_AXIS];
 	currentPosition[Z_AXIS] = static_cast<float>(currentPositionSteps[Z_AXIS] - zCorrectionStepsIncluded) * invAxisStepsPerMM[Z_AXIS];
@@ -369,7 +369,7 @@ void Printer::updateCurrentPosition(bool copyLastCmd) {
     }
 }
 
-void Printer::updateCurrentPositionSteps() {
+void Machine::updateCurrentPositionSteps() {
 	currentPositionSteps[X_AXIS] = static_cast<int32_t>(floor(currentPosition[X_AXIS] * axisStepsPerMM[X_AXIS] + 0.5f));
 	currentPositionSteps[Y_AXIS] = static_cast<int32_t>(floor(currentPosition[Y_AXIS] * axisStepsPerMM[Y_AXIS] + 0.5f));
 	currentPositionSteps[Z_AXIS] = static_cast<int32_t>(floor(currentPosition[Z_AXIS] * axisStepsPerMM[Z_AXIS] + 0.5f));
@@ -385,7 +385,7 @@ position to destinationSteps including rotation and offsets, excluding distortio
 \return true if it is a move, false if no move results from coordinates.
  */
 
-uint8_t Printer::setDestinationStepsFromGCode(GCode *com) {
+uint8_t Machine::setDestinationStepsFromGCode(GCode *com) {
 	register int32_t p;
 	bool posAllowed = true;
 #if MOVE_X_WHEN_HOMED == 1 || MOVE_Y_WHEN_HOMED == 1 || MOVE_Z_WHEN_HOMED == 1
@@ -422,7 +422,7 @@ uint8_t Printer::setDestinationStepsFromGCode(GCode *com) {
 		destinationSteps[Y_AXIS] = static_cast<int32_t>(floor(lastCmdPos[Y_AXIS] * axisStepsPerMM[Y_AXIS] + 0.5f));
 		destinationSteps[Z_AXIS] = static_cast<int32_t>(floor(lastCmdPos[Z_AXIS] * axisStepsPerMM[Z_AXIS] + 0.5f));
 		destinationSteps[A_AXIS] = static_cast<int32_t>(floor(lastCmdPos[A_AXIS] * axisStepsPerMM[A_AXIS] + 0.5f));
-		posAllowed = com->hasNoXYZ() || Printer::isPositionAllowed(lastCmdPos[X_AXIS], lastCmdPos[Y_AXIS], lastCmdPos[Z_AXIS]);
+		posAllowed = com->hasNoXYZ() || Machine::isPositionAllowed(lastCmdPos[X_AXIS], lastCmdPos[Y_AXIS], lastCmdPos[Z_AXIS]);
 #if DISTORTION_CORRECTION == 0
     }
 #endif
@@ -438,7 +438,7 @@ uint8_t Printer::setDestinationStepsFromGCode(GCode *com) {
 	return !com->hasNoXYZA(); // ignore unproductive moves
 }
 
-void Printer::setup() {
+void Machine::setup() {
 	//SPI fix
 	pinMode(SS, OUTPUT);
 	pinMode(SCK, OUTPUT);
@@ -487,14 +487,14 @@ void Printer::setup() {
 #if defined(ENABLE_POWER_ON_STARTUP) && ENABLE_POWER_ON_STARTUP && (PS_ON_PIN>-1)
     SET_OUTPUT(PS_ON_PIN); //GND
     WRITE(PS_ON_PIN, (POWER_INVERTING ? HIGH : LOW));
-    Printer::setPowerOn(true);
+    Machine::setPowerOn(true);
 #else
 #if PS_ON_PIN > -1
     SET_OUTPUT(PS_ON_PIN); //GND
     WRITE(PS_ON_PIN, (POWER_INVERTING ? LOW : HIGH));
-    Printer::setPowerOn(false);
+    Machine::setPowerOn(false);
 #else
-    Printer::setPowerOn(true);
+    Machine::setPowerOn(true);
 #endif
 #endif
 #if SDSUPPORT
@@ -619,7 +619,7 @@ void Printer::setup() {
 	maxJerk[A_AXIS] = MAX_AJERK;
 	interval = 5000;
 	stepsPerTimerCall = 1;
-    flag0 = PRINTER_FLAG0_STEPPER_DISABLED;
+    flag0 = MACHINE_FLAG0_STEPPER_DISABLED;
 	axisLength[X_AXIS] = X_MAX_LENGTH;
 	axisLength[Y_AXIS] = Y_MAX_LENGTH;
 	axisLength[Z_AXIS] = Z_MAX_LENGTH;
@@ -697,19 +697,19 @@ void Printer::setup() {
 #endif
 }
 
-void Printer::defaultLoopActions() {
+void Machine::defaultLoopActions() {
     Commands::checkForPeriodicalActions(true);
 	millis_t curtime = HAL::timeInMilliseconds();
-	if(PrintLine::hasLines())
+	if(MachineLine::hasLines())
         previousMillisCmd = curtime;
     else {
         curtime -= previousMillisCmd;
         if(maxInactiveTime != 0 && curtime >  maxInactiveTime )
-            Printer::kill(false);
+            Machine::kill(false);
         else
-            Printer::setAllKilled(false); // prevent repeated kills
+            Machine::setAllKilled(false); // prevent repeated kills
         if(stepperInactiveTime != 0 && curtime >  stepperInactiveTime )
-            Printer::kill(true);
+            Machine::kill(true);
     }
 #if SDCARDDETECT > -1 && SDSUPPORT
     sd.automount();
@@ -721,14 +721,14 @@ void Printer::defaultLoopActions() {
     DEBUG_MEMORY;
 }
 
-void Printer::SetMemoryPosition() {
+void Machine::SetMemoryPosition() {
     Commands::waitUntilEndOfAllMoves();
     updateCurrentPosition(false);
 	realPosition(memoryPosition[X_AXIS], memoryPosition[Y_AXIS], memoryPosition[Z_AXIS], memoryPosition[A_AXIS]);
 	memoryF = feedrate;
 }
 
-void Printer::GoToMemoryPosition(bool x, bool y, bool z, bool a, float feed) {
+void Machine::GoToMemoryPosition(bool x, bool y, bool z, bool a, float feed) {
     if(memoryF < 0) return; // Not stored before call, so we ignore it
 	bool all = !(x || y || z || a);
 	moveToReal((all || x ? (lastCmdPos[X_AXIS] = memoryPosition[X_AXIS]) : IGNORE_COORDINATE)
@@ -740,7 +740,7 @@ void Printer::GoToMemoryPosition(bool x, bool y, bool z, bool a, float feed) {
     updateCurrentPosition(false);
 }
 
-void Printer::homeXAxis() {
+void Machine::homeXAxis() {
     bool nocheck = isNoDestinationCheck();
     setNoDestinationCheck(true);
     long steps;
@@ -749,15 +749,15 @@ void Printer::homeXAxis() {
     if ((MIN_HARDWARE_ENDSTOP_X && X_MIN_PIN > -1 && X_HOME_DIR == -1) || (MAX_HARDWARE_ENDSTOP_X && X_MAX_PIN > -1 && X_HOME_DIR == 1)) {
         coordinateOffset[X_AXIS] = 0;
 		long offX = 0;
-		steps = (Printer::axisMaxSteps[X_AXIS] - Printer::axisMinSteps[X_AXIS]) * X_HOME_DIR;
+		steps = (Machine::axisMaxSteps[X_AXIS] - Machine::axisMinSteps[X_AXIS]) * X_HOME_DIR;
 		currentPositionSteps[X_AXIS] = -steps;
-        PrintLine::moveRelativeDistanceInSteps(2 * steps, 0, 0, 0, homingFeedrate[X_AXIS], true, true);
+        MachineLine::moveRelativeDistanceInSteps(2 * steps, 0, 0, 0, homingFeedrate[X_AXIS], true, true);
 		currentPositionSteps[X_AXIS] = (X_HOME_DIR == -1) ? axisMinSteps[X_AXIS] - offX : axisMaxSteps[X_AXIS] + offX;
-        PrintLine::moveRelativeDistanceInSteps(axisStepsPerMM[X_AXIS] * -ENDSTOP_X_BACK_MOVE * X_HOME_DIR, 0, 0, 0, homingFeedrate[X_AXIS] / ENDSTOP_X_RETEST_REDUCTION_FACTOR, true, false);
-        PrintLine::moveRelativeDistanceInSteps(axisStepsPerMM[X_AXIS] * 2 * ENDSTOP_X_BACK_MOVE * X_HOME_DIR, 0, 0, 0, homingFeedrate[X_AXIS] / ENDSTOP_X_RETEST_REDUCTION_FACTOR, true, true);
+        MachineLine::moveRelativeDistanceInSteps(axisStepsPerMM[X_AXIS] * -ENDSTOP_X_BACK_MOVE * X_HOME_DIR, 0, 0, 0, homingFeedrate[X_AXIS] / ENDSTOP_X_RETEST_REDUCTION_FACTOR, true, false);
+        MachineLine::moveRelativeDistanceInSteps(axisStepsPerMM[X_AXIS] * 2 * ENDSTOP_X_BACK_MOVE * X_HOME_DIR, 0, 0, 0, homingFeedrate[X_AXIS] / ENDSTOP_X_RETEST_REDUCTION_FACTOR, true, true);
 #if defined(ENDSTOP_X_BACK_ON_HOME)
         if(ENDSTOP_X_BACK_ON_HOME > 0)
-            PrintLine::moveRelativeDistanceInSteps(axisStepsPerMM[X_AXIS] * -ENDSTOP_X_BACK_ON_HOME * X_HOME_DIR, 0, 0, 0, homingFeedrate[X_AXIS], true, true);
+            MachineLine::moveRelativeDistanceInSteps(axisStepsPerMM[X_AXIS] * -ENDSTOP_X_BACK_ON_HOME * X_HOME_DIR, 0, 0, 0, homingFeedrate[X_AXIS], true, true);
 #endif
 		currentPositionSteps[X_AXIS] = (X_HOME_DIR == -1) ? axisMinSteps[X_AXIS] - offX : axisMaxSteps[X_AXIS] + offX;
         setXHomed(true);
@@ -766,22 +766,22 @@ void Printer::homeXAxis() {
     setHoming(false);
 }
 
-void Printer::homeYAxis() {
+void Machine::homeYAxis() {
     long steps;
     if ((MIN_HARDWARE_ENDSTOP_Y && Y_MIN_PIN > -1 && Y_HOME_DIR == -1) || (MAX_HARDWARE_ENDSTOP_Y && Y_MAX_PIN > -1 && Y_HOME_DIR == 1)) {
         coordinateOffset[Y_AXIS] = 0;
 		long offY = 0;
-		steps = (axisMaxSteps[Y_AXIS] - Printer::axisMinSteps[Y_AXIS]) * Y_HOME_DIR;
+		steps = (axisMaxSteps[Y_AXIS] - Machine::axisMinSteps[Y_AXIS]) * Y_HOME_DIR;
         currentPositionSteps[Y_AXIS] = -steps;
 		setHoming(true);
-        PrintLine::moveRelativeDistanceInSteps(0, 2 * steps, 0, 0, homingFeedrate[Y_AXIS], true, true);
+        MachineLine::moveRelativeDistanceInSteps(0, 2 * steps, 0, 0, homingFeedrate[Y_AXIS], true, true);
 		currentPositionSteps[Y_AXIS] = (Y_HOME_DIR == -1) ? axisMinSteps[Y_AXIS] - offY : axisMaxSteps[Y_AXIS] + offY;
-        PrintLine::moveRelativeDistanceInSteps(0, axisStepsPerMM[Y_AXIS] * -ENDSTOP_Y_BACK_MOVE * Y_HOME_DIR, 0, 0, homingFeedrate[Y_AXIS] / ENDSTOP_X_RETEST_REDUCTION_FACTOR, true, false);
-        PrintLine::moveRelativeDistanceInSteps(0, axisStepsPerMM[Y_AXIS] * 2 * ENDSTOP_Y_BACK_MOVE * Y_HOME_DIR, 0, 0, homingFeedrate[Y_AXIS] / ENDSTOP_X_RETEST_REDUCTION_FACTOR, true, true);
+        MachineLine::moveRelativeDistanceInSteps(0, axisStepsPerMM[Y_AXIS] * -ENDSTOP_Y_BACK_MOVE * Y_HOME_DIR, 0, 0, homingFeedrate[Y_AXIS] / ENDSTOP_X_RETEST_REDUCTION_FACTOR, true, false);
+        MachineLine::moveRelativeDistanceInSteps(0, axisStepsPerMM[Y_AXIS] * 2 * ENDSTOP_Y_BACK_MOVE * Y_HOME_DIR, 0, 0, homingFeedrate[Y_AXIS] / ENDSTOP_X_RETEST_REDUCTION_FACTOR, true, true);
         setHoming(false);
 #if defined(ENDSTOP_Y_BACK_ON_HOME)
         if(ENDSTOP_Y_BACK_ON_HOME > 0)
-            PrintLine::moveRelativeDistanceInSteps(0, axisStepsPerMM[Y_AXIS] * -ENDSTOP_Y_BACK_ON_HOME * Y_HOME_DIR, 0, 0, homingFeedrate[Y_AXIS], true, false);
+            MachineLine::moveRelativeDistanceInSteps(0, axisStepsPerMM[Y_AXIS] * -ENDSTOP_Y_BACK_ON_HOME * Y_HOME_DIR, 0, 0, homingFeedrate[Y_AXIS], true, false);
 #endif
 		currentPositionSteps[Y_AXIS] = (Y_HOME_DIR == -1) ? axisMinSteps[Y_AXIS] - offY : axisMaxSteps[Y_AXIS] + offY;
         setYHomed(true);
@@ -844,11 +844,11 @@ this result is wrong and we need to correct by the z change between origin and c
 ## Step 10: Update NMC for nonlinear systems
 
 */
-void Printer::homeZAxis() { // Cartesian homing
+void Machine::homeZAxis() { // Cartesian homing
     long steps;
     if ((MIN_HARDWARE_ENDSTOP_Z && Z_MIN_PIN > -1 && Z_HOME_DIR == -1) || (MAX_HARDWARE_ENDSTOP_Z && Z_MAX_PIN > -1 && Z_HOME_DIR == 1)) {
 #if Z_HOME_DIR < 0 && Z_PROBE_PIN == Z_MIN_PIN && FEATURE_Z_PROBE
-        Printer::startProbing(true);
+        Machine::startProbing(true);
 #endif
         coordinateOffset[Z_AXIS] = 0; // G92 Z offset
 		steps = (axisMaxSteps[Z_AXIS] - axisMinSteps[Z_AXIS]) * Z_HOME_DIR;
@@ -857,9 +857,9 @@ void Printer::homeZAxis() { // Cartesian homing
 #if defined(Z_PROBE_DELAY) && Z_PROBE_DELAY > 0 && Z_MIN_PIN == Z_PROBE_PIN && Z_HOME_DIR == -1
         HAL::delayMilliseconds(Z_PROBE_DELAY);
 #endif
-        PrintLine::moveRelativeDistanceInSteps(0, 0, 2 * steps, 0, homingFeedrate[Z_AXIS], true, true);
+        MachineLine::moveRelativeDistanceInSteps(0, 0, 2 * steps, 0, homingFeedrate[Z_AXIS], true, true);
 		currentPositionSteps[Z_AXIS] = (Z_HOME_DIR == -1) ? axisMinSteps[Z_AXIS] : axisMaxSteps[Z_AXIS];
-        PrintLine::moveRelativeDistanceInSteps(0, 0, axisStepsPerMM[Z_AXIS] * -ENDSTOP_Z_BACK_MOVE * Z_HOME_DIR, 0, homingFeedrate[Z_AXIS] / ENDSTOP_Z_RETEST_REDUCTION_FACTOR, true, false);
+        MachineLine::moveRelativeDistanceInSteps(0, 0, axisStepsPerMM[Z_AXIS] * -ENDSTOP_Z_BACK_MOVE * Z_HOME_DIR, 0, homingFeedrate[Z_AXIS] / ENDSTOP_Z_RETEST_REDUCTION_FACTOR, true, false);
 #if defined(ZHOME_WAIT_UNSWING) && ZHOME_WAIT_UNSWING > 0
         HAL::delayMilliseconds(ZHOME_WAIT_UNSWING);
 #endif
@@ -871,9 +871,9 @@ void Printer::homeZAxis() { // Cartesian homing
 GCode::executeFString(PSTR(Z_PROBE_RUN_AFTER_EVERY_PROBE));
 #endif
 #endif
-        PrintLine::moveRelativeDistanceInSteps(0, 0, axisStepsPerMM[Z_AXIS] * 2 * ENDSTOP_Z_BACK_MOVE * Z_HOME_DIR, 0, homingFeedrate[Z_AXIS] / ENDSTOP_Z_RETEST_REDUCTION_FACTOR, true, true);
+        MachineLine::moveRelativeDistanceInSteps(0, 0, axisStepsPerMM[Z_AXIS] * 2 * ENDSTOP_Z_BACK_MOVE * Z_HOME_DIR, 0, homingFeedrate[Z_AXIS] / ENDSTOP_Z_RETEST_REDUCTION_FACTOR, true, true);
 #if Z_HOME_DIR < 0 && Z_PROBE_PIN == Z_MIN_PIN && FEATURE_Z_PROBE
-        Printer::finishProbing();
+        Machine::finishProbing();
 #endif
         setHoming(false);
         int32_t zCorrection = 0;
@@ -892,13 +892,13 @@ GCode::executeFString(PSTR(Z_PROBE_RUN_AFTER_EVERY_PROBE));
             zCorrection -= axisStepsPerMM[Z_AXIS] * ENDSTOP_Z_BACK_ON_HOME * Z_HOME_DIR;
 #endif
         //Com::printFLN(PSTR("Z-Correction-Steps:"),zCorrection); // TEST
-		PrintLine::moveRelativeDistanceInSteps(0, 0, zCorrection, 0, homingFeedrate[Z_AXIS], true, false);
+		MachineLine::moveRelativeDistanceInSteps(0, 0, zCorrection, 0, homingFeedrate[Z_AXIS], true, false);
 		currentPositionSteps[Z_AXIS] = ((Z_HOME_DIR == -1) ? axisMinSteps[Z_AXIS] : axisMaxSteps[Z_AXIS]);
 #if DISTORTION_CORRECTION && Z_HOME_DIR < 0 && Z_PROBE_PIN == Z_MIN_PIN && FEATURE_Z_PROBE
 // Special case where z probe is z min end stop and distortion correction is enabled
-        if(Printer::distortion.isEnabled()) {
-            Printer::zCorrectionStepsIncluded = Printer::distortion.correct(Printer::currentPositionSteps[X_AXIS], currentPositionSteps[Y_AXIS], currentPositionSteps[Z_AXIS]);
-            currentPositionSteps[Z_AXIS] += Printer::zCorrectionStepsIncluded;
+        if(Machine::distortion.isEnabled()) {
+            Machine::zCorrectionStepsIncluded = Machine::distortion.correct(Machine::currentPositionSteps[X_AXIS], currentPositionSteps[Y_AXIS], currentPositionSteps[Z_AXIS]);
+            currentPositionSteps[Z_AXIS] += Machine::zCorrectionStepsIncluded;
         }
 #endif
         updateCurrentPosition(true);
@@ -914,14 +914,14 @@ GCode::executeFString(PSTR(Z_PROBE_RUN_AFTER_EVERY_PROBE));
 
 /** \brief Main function for all homing operations.
 
-For homing operations only this function should be used. It calls Printer::homeXAxis, Printer::homeYAxis and Printer::homeZAxis
+For homing operations only this function should be used. It calls Machine::homeXAxis, Machine::homeYAxis and Machine::homeZAxis
 after doing some initialization work. The order of operation and some extra functions are controlled by HOMING_ORDER.
 
 \param xaxis True if homing of x axis is wanted.
 \param yaxis True if homing of y axis is wanted.
 \param zaxis True if homing of z axis is wanted.
 */
-void Printer::homeAxis(bool xaxis, bool yaxis, bool zaxis) { // home non-delta printer
+void Machine::homeAxis(bool xaxis, bool yaxis, bool zaxis) { // home non-delta printer
     bool nocheck = isNoDestinationCheck();
     setNoDestinationCheck(true);
 
@@ -933,10 +933,10 @@ void Printer::homeAxis(bool xaxis, bool yaxis, bool zaxis) { // home non-delta p
 #if Z_HOME_DIR < 0
 #if ZHOME_PRE_RAISE == 1
     if(zaxis && Endstops::zProbe())
-        PrintLine::moveRelativeDistanceInSteps(0, 0, ZHOME_PRE_RAISE_DISTANCE * axisStepsPerMM[Z_AXIS], 0, homingFeedrate[Z_AXIS], true, true);
+        MachineLine::moveRelativeDistanceInSteps(0, 0, ZHOME_PRE_RAISE_DISTANCE * axisStepsPerMM[Z_AXIS], 0, homingFeedrate[Z_AXIS], true, true);
 #elif ZHOME_PRE_RAISE == 2
     if(zaxis)
-        PrintLine::moveRelativeDistanceInSteps(0, 0, ZHOME_PRE_RAISE_DISTANCE * axisStepsPerMM[Z_AXIS], 0, homingFeedrate[Z_AXIS], true, true);
+        MachineLine::moveRelativeDistanceInSteps(0, 0, ZHOME_PRE_RAISE_DISTANCE * axisStepsPerMM[Z_AXIS], 0, homingFeedrate[Z_AXIS], true, true);
 #endif
 #endif
 #if Z_HOME_DIR < 0 && Z_PROBE_PIN == Z_MIN_PIN && FEATURE_Z_PROBE
@@ -979,21 +979,21 @@ void Printer::homeAxis(bool xaxis, bool yaxis, bool zaxis) { // home non-delta p
 	if(xaxis) homeXAxis();
 #endif
 	if(xaxis) {
-		if(X_HOME_DIR < 0) startX = Printer::axisMin[X_AXIS];
-		else startX = Printer::axisMin[X_AXIS] + Printer::axisLength[X_AXIS];
+		if(X_HOME_DIR < 0) startX = Machine::axisMin[X_AXIS];
+		else startX = Machine::axisMin[X_AXIS] + Machine::axisLength[X_AXIS];
     }
     if(yaxis) {
-		if(Y_HOME_DIR < 0) startY = Printer::axisMin[Y_AXIS];
-		else startY = Printer::axisMin[Y_AXIS] + Printer::axisLength[Y_AXIS];
+		if(Y_HOME_DIR < 0) startY = Machine::axisMin[Y_AXIS];
+		else startY = Machine::axisMin[Y_AXIS] + Machine::axisLength[Y_AXIS];
 	}
     if(zaxis) {
-		if(Z_HOME_DIR < 0) startZ = Printer::axisMin[Z_AXIS];
-		else startZ = Printer::axisMin[Z_AXIS] + Printer::axisLength[Z_AXIS];
+		if(Z_HOME_DIR < 0) startZ = Machine::axisMin[Z_AXIS];
+		else startZ = Machine::axisMin[Z_AXIS] + Machine::axisLength[Z_AXIS];
 	}
     updateCurrentPosition(true);
 #if defined(Z_UP_AFTER_HOME) && Z_HOME_DIR < 0
 #ifdef HOME_ZUP_FIRST
-    PrintLine::moveRelativeDistanceInSteps(0, 0, axisStepsPerMM[Z_AXIS]*Z_UP_AFTER_HOME * Z_HOME_DIR, 0, homingFeedrate[Z_AXIS], true, false);
+    MachineLine::moveRelativeDistanceInSteps(0, 0, axisStepsPerMM[Z_AXIS]*Z_UP_AFTER_HOME * Z_HOME_DIR, 0, homingFeedrate[Z_AXIS], true, false);
 #endif
     if(zaxis)
         startZ = Z_UP_AFTER_HOME;
@@ -1003,17 +1003,17 @@ void Printer::homeAxis(bool xaxis, bool yaxis, bool zaxis) { // home non-delta p
     updateHomedAll();
 	Commands::printCurrentPosition();
     setNoDestinationCheck(nocheck);
-    Printer::updateCurrentPosition();
+    Machine::updateCurrentPosition();
 }
 
-void Printer::setCaseLight(bool on) {
+void Machine::setCaseLight(bool on) {
 #if CASE_LIGHTS_PIN > -1
     WRITE(CASE_LIGHTS_PIN, on);
     reportCaseLightStatus();
 #endif
 }
 
-void Printer::reportCaseLightStatus() {
+void Machine::reportCaseLightStatus() {
 #if CASE_LIGHTS_PIN > -1
     if(READ(CASE_LIGHTS_PIN))
         Com::printInfoFLN(PSTR("Case lights on"));
@@ -1024,7 +1024,7 @@ void Printer::reportCaseLightStatus() {
 #endif
 }
 
-void Printer::handleInterruptEvent() {
+void Machine::handleInterruptEvent() {
     if(interruptEvent == 0) return;
     int event = interruptEvent;
     interruptEvent = 0;
@@ -1033,7 +1033,7 @@ void Printer::handleInterruptEvent() {
     }
 }
 
-void Printer::showConfiguration() {
+void Machine::showConfiguration() {
 	Com::config(PSTR("Baudrate:"), baudrate);
 #ifndef EXTERNALSERIAL
     Com::config(PSTR("InputBuffer:"), SERIAL_BUFFER_SIZE - 1);
@@ -1055,7 +1055,7 @@ void Printer::showConfiguration() {
 	Com::config(PSTR("CaseLights:"), CASE_LIGHTS_PIN > -1);
     Com::config(PSTR("ZProbe:"), FEATURE_Z_PROBE);
 	Com::config(PSTR("EEPROM:"), EEPROM_MODE != 0);
-    Com::config(PSTR("PrintlineCache:"), PRINTLINE_CACHE_SIZE);
+    Com::config(PSTR("MachinelineCache:"), MACHINELINE_CACHE_SIZE);
 	Com::config(PSTR("KeepAliveInterval:"), KEEP_ALIVE_INTERVAL);
 	Com::config(PSTR("JerkX:"), maxJerk[X_AXIS]);
 	Com::config(PSTR("JerkY:"), maxJerk[Y_AXIS]);
@@ -1078,7 +1078,7 @@ void Printer::showConfiguration() {
 }
 
 #if TMC_DRIVERS
-void Printer::configTMC5160(TMC5160Stepper* driver, uint8_t intpol, uint16_t rms, float hold_mult, uint8_t hold_delay, uint8_t tpower_down,
+void Machine::configTMC5160(TMC5160Stepper* driver, uint8_t intpol, uint16_t rms, float hold_mult, uint8_t hold_delay, uint8_t tpower_down,
 							uint8_t hstart, uint8_t hend, uint8_t toff, uint8_t tbl, uint8_t tpfd, uint8_t pwm_freq, uint16_t tpwmthrs,
 							uint16_t tcoolthrs, uint16_t thighthrs, uint8_t semin, uint8_t semax, int8_t sgt, uint8_t s2vs, uint8_t s2g,
 							uint8_t sfilter, uint16_t microsteps, uint8_t pwm_grad, uint8_t pwm_ofs, uint8_t pwm_lim, uint8_t mode)
@@ -1120,21 +1120,21 @@ void Printer::configTMC5160(TMC5160Stepper* driver, uint8_t intpol, uint16_t rms
 	wdt_reset();
 }
 
-void Printer::CheckTMCDrivers()
+void Machine::CheckTMCDrivers()
 {
-	if(Printer::tmcStepperX.DRV_STATUS() & 0b00011010000000000011000000000000)
+	if(Machine::tmcStepperX.DRV_STATUS() & 0b00011010000000000011000000000000)
 	{
 		Com::printErrorFLN(PSTR("X TMC Driver faulted."));
 		Commands::emergencyStop();
-	} else if(Printer::tmcStepperY.DRV_STATUS() & 0b00011010000000000011000000000000)
+	} else if(Machine::tmcStepperY.DRV_STATUS() & 0b00011010000000000011000000000000)
 	{
 		Com::printErrorFLN(PSTR("Y TMC Driver faulted."));
 		Commands::emergencyStop();
-	} else if(Printer::tmcStepperZ.DRV_STATUS() & 0b00011010000000000011000000000000)
+	} else if(Machine::tmcStepperZ.DRV_STATUS() & 0b00011010000000000011000000000000)
 	{
 		Com::printErrorFLN(PSTR("Z TMC Driver faulted."));
 		Commands::emergencyStop();
-	} else if(Printer::tmcStepper2.DRV_STATUS() & 0b00011010000000000011000000000000)
+	} else if(Machine::tmcStepper2.DRV_STATUS() & 0b00011010000000000011000000000000)
 	{
 		Com::printErrorFLN(PSTR("2 TMC Driver faulted."));
 		Commands::emergencyStop();

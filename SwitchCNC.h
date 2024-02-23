@@ -40,7 +40,7 @@ usage or for searching for memory induced errors. Switch it off for production, 
 /** This enables code to make M666 drop an ok, so you get problems with communication. It is to test host robustness. */
 //#define DEBUG_COM_ERRORS
 /** Adds a menu point in quick settings to write debug informations to the host in case of hangs where the ui still works. */
-//#define DEBUG_PRINT
+//#define DEBUG_MACHINE
 // Find the longest segment length during a print
 //#define DEBUG_SEGMENT_LENGTH
 // Find the maximum real jerk during a print
@@ -50,10 +50,10 @@ usage or for searching for memory induced errors. Switch it off for production, 
 // Uncomment the following line to enable debugging. You can better control debugging below the following line
 //#define DEBUG
 
-#define DEBUG_MSG(x) {if(Printer::debugEcho()) { Com::printFLN(PSTR(x));HAL::delayMilliseconds(20);}}
-#define DEBUG_MSG2(x,y) {if(Printer::debugEcho()) {Com::printFLN(PSTR(x),y);HAL::delayMilliseconds(20);}}
-#define DEBUG_MSG_FAST(x) {if(Printer::debugEcho()) {Com::printFLN(PSTR(x));}}
-#define DEBUG_MSG2_FAST(x,y) {if(Printer::debugEcho()) {Com::printFLN(PSTR(x),y);}}
+#define DEBUG_MSG(x) {if(Machine::debugEcho()) { Com::printFLN(PSTR(x));HAL::delayMilliseconds(20);}}
+#define DEBUG_MSG2(x,y) {if(Machine::debugEcho()) {Com::printFLN(PSTR(x),y);HAL::delayMilliseconds(20);}}
+#define DEBUG_MSG_FAST(x) {if(Machine::debugEcho()) {Com::printFLN(PSTR(x));}}
+#define DEBUG_MSG2_FAST(x,y) {if(Machine::debugEcho()) {Com::printFLN(PSTR(x),y);}}
 
 #define IGNORE_COORDINATE 999999
 
@@ -555,7 +555,7 @@ extern millis_t maxInactiveTime;
 extern millis_t stepperInactiveTime;
 
 #include "AnalogIn.h"
-#include "Printer.h"
+#include "Machine.h"
 #include "motion.h"
 extern long baudrate;
 
@@ -636,9 +636,7 @@ private:
 extern SDCard sd;
 #endif
 
-extern void updateStepsParameter(PrintLine *p/*,uint8_t caller*/);
-
-#ifdef DEBUG_PRINT
+#ifdef DEBUG_MACHINE
 extern int debugWaitLoop;
 #endif
 

@@ -186,7 +186,7 @@
 #define MAX_YJERK								4
 #define MAX_ZJERK								2
 #define MAX_AJERK								2
-#define PRINTLINE_CACHE_SIZE					24
+#define MACHINELINE_CACHE_SIZE					24
 #define ALWAYS_SPLIT_LINES						0
 #define SEGMENT_SIZE							5
 #define MOVE_CACHE_LOW							8

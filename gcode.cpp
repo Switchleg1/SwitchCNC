@@ -238,7 +238,7 @@ void GCode::checkAndPushCommand()
             else if(waitingForResend < 0)  // after a resend, we have to skip the garbage in buffers, no message for this
 #endif
             {
-                if(Printer::debugErrors())
+                if(Machine::debugErrors())
                 {
 #if NEW_COMMUNICATION
                     Com::printF(Com::tExpectedLine, GCodeSource::activeSource->lastLineNumber + 1);
@@ -270,7 +270,7 @@ void GCode::checkAndPushCommand()
     } /*
 	This test is not compatible with all hosts. Replaced by forbidding backward switch of protocols.
 	else if(lastLineNumber && !(hasM() && M == 117)) { // once line number always line number!
-		if(Printer::debugErrors())
+		if(Machine::debugErrors())
         {
 			Com::printErrorFLN(PSTR("Missing linenumber"));
 		}
@@ -334,7 +334,7 @@ void GCode::popCurrentCommand()
 
 void GCode::echoCommand()
 {
-    if(Printer::debugEcho())
+    if(Machine::debugEcho())
     {
         Com::printF(Com::tEcho);
         printCommand();
@@ -388,12 +388,12 @@ void GCode::executeFString(FSTRINGPARAM(cmd))
         // Send command into command buffer
         if(code.parseAscii((char *)buf,false) && (code.params & 518))   // Success
         {
-#ifdef DEBUG_PRINT
+#ifdef DEBUG_MACHINE
             debugWaitLoop = 7;
 #endif
 
             Commands::executeGCode(&code);
-            Printer::defaultLoopActions();
+            Machine::defaultLoopActions();
         }
     }
     while(c);
@@ -743,7 +743,7 @@ bool GCode::parseBinary(uint8_t *buffer,bool fromSerial)
     sum2 -= *p;
     if(sum1 | sum2)
     {
-        if(Printer::debugErrors())
+        if(Machine::debugErrors())
         {
             Com::printErrorFLN(Com::tWrongChecksum);
         }
@@ -1111,11 +1111,11 @@ bool GCode::parseAscii(char *line,bool fromSerial)
             uint8_t checksum = 0;
             while(line != (pos - 1)) checksum ^= *line++;
 #if FEATURE_CHECKSUM_FORCED
-            Printer::flag0 |= PRINTER_FLAG0_FORCE_CHECKSUM;
+            Machine::flag0 |= MACHINE_FLAG0_FORCE_CHECKSUM;
 #endif
             if(checksum != checksum_given)
             {
-                if(Printer::debugErrors())
+                if(Machine::debugErrors())
                 {
                     Com::printErrorFLN(Com::tWrongChecksum);
                 }
@@ -1139,7 +1139,7 @@ bool GCode::parseAscii(char *line,bool fromSerial)
     if(hasFormatError() /*|| (params & 518) == 0*/)   // Must contain G, M or T command and parameter need to have variables!
     {
         formatErrors++;
-        if(Printer::debugErrors())
+        if(Machine::debugErrors())
             Com::printErrorFLN(Com::tFormatError);
         if(formatErrors < 3) return false;
     }
@@ -1259,11 +1259,11 @@ void GCode::fatalError(FSTRINGPARAM(message)) {
 	sd.stopPrint();
 #endif
 	GCodeSource::printAllFLN(PSTR("RequestStop:"));
-	if(Printer::currentPosition[Z_AXIS] < Printer::axisMin[Z_AXIS] + Printer::axisLength[Z_AXIS] - 15)
-		PrintLine::moveRelativeDistanceInSteps(0, 0, 10 * Printer::axisStepsPerMM[Z_AXIS], 0, Printer::homingFeedrate[Z_AXIS], true, true);
+	if(Machine::currentPosition[Z_AXIS] < Machine::axisMin[Z_AXIS] + Machine::axisLength[Z_AXIS] - 15)
+		MachineLine::moveRelativeDistanceInSteps(0, 0, 10 * Machine::axisStepsPerMM[Z_AXIS], 0, Machine::homingFeedrate[Z_AXIS], true, true);
 	EVENT_FATAL_ERROR_OCCURED
 	Commands::waitUntilEndOfAllMoves();
-	Printer::kill(false);
+	Machine::kill(false);
 	reportFatalError();
 }
 
@@ -1276,7 +1276,7 @@ void GCode::reportFatalError() {
 
 void GCode::resetFatalError() {
     Com::writeToAll = true;
-	Printer::debugReset(8); // disable dry run
+	Machine::debugReset(8); // disable dry run
 	fatalErrorMsg = NULL;
 	EVENT_CONTINUE_FROM_FATAL_ERROR
 	Com::printFLN(PSTR("info:Continue from fatal state"));

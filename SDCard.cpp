@@ -13,7 +13,7 @@ SDCard::SDCard() {
     sdmode = 0;
     sdactive = false;
     savetosd = false;
-    Printer::setAutomount(false);
+    Machine::setAutomount(false);
 }
 
 void SDCard::automount() {
@@ -99,7 +99,7 @@ void SDCard::unmount() {
     sdmode = 0;
     sdactive = false;
     savetosd = false;
-    Printer::setAutomount(false);
+    Machine::setAutomount(false);
 	Com::printFLN(PSTR("SD Card unmounted"));
 }
 
@@ -121,10 +121,10 @@ void SDCard::pausePrint(bool intern) {
         if(intern) {
             Commands::waitUntilEndOfAllBuffers();
             //sdmode = 0; // why ?
-            Printer::MemoryPosition();
-            Printer::lastCmdPos[X_AXIS] = Printer::currentPosition[X_AXIS];
-            Printer::lastCmdPos[Y_AXIS] = Printer::currentPosition[Y_AXIS];
-            Printer::lastCmdPos[Z_AXIS] = Printer::currentPosition[Z_AXIS];
+            Machine::MemoryPosition();
+            Machine::lastCmdPos[X_AXIS] = Machine::currentPosition[X_AXIS];
+            Machine::lastCmdPos[Y_AXIS] = Machine::currentPosition[Y_AXIS];
+            Machine::lastCmdPos[Z_AXIS] = Machine::currentPosition[Z_AXIS];
             GCode::executeFString(PSTR(PAUSE_START_COMMANDS));
         }
     }
@@ -136,9 +136,9 @@ void SDCard::continuePrint(bool intern) {
     if(EVENT_SD_CONTINUE_START(intern)) {
         if(intern) {
             GCode::executeFString(PSTR(PAUSE_END_COMMANDS));
-			Printer::GoToMemoryPosition(true, true, false, false, Printer::maxFeedrate[X_AXIS]);
-			Printer::GoToMemoryPosition(false, false, true, false, Printer::maxFeedrate[Z_AXIS] / 2.0f);
-			Printer::GoToMemoryPosition(false, false, false, true, Printer::maxFeedrate[A_AXIS] / 2.0f);
+			Machine::GoToMemoryPosition(true, true, false, false, Machine::maxFeedrate[X_AXIS]);
+			Machine::GoToMemoryPosition(false, false, true, false, Machine::maxFeedrate[Z_AXIS] / 2.0f);
+			Machine::GoToMemoryPosition(false, false, false, true, Machine::maxFeedrate[A_AXIS] / 2.0f);
         }
     }
     EVENT_SD_CONTINUE_END(intern);
@@ -160,7 +160,7 @@ void SDCard::stopPrint() {
         GCode::executeFString(PSTR(SD_RUN_ON_STOP));
         if(SD_STOP_MOTORS_ON_STOP) {
             Commands::waitUntilEndOfAllMoves();
-            Printer::kill(false);
+            Machine::kill(false);
         }
     }
     EVENT_SD_STOP_END;

@@ -5,8 +5,7 @@ int Commands::lowestRAMValue = MAX_RAM;
 int Commands::lowestRAMValueSend = MAX_RAM;
 
 void Commands::commandLoop() {
-    //while(true) {
-#ifdef DEBUG_PRINT
+#ifdef DEBUG_MACHINE
     debugWaitLoop = 1;
 #endif
 	GCode::readFromSerial();
@@ -26,29 +25,30 @@ void Commands::commandLoop() {
 		Commands::executeGCode(code);
 		code->popCurrentCommand();
     }
-    Printer::defaultLoopActions();
+    Machine::defaultLoopActions();
 }
 
 void Commands::checkForPeriodicalActions(bool allowNewMoves) {
-    Printer::handleInterruptEvent();
+    Machine::handleInterruptEvent();
 	EVENT_PERIODICAL;
     if(!executePeriodical) return; // gets true every 100ms
 	executePeriodical = 0;
 #if defined(PAUSE_PIN) && PAUSE_PIN>-1
 	bool getPaused = (READ(PAUSE_PIN) != !PAUSE_INVERTING);
-	if(Printer::isPaused != getPaused)
+	if(Machine::isPaused != getPaused)
 	{
-		if(!PrintLine::hasLines())
+		if(!MachineLine::hasLines())
 		{
-			if(getPaused) Printer::pauseSteps = PAUSE_STEPS;
-				else Printer::pauseSteps = 0;
+			if(getPaused) Machine::pauseSteps = PAUSE_STEPS;
+				else Machine::pauseSteps = 0;
 		}
 
 		if(getPaused) Com::printFLN(Com::tPaused);
 			else Com::printFLN(Com::tUnpaused);
-		Printer::isPaused = getPaused;
+		Machine::isPaused = getPaused;
 	}
 #endif
+
 #if SPEED_DIAL && SPEED_DIAL_PIN > -1
     uint8 maxSpeedValue = 1 << SPEED_DIAL_BITS;
     uint8 minSpeedValue = (uint)maxSpeedValue * SPEED_DIAL_MIN_PERCENT / 100;
@@ -62,14 +62,14 @@ void Commands::checkForPeriodicalActions(bool allowNewMoves) {
         value = maxSpeedValue;
     }
    
-    Printer::speed_dial = value;
+    Machine::speed_dial = value;
 #endif
 	EVENT_TIMER_100MS;
 	if(--counter500ms == 0) {
         counter500ms = 5;
 		EVENT_TIMER_500MS;
 #if TMC_DRIVERS
-		Printer::CheckTMCDrivers();
+		Machine::CheckTMCDrivers();
 #endif
 #if FEATURE_WATCHDOG
 		HAL::pingWatchdog();
@@ -84,10 +84,10 @@ waits, until the steppers are stopped. In the meanwhile it buffers incoming
 commands and manages temperatures.
 */
 void Commands::waitUntilEndOfAllMoves() {
-#ifdef DEBUG_PRINT
+#ifdef DEBUG_MACHINE
     debugWaitLoop = 8;
 #endif
-    while(PrintLine::hasLines()) {
+    while(MachineLine::hasLines()) {
         //GCode::readFromSerial();
         checkForPeriodicalActions(false);
 		GCode::keepAlive(Processing);
@@ -96,10 +96,10 @@ void Commands::waitUntilEndOfAllMoves() {
 
 void Commands::waitUntilEndOfAllBuffers() {
     GCode *code = NULL;
-#ifdef DEBUG_PRINT
+#ifdef DEBUG_MACHINE
     debugWaitLoop = 9;
 #endif
-    while(PrintLine::hasLines() || (code != NULL)) {
+    while(MachineLine::hasLines() || (code != NULL)) {
         //GCode::readFromSerial();
 		code = GCode::peekCurrentCommand();
         if(code) {
@@ -123,36 +123,36 @@ void Commands::waitUntilEndOfAllBuffers() {
 
 void Commands::printCurrentPosition() {
 	float x, y, z, a;
-	Printer::realPosition(x, y, z, a);
+	Machine::realPosition(x, y, z, a);
 #ifdef DEBUG_POS
 	Com::printF(PSTR("RX:"), x, 3); // to debug offset handling
 	Com::printF(PSTR(" RY:"), y, 3);
 	Com::printFLN(PSTR(" RZ:"), z, 3);
 	Com::printFLN(PSTR(" RA:"), a, 3);
-	Com::printF(PSTR("CX:"), Printer::coordinateOffset[X_AXIS], 3); // to debug offset handling
-	Com::printF(PSTR(" CY:"), Printer::coordinateOffset[Y_AXIS], 3);
-	Com::printFLN(PSTR(" CZ:"), Printer::coordinateOffset[Z_AXIS], 3);
+	Com::printF(PSTR("CX:"), Machine::coordinateOffset[X_AXIS], 3); // to debug offset handling
+	Com::printF(PSTR(" CY:"), Machine::coordinateOffset[Y_AXIS], 3);
+	Com::printFLN(PSTR(" CZ:"), Machine::coordinateOffset[Z_AXIS], 3);
 #endif
-	x += Printer::coordinateOffset[X_AXIS];
-    y += Printer::coordinateOffset[Y_AXIS];
-	z += Printer::coordinateOffset[Z_AXIS];
-	Com::printF(Com::tXColon, x * (Printer::unitIsInches ? 0.03937 : 1), 2);
-    Com::printF(Com::tSpaceYColon, y * (Printer::unitIsInches ? 0.03937 : 1), 2);
-	Com::printF(Com::tSpaceZColon, z * (Printer::unitIsInches ? 0.03937 : 1), 3);
-	Com::printFLN(Com::tSpaceAColon, a * (Printer::unitIsInches ? 0.03937 : 1), 3);
+	x += Machine::coordinateOffset[X_AXIS];
+    y += Machine::coordinateOffset[Y_AXIS];
+	z += Machine::coordinateOffset[Z_AXIS];
+	Com::printF(Com::tXColon, x * (Machine::unitIsInches ? 0.03937 : 1), 2);
+    Com::printF(Com::tSpaceYColon, y * (Machine::unitIsInches ? 0.03937 : 1), 2);
+	Com::printF(Com::tSpaceZColon, z * (Machine::unitIsInches ? 0.03937 : 1), 3);
+	Com::printFLN(Com::tSpaceAColon, a * (Machine::unitIsInches ? 0.03937 : 1), 3);
 #ifdef DEBUG_POS
-	Com::printF(PSTR(" XS:"), Printer::currentPositionSteps[X_AXIS], 3);
-	Com::printF(PSTR(" YS:"), Printer::currentPositionSteps[Y_AXIS], 3);
-	Com::printF(PSTR(" ZS:"), Printer::currentPositionSteps[Z_AXIS], 3);
-	Com::printFLN(PSTR(" AS:"), Printer::currentPositionSteps[A_AXIS], 3);
+	Com::printF(PSTR(" XS:"), Machine::currentPositionSteps[X_AXIS], 3);
+	Com::printF(PSTR(" YS:"), Machine::currentPositionSteps[Y_AXIS], 3);
+	Com::printF(PSTR(" ZS:"), Machine::currentPositionSteps[Z_AXIS], 3);
+	Com::printFLN(PSTR(" AS:"), Machine::currentPositionSteps[A_AXIS], 3);
 #endif
 }
 
 void Commands::changeFeedrateMultiply(int factor) {
     if(factor < 25) factor = 25;
     if(factor > 500) factor = 500;
-    Printer::feedrate *= (float)factor / (float)Printer::feedrateMultiply;
-    Printer::feedrateMultiply = factor;
+    Machine::feedrate *= (float)factor / (float)Machine::feedrateMultiply;
+    Machine::feedrateMultiply = factor;
     Com::printFLN(Com::tSpeedMultiply, factor);
 }
 
@@ -165,14 +165,14 @@ uint8_t fan2Kickstart;
 
 void Commands::setFanSpeed(int speed, bool immediately) {
 #if FAN_PIN >- 1 && FEATURE_FAN_CONTROL
-    if(Printer::fanSpeed == speed)
+    if(Machine::fanSpeed == speed)
         return;
     speed = constrain(speed, 0, 255);
-	Printer::fanSpeed = speed;
-	if(PrintLine::linesCount == 0 || immediately) {
-		for(fast8_t i = 0; i < PRINTLINE_CACHE_SIZE; i++)
-			PrintLine::lines[i].secondSpeed = speed;         // fill all printline buffers with new fan speed value
-        Printer::setFanSpeedDirectly(speed);
+	Machine::fanSpeed = speed;
+	if(MachineLine::linesCount == 0 || immediately) {
+		for(fast8_t i = 0; i < MACHINELINE_CACHE_SIZE; i++)
+			MachineLine::lines[i].secondSpeed = speed;         // fill all printline buffers with new fan speed value
+        Machine::setFanSpeedDirectly(speed);
     }
     Com::printFLN(Com::tFanspeed, speed); // send only new values to break update loops!
 #endif
@@ -180,14 +180,8 @@ void Commands::setFanSpeed(int speed, bool immediately) {
 void Commands::setFan2Speed(int speed) {
 #if FAN2_PIN >- 1 && FEATURE_FAN2_CONTROL
     speed = constrain(speed, 0, 255);
-    Printer::setFan2SpeedDirectly(speed);
+    Machine::setFan2SpeedDirectly(speed);
     Com::printFLN(Com::tFan2speed, speed); // send only new values to break update loops!
-#endif
-}
-
-void Commands::reportPrinterUsage() {
-#if EEPROM_MODE != 0
-
 #endif
 }
 
@@ -197,10 +191,10 @@ void Commands::reportPrinterUsage() {
 #if ARC_SUPPORT
 void Commands::processArc(GCode *com) {
 	float position[A_AXIS_ARRAY];
-	Printer::realPosition(position[X_AXIS], position[Y_AXIS], position[Z_AXIS], position[A_AXIS]);
-	if(!Printer::setDestinationStepsFromGCode(com)) return; // For X Y Z A F
-    float offset[2] = {Printer::convertToMM(com->hasI() ? com->I : 0), Printer::convertToMM(com->hasJ() ? com->J : 0)};
-	float target[A_AXIS_ARRAY] = {Printer::realXPosition(), Printer::realYPosition(), Printer::realZPosition(), Printer::realAPosition()};
+	Machine::realPosition(position[X_AXIS], position[Y_AXIS], position[Z_AXIS], position[A_AXIS]);
+	if(!Machine::setDestinationStepsFromGCode(com)) return; // For X Y Z A F
+    float offset[2] = {Machine::convertToMM(com->hasI() ? com->I : 0), Machine::convertToMM(com->hasJ() ? com->J : 0)};
+	float target[A_AXIS_ARRAY] = {Machine::realXPosition(), Machine::realYPosition(), Machine::realZPosition(), Machine::realAPosition()};
     float r;
     if (com->hasR()) {
         /*
@@ -252,7 +246,7 @@ void Commands::processArc(GCode *com) {
         j = (y + (x * h_x2_div_d))/2
 
         */
-        r = Printer::convertToMM(com->R);
+        r = Machine::convertToMM(com->R);
         // Calculate the change in position along each selected axis
         double x = target[X_AXIS] - position[X_AXIS];
         double y = target[Y_AXIS] - position[Y_AXIS];
@@ -304,7 +298,7 @@ void Commands::processArc(GCode *com) {
     // Set clockwise/counter-clockwise sign for arc computations
     uint8_t isclockwise = com->G == 2;
     // Trace the arc
-	PrintLine::arc(position, target, offset, r, isclockwise);
+	MachineLine::arc(position, target, offset, r, isclockwise);
 }
 #endif
 
@@ -320,18 +314,18 @@ void Commands::processGCode(GCode *com) {
     switch(com->G) {
     case 0: // G0 -> G1
 	case 1: // G1
-        if(com->hasS()) Printer::setNoDestinationCheck(com->S != 0);
-		if(Printer::setDestinationStepsFromGCode(com)) // For X Y Z A F
-			PrintLine::queueCartesianMove(ALWAYS_CHECK_ENDSTOPS, true);
+        if(com->hasS()) Machine::setNoDestinationCheck(com->S != 0);
+		if(Machine::setDestinationStepsFromGCode(com)) // For X Y Z A F
+			MachineLine::queueCartesianMove(ALWAYS_CHECK_ENDSTOPS, true);
 #ifdef DEBUG_QUEUE_MOVE
         {
 
             InterruptProtectedBlock noInts;
-            int lc = (int)PrintLine::linesCount;
-            int lp = (int)PrintLine::linesPos;
-            int wp = (int)PrintLine::linesWritePos;
+            int lc = (int)MachineLine::linesCount;
+            int lp = (int)MachineLine::linesPos;
+            int wp = (int)MachineLine::linesWritePos;
             int n = (wp - lp);
-            if(n < 0) n += PRINTLINE_CACHE_SIZE;
+            if(n < 0) n += MACHINELINE_CACHE_SIZE;
             noInts.unprotect();
             if(n != lc)
                 Com::printFLN(PSTR("Buffer corrupted"));
@@ -356,15 +350,15 @@ void Commands::processGCode(GCode *com) {
         }
         break;
     case 20: // G20 Units to inches
-        Printer::unitIsInches = 1;
+        Machine::unitIsInches = 1;
         break;
     case 21: // G21 Units to mm
-        Printer::unitIsInches = 0;
+        Machine::unitIsInches = 0;
         break;
     case 28: { //G28 Home all Axis one at a time
 		uint8_t homeAllAxis = (com->hasNoXYZ());
         if(homeAllAxis || !com->hasNoXYZ())
-            Printer::homeAxis(homeAllAxis || com->hasX(), homeAllAxis || com->hasY(), homeAllAxis || com->hasZ());
+            Machine::homeAxis(homeAllAxis || com->hasX(), homeAllAxis || com->hasY(), homeAllAxis || com->hasZ());
     }
 	break;
 #if FEATURE_Z_PROBE
@@ -379,29 +373,29 @@ void Commands::processGCode(GCode *com) {
 	case 33:
 		if(com->hasE())
 		{	// G33 E(x) enable
-			if(com->E > 0) Printer::distortion.enable(com->hasP() && com->P == 1);
-				else Printer::distortion.disable(com->hasP() && com->P == 1);
+			if(com->E > 0) Machine::distortion.enable(com->hasP() && com->P == 1);
+				else Machine::distortion.disable(com->hasP() && com->P == 1);
 		} else if(com->hasL())
 		{ // G33 L0 - List distortion matrix
-			Printer::distortion.showMatrix();
+			Machine::distortion.showMatrix();
 		} else if(com->hasR())
 		{ // G33 R0 - Reset distortion matrix
-			Printer::distortion.resetCorrection();
+			Machine::distortion.resetCorrection();
 		} else if(com->hasX() || com->hasY() || com->hasZ())
 		{ // G33 X<xpos> Y<ypos> Z<zCorrection> - Set correction for nearest point
 			if(com->hasX() && com->hasY() && com->hasZ())
 			{
-				Printer::distortion.set(com->X, com->Y, com->Z);
+				Machine::distortion.set(com->X, com->Y, com->Z);
 			} else
 			{
 				Com::printErrorFLN(PSTR("You need to define X, Y and Z to set a point!"));
 			}
 		} else if(com->hasF() && com->F > 0)
 		{ //G33 F<x> - Filter amount
-			Printer::distortion.filter(com->F);
+			Machine::distortion.filter(com->F);
 		} else if(com->hasO() && com->O > 0 && com->O < 1)
 		{ //G33 O<x> - Smooth amount
-       		Printer::distortion.smooth(com->O);
+       		Machine::distortion.smooth(com->O);
 		} else if(com->hasP())
 		{ //G33 P<x> - Do distortion measurements
 			Endstops::update();
@@ -413,22 +407,22 @@ void Commands::processGCode(GCode *com) {
 			{
 				if(com->hasT() && com->T > 0)
 				{
-					Printer::updateCurrentPosition(true);
-					Printer::distortion.resetCorrection();
-					Printer::distortion.disable(true);
+					Machine::updateCurrentPosition(true);
+					Machine::distortion.resetCorrection();
+					Machine::distortion.disable(true);
 					if(com->T > 1)
 					{
 						HAL::eprSetInt16(EPR_DISTORTION_POINTS, com->T);
-						Printer::distortionPoints = com->T;
+						Machine::distortionPoints = com->T;
 					}
-					HAL::eprSetInt16(EPR_DISTORTION_XMIN, -Printer::coordinateOffset[X_AXIS]);
-					HAL::eprSetInt16(EPR_DISTORTION_XMAX, Printer::currentPosition[X_AXIS]);
-					HAL::eprSetInt16(EPR_DISTORTION_YMIN, -Printer::coordinateOffset[Y_AXIS]);
-					HAL::eprSetInt16(EPR_DISTORTION_YMAX, Printer::currentPosition[Y_AXIS]);
-					Printer::distortionXMIN = -Printer::coordinateOffset[X_AXIS];
-					Printer::distortionXMAX = Printer::currentPosition[X_AXIS]; //SL
-					Printer::distortionYMIN = -Printer::coordinateOffset[Y_AXIS];
-					Printer::distortionYMAX = Printer::currentPosition[Y_AXIS]; //SL
+					HAL::eprSetInt16(EPR_DISTORTION_XMIN, -Machine::coordinateOffset[X_AXIS]);
+					HAL::eprSetInt16(EPR_DISTORTION_XMAX, Machine::currentPosition[X_AXIS]);
+					HAL::eprSetInt16(EPR_DISTORTION_YMIN, -Machine::coordinateOffset[Y_AXIS]);
+					HAL::eprSetInt16(EPR_DISTORTION_YMAX, Machine::currentPosition[Y_AXIS]);
+					Machine::distortionXMIN = -Machine::coordinateOffset[X_AXIS];
+					Machine::distortionXMAX = Machine::currentPosition[X_AXIS]; //SL
+					Machine::distortionYMIN = -Machine::coordinateOffset[Y_AXIS];
+					Machine::distortionYMAX = Machine::currentPosition[Y_AXIS]; //SL
 				}
 
 				float md = -10;
@@ -439,52 +433,52 @@ void Commands::processGCode(GCode *com) {
 				if(com->hasH() && com->H > 0)
 					reps = com->H;
 
-				Printer::measureDistortion(md, reps);
+				Machine::measureDistortion(md, reps);
 			}
-		} else Printer::distortion.reportStatus();
+		} else Machine::distortion.reportStatus();
 		break;
 #endif
 	case 34: { // Tool Height
 		if(com->hasX())
 		{
-			float xp = Printer::runProbe(X_AXIS, com->X, Z_PROBE_REPETITIONS);
+			float xp = Machine::runProbe(X_AXIS, com->X, Z_PROBE_REPETITIONS);
 			if(xp != ILLEGAL_Z_PROBE)
 			{
 				if(com->hasA())
-					if(com->X > 0) xp -= Printer::convertToMM(com->A/2);
-						else xp += Printer::convertToMM(com->A/2);
+					if(com->X > 0) xp -= Machine::convertToMM(com->A/2);
+						else xp += Machine::convertToMM(com->A/2);
 
-				Printer::coordinateOffset[X_AXIS] = xp - Printer::currentPosition[X_AXIS];
+				Machine::coordinateOffset[X_AXIS] = xp - Machine::currentPosition[X_AXIS];
 				Com::printF(PSTR(" TOOL OFFSET:"), xp, 3);
-				Com::printFLN(PSTR(" X_OFFSET:"), Printer::coordinateOffset[X_AXIS], 3);
+				Com::printFLN(PSTR(" X_OFFSET:"), Machine::coordinateOffset[X_AXIS], 3);
 			}
 		} else if(com->hasY())
 		{
-			float yp = Printer::runProbe(Y_AXIS, com->Y, Z_PROBE_REPETITIONS);
+			float yp = Machine::runProbe(Y_AXIS, com->Y, Z_PROBE_REPETITIONS);
 			if(yp != ILLEGAL_Z_PROBE)
 			{
 				if(com->hasA())
-					if(com->Y > 0) yp -= Printer::convertToMM(com->A/2);
-						else yp += Printer::convertToMM(com->A/2);
+					if(com->Y > 0) yp -= Machine::convertToMM(com->A/2);
+						else yp += Machine::convertToMM(com->A/2);
 
-				Printer::coordinateOffset[Y_AXIS] = yp - Printer::currentPosition[Y_AXIS];
+				Machine::coordinateOffset[Y_AXIS] = yp - Machine::currentPosition[Y_AXIS];
 				Com::printF(PSTR(" TOOL OFFSET:"), yp, 3);
-				Com::printFLN(PSTR(" Y_OFFSET:"), Printer::coordinateOffset[Y_AXIS], 3);
+				Com::printFLN(PSTR(" Y_OFFSET:"), Machine::coordinateOffset[Y_AXIS], 3);
 			}
 		} else
 		{
 			if(com->Z >= 0)
 				com->Z = -10;
 
-			float zp = Printer::runProbe(Z_AXIS, com->Z, Z_PROBE_REPETITIONS);
+			float zp = Machine::runProbe(Z_AXIS, com->Z, Z_PROBE_REPETITIONS);
 			if(zp != ILLEGAL_Z_PROBE)
 			{
-				if(com->hasA()) zp += Printer::convertToMM(com->A);
+				if(com->hasA()) zp += Machine::convertToMM(com->A);
 					else zp += EEPROM::zProbeHeight();
-				Printer::coordinateOffset[Z_AXIS] = zp - Printer::currentPosition[Z_AXIS];
+				Machine::coordinateOffset[Z_AXIS] = zp - Machine::currentPosition[Z_AXIS];
 				Com::printF(PSTR(" TOOL OFFSET:"), zp, 3);
-				Com::printFLN(PSTR(" Z_OFFSET:"), Printer::coordinateOffset[Z_AXIS], 3);
-				Printer::distortion.SetStartEnd(Printer::distortionStart, Printer::distortionEnd);
+				Com::printFLN(PSTR(" Z_OFFSET:"), Machine::coordinateOffset[Z_AXIS], 3);
+				Machine::distortion.SetStartEnd(Machine::distortionStart, Machine::distortionEnd);
 			}
 		}
 		printCurrentPosition();
@@ -493,58 +487,58 @@ void Commands::processGCode(GCode *com) {
 #endif
 #if TMC_DRIVERS
 	case 41:
-		Com::printF(PSTR("X Grad:"), Printer::tmcStepperX.pwm_grad_auto(), 3);
-		Com::printFLN(PSTR(" X OFS:"), Printer::tmcStepperX.pwm_ofs_auto(), 3);
-		Com::printF(PSTR("Y Grad:"), Printer::tmcStepperY.pwm_grad_auto(), 3);
-		Com::printFLN(PSTR(" Y OFS:"), Printer::tmcStepperY.pwm_ofs_auto(), 3);
-		Com::printF(PSTR("Z Grad:"), Printer::tmcStepperZ.pwm_grad_auto(), 3);
-		Com::printFLN(PSTR(" Z OFS:"), Printer::tmcStepperZ.pwm_ofs_auto(), 3);
-		Com::printF(PSTR("2 Grad:"), Printer::tmcStepper2.pwm_grad_auto(), 3);
-		Com::printFLN(PSTR(" 2 OFS:"), Printer::tmcStepper2.pwm_ofs_auto(), 3);
+		Com::printF(PSTR("X Grad:"), Machine::tmcStepperX.pwm_grad_auto(), 3);
+		Com::printFLN(PSTR(" X OFS:"), Machine::tmcStepperX.pwm_ofs_auto(), 3);
+		Com::printF(PSTR("Y Grad:"), Machine::tmcStepperY.pwm_grad_auto(), 3);
+		Com::printFLN(PSTR(" Y OFS:"), Machine::tmcStepperY.pwm_ofs_auto(), 3);
+		Com::printF(PSTR("Z Grad:"), Machine::tmcStepperZ.pwm_grad_auto(), 3);
+		Com::printFLN(PSTR(" Z OFS:"), Machine::tmcStepperZ.pwm_ofs_auto(), 3);
+		Com::printF(PSTR("2 Grad:"), Machine::tmcStepper2.pwm_grad_auto(), 3);
+		Com::printFLN(PSTR(" 2 OFS:"), Machine::tmcStepper2.pwm_ofs_auto(), 3);
 	break;
 #endif
     case 90: // G90
-        Printer::relativeCoordinateMode = false;
+        Machine::relativeCoordinateMode = false;
         if(com->internalCommand)
             Com::printInfoFLN(PSTR("Absolute positioning"));
         break;
 	case 91: // G91
-		Printer::relativeCoordinateMode = true;
+		Machine::relativeCoordinateMode = true;
         if(com->internalCommand)
             Com::printInfoFLN(PSTR("Relative positioning"));
         break;
 	case 92: { // G92
-		float xOff = Printer::coordinateOffset[X_AXIS];
-		float yOff = Printer::coordinateOffset[Y_AXIS];
-		float zOff = Printer::coordinateOffset[Z_AXIS];
-		if(com->hasX()) xOff = Printer::convertToMM(com->X) - Printer::currentPosition[X_AXIS];
-		if(com->hasY()) yOff = Printer::convertToMM(com->Y) - Printer::currentPosition[Y_AXIS];
-		if(com->hasZ()) zOff = Printer::convertToMM(com->Z) - Printer::currentPosition[Z_AXIS];
-		Printer::setOrigin(xOff, yOff, zOff);
+		float xOff = Machine::coordinateOffset[X_AXIS];
+		float yOff = Machine::coordinateOffset[Y_AXIS];
+		float zOff = Machine::coordinateOffset[Z_AXIS];
+		if(com->hasX()) xOff = Machine::convertToMM(com->X) - Machine::currentPosition[X_AXIS];
+		if(com->hasY()) yOff = Machine::convertToMM(com->Y) - Machine::currentPosition[Y_AXIS];
+		if(com->hasZ()) zOff = Machine::convertToMM(com->Z) - Machine::currentPosition[Z_AXIS];
+		Machine::setOrigin(xOff, yOff, zOff);
 		if(com->hasA()) {
-			Printer::lastCmdPos[A_AXIS] = Printer::currentPosition[A_AXIS] = Printer::convertToMM(com->A);
-			Printer::destinationSteps[A_AXIS] = Printer::currentPositionSteps[A_AXIS] = static_cast<int32_t>(floor(Printer::lastCmdPos[A_AXIS] * Printer::axisStepsPerMM[A_AXIS] + 0.5f));
+			Machine::lastCmdPos[A_AXIS] = Machine::currentPosition[A_AXIS] = Machine::convertToMM(com->A);
+			Machine::destinationSteps[A_AXIS] = Machine::currentPositionSteps[A_AXIS] = static_cast<int32_t>(floor(Machine::lastCmdPos[A_AXIS] * Machine::axisStepsPerMM[A_AXIS] + 0.5f));
 		}
 		if(com->hasX() || com->hasY() || com->hasZ()) {
-			Com::printF(PSTR("X_OFFSET:"), Printer::coordinateOffset[X_AXIS], 3);
-			Com::printF(PSTR(" Y_OFFSET:"), Printer::coordinateOffset[Y_AXIS], 3);
-			Com::printFLN(PSTR(" Z_OFFSET:"), Printer::coordinateOffset[Z_AXIS], 3);
+			Com::printF(PSTR("X_OFFSET:"), Machine::coordinateOffset[X_AXIS], 3);
+			Com::printF(PSTR(" Y_OFFSET:"), Machine::coordinateOffset[Y_AXIS], 3);
+			Com::printFLN(PSTR(" Z_OFFSET:"), Machine::coordinateOffset[Z_AXIS], 3);
 		}
-		Printer::distortion.SetStartEnd(Printer::distortionStart, Printer::distortionEnd);
+		Machine::distortion.SetStartEnd(Machine::distortionStart, Machine::distortionEnd);
 	}
 	break;
 	case 93: { // G93
-		float xOff = Printer::coordinateOffset[X_AXIS];
-		float yOff = Printer::coordinateOffset[Y_AXIS];
-		float zOff = Printer::coordinateOffset[Z_AXIS];
-		if(com->hasX()) xOff = Printer::convertToMM(com->X);
-		if(com->hasY()) yOff = Printer::convertToMM(com->Y);
-		if(com->hasZ()) zOff = Printer::convertToMM(com->Z);
-		Printer::setOrigin(xOff, yOff, zOff);
+		float xOff = Machine::coordinateOffset[X_AXIS];
+		float yOff = Machine::coordinateOffset[Y_AXIS];
+		float zOff = Machine::coordinateOffset[Z_AXIS];
+		if(com->hasX()) xOff = Machine::convertToMM(com->X);
+		if(com->hasY()) yOff = Machine::convertToMM(com->Y);
+		if(com->hasZ()) zOff = Machine::convertToMM(com->Z);
+		Machine::setOrigin(xOff, yOff, zOff);
 		if(com->hasX() || com->hasY() || com->hasZ()) {
-			Com::printF(PSTR("X_OFFSET:"), Printer::coordinateOffset[X_AXIS], 3);
-			Com::printF(PSTR(" Y_OFFSET:"), Printer::coordinateOffset[Y_AXIS], 3);
-			Com::printFLN(PSTR(" Z_OFFSET:"), Printer::coordinateOffset[Z_AXIS], 3);
+			Com::printF(PSTR("X_OFFSET:"), Machine::coordinateOffset[X_AXIS], 3);
+			Com::printF(PSTR(" Y_OFFSET:"), Machine::coordinateOffset[Y_AXIS], 3);
+			Com::printFLN(PSTR(" Z_OFFSET:"), Machine::coordinateOffset[Z_AXIS], 3);
 		}
     }
 	break;
@@ -566,7 +560,7 @@ void Commands::processGCode(GCode *com) {
         break;
 #endif // defined
     default:
-        if(Printer::debugErrors()) {
+        if(Machine::debugErrors()) {
             Com::printF(Com::tUnknownCommand);
             com->printCommand();
         }
@@ -590,7 +584,7 @@ void Commands::processMCode(GCode *com) {
 			millis_t wait = 1000 + HAL::timeInMilliseconds();
 
 			while(wait - HAL::timeInMilliseconds() < 100000) {
-				Printer::defaultLoopActions();
+				Machine::defaultLoopActions();
 			}
 			Endstops::update();
 			Endstops::update();
@@ -618,27 +612,27 @@ void Commands::processMCode(GCode *com) {
 			bool named = false;
 			if(com->hasX()) {
 				named = true;
-				Printer::enableXStepper();
+				Machine::enableXStepper();
 			}
 			if(com->hasY()) {
 				named = true;
-				Printer::enableYStepper();
+				Machine::enableYStepper();
 			}
 			if(com->hasZ()) {
 				named = true;
-				Printer::enableZStepper();
+				Machine::enableZStepper();
 			}
 			if(com->hasA()) {
 				named = true;
-				Printer::enableAStepper();
+				Machine::enableAStepper();
 			}
 			if(!named) {
-				Printer::enableXStepper();
-				Printer::enableYStepper();
-				Printer::enableZStepper();
-				Printer::enableAStepper();
+				Machine::enableXStepper();
+				Machine::enableYStepper();
+				Machine::enableZStepper();
+				Machine::enableAStepper();
 			}
-			Printer::unsetAllSteppersDisabled();
+			Machine::unsetAllSteppersDisabled();
 		}
 		break;
 	case 18: // M18 is to disable named axis
@@ -647,26 +641,26 @@ void Commands::processMCode(GCode *com) {
 			bool named = false;
 			if(com->hasX()) {
 				named = true;
-				Printer::disableXStepper();
+				Machine::disableXStepper();
 			}
 			if(com->hasY()) {
 				named = true;
-				Printer::disableYStepper();
+				Machine::disableYStepper();
 			}
 			if(com->hasZ()) {
 				named = true;
-				Printer::disableZStepper();
+				Machine::disableZStepper();
 			}
 			if(com->hasA()) {
 				named = true;
-				Printer::disableAStepper();
+				Machine::disableAStepper();
 			}
 			if(!named) {
-				Printer::disableXStepper();
-				Printer::disableYStepper();
-				Printer::disableZStepper();
-				Printer::disableAStepper();
-				Printer::setAllSteppersDiabled();
+				Machine::disableXStepper();
+				Machine::disableYStepper();
+				Machine::disableZStepper();
+				Machine::disableAStepper();
+				Machine::setAllSteppersDiabled();
 			}
 		}
 		break;
@@ -754,13 +748,13 @@ void Commands::processMCode(GCode *com) {
 		Commands::waitUntilEndOfAllMoves();
         previousMillisCmd = HAL::timeInMilliseconds();
         SET_OUTPUT(PS_ON_PIN); //GND
-        Printer::setPowerOn(true);
+        Machine::setPowerOn(true);
         WRITE(PS_ON_PIN, (POWER_INVERTING ? HIGH : LOW));
 		break;
 	case 81: // M81 - ATX Power Off
         Commands::waitUntilEndOfAllMoves();
         SET_OUTPUT(PS_ON_PIN); //GND
-        Printer::setPowerOn(false);
+        Machine::setPowerOn(false);
         WRITE(PS_ON_PIN, (POWER_INVERTING ? LOW : HIGH));
 		break;
 #endif
@@ -769,7 +763,7 @@ void Commands::processMCode(GCode *com) {
             stepperInactiveTime = com->S * 1000;
         } else {
             Commands::waitUntilEndOfAllMoves();
-            Printer::kill(true);
+            Machine::kill(true);
         }
         break;
     case 85: // M85
@@ -779,42 +773,42 @@ void Commands::processMCode(GCode *com) {
             maxInactiveTime = 0;
         break;
     case 92: // M92
-        if(com->hasX()) Printer::axisStepsPerMM[X_AXIS] = com->X;
-        if(com->hasY()) Printer::axisStepsPerMM[Y_AXIS] = com->Y;
-        if(com->hasZ()) Printer::axisStepsPerMM[Z_AXIS] = com->Z;
-        Printer::updateDerivedParameter();
+        if(com->hasX()) Machine::axisStepsPerMM[X_AXIS] = com->X;
+        if(com->hasY()) Machine::axisStepsPerMM[Y_AXIS] = com->Y;
+        if(com->hasZ()) Machine::axisStepsPerMM[Z_AXIS] = com->Z;
+        Machine::updateDerivedParameter();
 		break;
     case 99: { // M99 S<time>
 		millis_t wait = 10000;
         if(com->hasS())
             wait = 1000 * com->S;
         if(com->hasX())
-            Printer::disableXStepper();
+            Machine::disableXStepper();
         if(com->hasY())
-            Printer::disableYStepper();
+            Machine::disableYStepper();
         if(com->hasZ())
-            Printer::disableZStepper();
+            Machine::disableZStepper();
         wait += HAL::timeInMilliseconds();
-#ifdef DEBUG_PRINT
+#ifdef DEBUG_MACHINE
         debugWaitLoop = 2;
 #endif
         while(wait - HAL::timeInMilliseconds() < 100000) {
-			Printer::defaultLoopActions();
+			Machine::defaultLoopActions();
         }
         if(com->hasX())
-            Printer::enableXStepper();
+            Machine::enableXStepper();
 		if(com->hasY())
-            Printer::enableYStepper();
+            Machine::enableYStepper();
         if(com->hasZ())
-			Printer::enableZStepper();
+			Machine::enableZStepper();
 		if(com->hasA())
-			Printer::enableAStepper();
+			Machine::enableAStepper();
     }
     break;
 #if SPEED_DIAL && SPEED_DIAL_PIN > -1
     case 105: // M105  get speed. Always returns the speed
         Com::writeToAll = false;
-        Com::printF(Com::tTColon, (Printer::speed_dial * 100) >> SPEED_DIAL_BITS);
+        Com::printF(Com::tTColon, (Machine::speed_dial * 100) >> SPEED_DIAL_BITS);
         Com::printF(Com::tSpaceSlash, 0, 0);
         Com::printF(Com::tSpaceAtColon, 0);
         Com::println();
@@ -825,11 +819,11 @@ void Commands::processMCode(GCode *com) {
     case 106: // M106 Fan On
         if(com->hasI()) {
             if(com->I != 0)
-				Printer::flag1 |= PRINTER_FLAG1_IGNORE_M106_COMMAND;
+				Machine::flag1 |= MACHINE_FLAG1_IGNORE_M106_COMMAND;
             else
-				Printer::flag1 &= ~PRINTER_FLAG1_IGNORE_M106_COMMAND;
+				Machine::flag1 &= ~MACHINE_FLAG1_IGNORE_M106_COMMAND;
         }
-		if(!(Printer::flag1 & PRINTER_FLAG1_IGNORE_M106_COMMAND)) {
+		if(!(Machine::flag1 & MACHINE_FLAG1_IGNORE_M106_COMMAND)) {
             if(com->hasP() && com->P == 1)
                 setFan2Speed(com->hasS() ? com->S : 255);
             else
@@ -837,7 +831,7 @@ void Commands::processMCode(GCode *com) {
         }
         break;
     case 107: // M107 Fan Off
-		if(!(Printer::flag1 & PRINTER_FLAG1_IGNORE_M106_COMMAND)) {
+		if(!(Machine::flag1 & MACHINE_FLAG1_IGNORE_M106_COMMAND)) {
             if(com->hasP() && com->P == 1)
                 setFan2Speed(0);
             else
@@ -846,10 +840,10 @@ void Commands::processMCode(GCode *com) {
         break;
 #endif
     case 111: // M111 enable/disable run time debug flags
-        if(com->hasS()) Printer::setDebugLevel(static_cast<uint8_t>(com->S));
+        if(com->hasS()) Machine::setDebugLevel(static_cast<uint8_t>(com->S));
         if(com->hasP()) {
-            if (com->P > 0) Printer::debugSet(static_cast<uint8_t>(com->P));
-            else Printer::debugReset(static_cast<uint8_t>(-com->P));
+            if (com->P > 0) Machine::debugSet(static_cast<uint8_t>(com->P));
+            else Machine::debugReset(static_cast<uint8_t>(-com->P));
 		}
         break;
     case 115: // M115
@@ -880,9 +874,9 @@ void Commands::processMCode(GCode *com) {
         Com::writeToAll = false;
 		printCurrentPosition();
         if(com->hasS() && com->S) {
-            Com::printF(PSTR("XS:"), Printer::currentPositionSteps[X_AXIS]);
-            Com::printF(PSTR(" YS:"), Printer::currentPositionSteps[Y_AXIS]);
-            Com::printFLN(PSTR(" ZS:"), Printer::currentPositionSteps[Z_AXIS]);
+            Com::printF(PSTR("XS:"), Machine::currentPositionSteps[X_AXIS]);
+            Com::printF(PSTR(" YS:"), Machine::currentPositionSteps[Y_AXIS]);
+            Com::printFLN(PSTR(" ZS:"), Machine::currentPositionSteps[Z_AXIS]);
         }
 		break;
     case 119: // M119
@@ -900,21 +894,21 @@ void Commands::processMCode(GCode *com) {
 #endif
 #if RAMP_ACCELERATION
     case 201: // M201
-        if(com->hasX()) Printer::maxAccelerationMMPerSquareSecond[X_AXIS] = com->X;
-        if(com->hasY()) Printer::maxAccelerationMMPerSquareSecond[Y_AXIS] = com->Y;
-        if(com->hasZ()) Printer::maxAccelerationMMPerSquareSecond[Z_AXIS] = com->Z;
-		Printer::updateDerivedParameter();
+        if(com->hasX()) Machine::maxAccelerationMMPerSquareSecond[X_AXIS] = com->X;
+        if(com->hasY()) Machine::maxAccelerationMMPerSquareSecond[Y_AXIS] = com->Y;
+        if(com->hasZ()) Machine::maxAccelerationMMPerSquareSecond[Z_AXIS] = com->Z;
+		Machine::updateDerivedParameter();
         break;
 #endif
     case 203: // M203 Temperature monitor
 		if(com->hasX()) {
-			Printer::maxFeedrate[X_AXIS] = com->X / 60.0f;
+			Machine::maxFeedrate[X_AXIS] = com->X / 60.0f;
 		}
 		if(com->hasY()) {
-			Printer::maxFeedrate[Y_AXIS] = com->Y / 60.0f;
+			Machine::maxFeedrate[Y_AXIS] = com->Y / 60.0f;
 		}
 		if(com->hasZ()) {
-			Printer::maxFeedrate[Z_AXIS] = com->Z / 60.0f;
+			Machine::maxFeedrate[Z_AXIS] = com->Z / 60.0f;
 		}
 		break;
     case 205: // M205 Show EEPROM settings
@@ -927,17 +921,17 @@ void Commands::processMCode(GCode *com) {
         break;
     case 207: // M207 X<XY jerk> Z<Z Jerk>
 		if(com->hasX())
-			Printer::maxJerk[X_AXIS] = com->X;
+			Machine::maxJerk[X_AXIS] = com->X;
 		if(com->hasY())
-			Printer::maxJerk[Y_AXIS] = com->Y;
+			Machine::maxJerk[Y_AXIS] = com->Y;
 		if(com->hasZ())
-			Printer::maxJerk[Z_AXIS] = com->Z;
+			Machine::maxJerk[Z_AXIS] = com->Z;
 		if(com->hasA())
-			Printer::maxJerk[A_AXIS] = com->A;
-		Com::printF(Com::tXJerkColon, Printer::maxJerk[X_AXIS]);
-		Com::printF(Com::tYJerkColon, Printer::maxJerk[Y_AXIS]);
-		Com::printF(Com::tZJerkColon, Printer::maxJerk[Z_AXIS]);
-		Com::printFLN(Com::tAJerkColon, Printer::maxJerk[A_AXIS]);
+			Machine::maxJerk[A_AXIS] = com->A;
+		Com::printF(Com::tXJerkColon, Machine::maxJerk[X_AXIS]);
+		Com::printF(Com::tYJerkColon, Machine::maxJerk[Y_AXIS]);
+		Com::printF(Com::tZJerkColon, Machine::maxJerk[Z_AXIS]);
+		Com::printFLN(Com::tAJerkColon, Machine::maxJerk[A_AXIS]);
 		break;
     case 220: // M220 S<Feedrate multiplier in percent>
         changeFeedrateMultiply(com->getS(100));
@@ -961,11 +955,11 @@ void Commands::processMCode(GCode *com) {
 		break;
 #if Z_HOME_DIR > 0 && MAX_HARDWARE_ENDSTOP_Z
     case 251: // M251
-		Printer::axisLength[Z_AXIS] -= Printer::currentPosition[Z_AXIS];
-        Printer::currentPositionSteps[Z_AXIS] = 0;
-		Printer::updateDerivedParameter();
-		Printer::updateCurrentPosition();
-		Com::printFLN(Com::tZProbePrinterHeight, Printer::axisLength[Z_AXIS]);
+		Machine::axisLength[Z_AXIS] -= Machine::currentPosition[Z_AXIS];
+        Machine::currentPositionSteps[Z_AXIS] = 0;
+		Machine::updateDerivedParameter();
+		Machine::updateCurrentPosition();
+		Com::printFLN(Com::tZProbePrinterHeight, Machine::axisLength[Z_AXIS]);
 #if EEPROM_MODE != 0
         EEPROM::storeDataIntoEEPROM(false);
 		Com::printFLN(Com::tEEPROMUpdated);
@@ -982,7 +976,7 @@ void Commands::processMCode(GCode *com) {
             break;
         }
         Com::printInfoFLN(PSTR("Triggering watchdog. If activated, the printer will reset."));
-        Printer::kill(false);
+        Machine::kill(false);
         HAL::delayMilliseconds(200); // write output
 #if !defined(__AVR_ATmega1280__) && !defined(__AVR_ATmega2560__)
         InterruptProtectedBlock noInts;         // don't disable interrupts on mega2560 and mega1280 because of bootloader bug
@@ -1021,22 +1015,22 @@ void Commands::processMCode(GCode *com) {
 #endif // FEATURE_SERVO
     case 355: // M355 S<0/1> - Turn case light on/off, no S = report status
         if(com->hasS()) {
-            Printer::setCaseLight(com->S);
+            Machine::setCaseLight(com->S);
         } else
-            Printer::reportCaseLightStatus();
+            Machine::reportCaseLightStatus();
         break;
     case 360: // M360 - show configuration
         Com::writeToAll = false;
-        Printer::showConfiguration();
+        Machine::showConfiguration();
         break;
     case 400: // M400 Finish all moves
         Commands::waitUntilEndOfAllMoves();
         break;
     case 401: // M401 Memory position
-		Printer::SetMemoryPosition();
+		Machine::SetMemoryPosition();
         break;
     case 402: // M402 Go to stored position
-		Printer::GoToMemoryPosition(com->hasX(), com->hasY(), com->hasZ(), com->hasA(), (com->hasF() ? com->F : Printer::feedrate));
+		Machine::GoToMemoryPosition(com->hasX(), com->hasY(), com->hasZ(), com->hasA(), (com->hasF() ? com->F : Machine::feedrate));
 		break;
     case 500: { // M500
 #if EEPROM_MODE != 0
@@ -1062,21 +1056,21 @@ void Commands::processMCode(GCode *com) {
 #ifdef DEBUG_QUEUE_MOVE
     case 533: { // M533 Write move data
         InterruptProtectedBlock noInts;
-        int lc = (int)PrintLine::linesCount;
-        int lp = (int)PrintLine::linesPos;
-        int wp = (int)PrintLine::linesWritePos;
+        int lc = (int)MachineLine::linesCount;
+        int lp = (int)MachineLine::linesPos;
+        int wp = (int)MachineLine::linesWritePos;
         int n = (wp - lp);
-        if(n < 0) n += PRINTLINE_CACHE_SIZE;
+        if(n < 0) n += MACHINELINE_CACHE_SIZE;
         noInts.unprotect();
         if(n != lc)
             Com::printFLN(PSTR("Buffer corrupted"));
         Com::printF(PSTR("Buf:"), lc);
         Com::printF(PSTR(",LP:"), lp);
         Com::printFLN(PSTR(",WP:"), wp);
-        if(PrintLine::cur == NULL) {
+        if(MachineLine::cur == NULL) {
             Com::printFLN(PSTR("No move"));
-            if(PrintLine::linesCount > 0) {
-                PrintLine &cur = PrintLine::lines[PrintLine::linesPos];
+            if(MachineLine::linesCount > 0) {
+                MachineLine &cur = MachineLine::lines[MachineLine::linesPos];
                 Com::printF(PSTR("JFlags:"), (int)cur.joinFlags);
                 Com::printFLN(PSTR(" Flags:"), (int)cur.flags);
                 if(cur.isWarmUp()) {
@@ -1084,23 +1078,23 @@ void Commands::processMCode(GCode *com) {
                 }
             }
         } else {
-            Com::printF(PSTR("Rem:"), PrintLine::cur->stepsRemaining);
-            Com::printFLN(PSTR(" Int:"), Printer::interval);
+            Com::printF(PSTR("Rem:"), MachineLine::cur->stepsRemaining);
+            Com::printFLN(PSTR(" Int:"), Machine::interval);
         }
     }
     break;
 #endif // DEBUG_QUEUE_MOVE
 #ifdef DEBUG_SEGMENT_LENGTH
     case 534: // M534
-        Com::printFLN(PSTR("Max. segment size:"), Printer::maxRealSegmentLength);
+        Com::printFLN(PSTR("Max. segment size:"), Machine::maxRealSegmentLength);
         if(com->hasS())
-            Printer::maxRealSegmentLength = 0;
+            Machine::maxRealSegmentLength = 0;
         break;
 #endif
 #ifdef DEBUG_REAL_JERK
-        Com::printFLN(PSTR("Max. jerk measured:"), Printer::maxRealJerk);
+        Com::printFLN(PSTR("Max. jerk measured:"), Machine::maxRealJerk);
         if(com->hasS())
-            Printer::maxRealJerk = 0;
+            Machine::maxRealJerk = 0;
         break;
 #endif
     case 670:
@@ -1118,7 +1112,7 @@ void Commands::processMCode(GCode *com) {
             GCode::resetFatalError();
         break;
     default:
-        if(Printer::debugErrors()) {
+        if(Machine::debugErrors()) {
             Com::writeToAll = false;
             Com::printF(Com::tUnknownCommand);
             com->printCommand();
@@ -1137,7 +1131,7 @@ void Commands::executeGCode(GCode *com) {
     Com::writeToAll = true;
 #endif
     if (INCLUDE_DEBUG_COMMUNICATION) {
-        if(Printer::debugCommunication()) {
+        if(Machine::debugCommunication()) {
             if(com->hasG() || (com->hasM() && com->M != 111)) {
                 previousMillisCmd = HAL::timeInMilliseconds();
 #if NEW_COMMUNICATION
@@ -1152,7 +1146,7 @@ void Commands::executeGCode(GCode *com) {
     else if(com->hasT()) {    // Process T code
 		// SL set tool
     } else {
-        if(Printer::debugErrors()) {
+        if(Machine::debugErrors()) {
             Com::printF(Com::tUnknownCommand);
             com->printCommand();
         }
@@ -1167,7 +1161,7 @@ void Commands::emergencyStop() {
     HAL::resetHardware();
 #else
     //HAL::forbidInterrupts(); // Don't allow interrupts to do their work
-    Printer::kill(false);
+    Machine::kill(false);
     for(uint8_t i = 0; i < PWM_FAN2; i++)
         pwm_pos[i] = 0;
 #if FAN_PIN > -1 && FEATURE_FAN_CONTROL

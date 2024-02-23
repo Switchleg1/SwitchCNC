@@ -17,10 +17,10 @@
 /** The left speed is fixed. Don't check left block. */
 #define FLAG_JOIN_START_FIXED 4
 
-class PrintLine { // RAM usage: 24*4+15 = 113 Byte
+class MachineLine { // RAM usage: 24*4+15 = 113 Byte
 public:
     static ufast8_t linesPos; // Position for executing line movement
-    static PrintLine lines[];
+    static MachineLine lines[];
     static ufast8_t linesWritePos; // Position where we write the next cached line move
     ufast8_t joinFlags;
     volatile ufast8_t flags;
@@ -53,7 +53,7 @@ private:
 #endif
 public:
     int32_t stepsRemaining;            ///< Remaining steps, until move is finished
-    static PrintLine *cur;
+    static MachineLine *cur;
     static volatile ufast8_t linesCount; // Number of lines cached 0 = nothing to do
     inline bool areParameterUpToDate() {
         return joinFlags & FLAG_JOIN_STEPPARAMS_COMPUTED;
@@ -112,20 +112,20 @@ public:
             if(Endstops::anyEndstopHit()) {
 #if MULTI_XENDSTOP_HOMING
                 {
-                    if(Printer::isHoming()) {
+                    if(Machine::isHoming()) {
                         if(isXNegativeMove()) {
                             if(Endstops::xMin())
-                                Printer::multiXHomeFlags &= ~1;
+                                Machine::multiXHomeFlags &= ~1;
                             if(Endstops::x2Min())
-                                Printer::multiXHomeFlags &= ~2;
-                            if(Printer::multiXHomeFlags == 0)
+                                Machine::multiXHomeFlags &= ~2;
+                            if(Machine::multiXHomeFlags == 0)
                                 setXMoveFinished();
                         } else if(isXPositiveMove()) {
                             if(Endstops::xMax())
-                                Printer::multiXHomeFlags &= ~1;
+                                Machine::multiXHomeFlags &= ~1;
                             if(Endstops::x2Max())
-                                Printer::multiXHomeFlags &= ~2;
-                            if(Printer::multiXHomeFlags == 0) {
+                                Machine::multiXHomeFlags &= ~2;
+                            if(Machine::multiXHomeFlags == 0) {
                                 setXMoveFinished();
                             }
                         }
@@ -145,20 +145,20 @@ public:
 #endif
 #if MULTI_YENDSTOP_HOMING
                 {
-                    if(Printer::isHoming()) {
+                    if(Machine::isHoming()) {
                         if(isYNegativeMove()) {
                             if(Endstops::yMin())
-                                Printer::multiYHomeFlags &= ~1;
+                                Machine::multiYHomeFlags &= ~1;
                             if(Endstops::y2Min())
-                                Printer::multiYHomeFlags &= ~2;
-                            if(Printer::multiYHomeFlags == 0)
+                                Machine::multiYHomeFlags &= ~2;
+                            if(Machine::multiYHomeFlags == 0)
                                 setYMoveFinished();
                         } else if(isYPositiveMove()) {
                             if(Endstops::yMax())
-                                Printer::multiYHomeFlags &= ~1;
+                                Machine::multiYHomeFlags &= ~1;
                             if(Endstops::y2Max())
-                                Printer::multiYHomeFlags &= ~2;
-                            if(Printer::multiYHomeFlags == 0) {
+                                Machine::multiYHomeFlags &= ~2;
+                            if(Machine::multiYHomeFlags == 0) {
                                 setYMoveFinished();
                             }
                         }
@@ -177,34 +177,34 @@ public:
                     setYMoveFinished();
 #endif
 #if FEATURE_Z_PROBE
-				if(Printer::isZProbingActive() /*&& isZNegativeMove()*/ && Endstops::zProbe()) {
+				if(Machine::isZProbingActive() /*&& isZNegativeMove()*/ && Endstops::zProbe()) {
 					if(isXMove())
 						setXMoveFinished();
 					if(isYMove())
 						setYMoveFinished();
 					if(isZMove())
 						setZMoveFinished();
-                    Printer::stepsRemainingAtZHit = stepsRemaining;
+                    Machine::stepsRemainingAtZHit = stepsRemaining;
                 } else
 #endif
 #if MULTI_ZENDSTOP_HOMING
                 {
-                    if(Printer::isHoming()) {
+                    if(Machine::isHoming()) {
                         if(isZNegativeMove()) {
                             if(Endstops::zMin())
-                                Printer::multiZHomeFlags &= ~1;
+                                Machine::multiZHomeFlags &= ~1;
                             if(Endstops::z2MinMax())
-                                Printer::multiZHomeFlags &= ~2;
-                            if(Printer::multiZHomeFlags == 0)
+                                Machine::multiZHomeFlags &= ~2;
+                            if(Machine::multiZHomeFlags == 0)
                                 setZMoveFinished();
                         } else if(isZPositiveMove()) {
                             if(Endstops::zMax())
-                                Printer::multiZHomeFlags &= ~1;
+                                Machine::multiZHomeFlags &= ~1;
                             if(Endstops::z2MinMax())
-                                Printer::multiZHomeFlags &= ~2;
-                            if(Printer::multiZHomeFlags == 0) {
+                                Machine::multiZHomeFlags &= ~2;
+                            if(Machine::multiZHomeFlags == 0) {
 #if MAX_HARDWARE_ENDSTOP_Z
-                                Printer::stepsRemainingAtZHit = stepsRemaining;
+                                Machine::stepsRemainingAtZHit = stepsRemaining;
 #endif
                                 setZMoveFinished();
                             }
@@ -218,7 +218,7 @@ public:
 						
 						if(isZPositiveMove() && Endstops::zMax()) {
 #if MAX_HARDWARE_ENDSTOP_Z
-                            Printer::stepsRemainingAtZHit = stepsRemaining;
+                            Machine::stepsRemainingAtZHit = stepsRemaining;
 #endif
                             setZMoveFinished();
                         }
@@ -227,20 +227,20 @@ public:
 #else  // Multi endstop homing
                     if(isZNegativeMove() && Endstops::zMin()
 #if Z_MIN_PIN == Z_PROBE_PIN && FEATURE_Z_PROBE
-						&& Printer::isHoming()
+						&& Machine::isHoming()
 #endif
 					) {
                         setZMoveFinished();
                     } else if(isZPositiveMove() && Endstops::zMax()) {
 #if MAX_HARDWARE_ENDSTOP_Z
-                        Printer::stepsRemainingAtZHit = stepsRemaining;
+                        Machine::stepsRemainingAtZHit = stepsRemaining;
 #endif
                         setZMoveFinished();
                     }
 #endif
             }
 #if FEATURE_Z_PROBE
-			else if(Printer::isZProbingActive()/* && isZNegativeMove()*/) {
+			else if(Machine::isZProbingActive()/* && isZNegativeMove()*/) {
                 Endstops::update();
                 if(Endstops::zProbe()) {
                     if(isXMove())
@@ -249,7 +249,7 @@ public:
 						setYMoveFinished();
 					if(isZMove())
 						setZMoveFinished();
-                    Printer::stepsRemainingAtZHit = stepsRemaining;
+                    Machine::stepsRemainingAtZHit = stepsRemaining;
                 }
             }
 #endif
@@ -335,35 +335,35 @@ public:
     INLINE bool moveDecelerating() {
         if(stepsRemaining <= static_cast<int32_t>(decelSteps)) {
             if (!(flags & FLAG_DECELERATING)) {
-                Printer::timer = 0;
+                Machine::timer = 0;
                 flags |= FLAG_DECELERATING;
             }
             return true;
         } else return false;
     }
     INLINE bool moveAccelerating() {
-        return Printer::stepNumber <= accelSteps;
+        return Machine::stepNumber <= accelSteps;
     }
 	INLINE void startXStep() {
-		Printer::startXStep();
+		Machine::startXStep();
 #ifdef DEBUG_STEPCOUNT
         totalStepsRemaining--;
 #endif
     }
 	INLINE void startYStep() {
-		Printer::startYStep();
+		Machine::startYStep();
 #ifdef DEBUG_STEPCOUNT
         totalStepsRemaining--;
 #endif
     }
 	INLINE void startZStep() {
-		Printer::startZStep();
+		Machine::startZStep();
 #ifdef DEBUG_STEPCOUNT
         totalStepsRemaining--;
 #endif
 	}
 	INLINE void startAStep() {
-		Printer::startAStep();
+		Machine::startAStep();
 #ifdef DEBUG_STEPCOUNT
         totalStepsRemaining--;
 #endif
@@ -400,10 +400,10 @@ public:
         InterruptProtectedBlock noInts;
         return linesCount;
     }
-    static PrintLine *getNextWriteLine() {
+    static MachineLine *getNextWriteLine() {
         return &lines[linesWritePos];
     }
-    static inline void computeMaxJunctionSpeed(PrintLine *previous, PrintLine *current);
+    static inline void computeMaxJunctionSpeed(MachineLine *previous, MachineLine *current);
     static int32_t bresenhamStep();
     static void waitForXFreeLines(uint8_t b = 1, bool allowMoves = false);
     static inline void forwardPlanner(ufast8_t p);
@@ -420,10 +420,10 @@ public:
     static void arc(float *position, float *target, float *offset, float radius, uint8_t isclockwise);
 #endif
     static INLINE void previousPlannerIndex(ufast8_t &p) {
-        p = (p ? p - 1 : PRINTLINE_CACHE_SIZE - 1);
+        p = (p ? p - 1 : MACHINELINE_CACHE_SIZE - 1);
     }
     static INLINE void nextPlannerIndex(ufast8_t& p) {
-        p = (p >= PRINTLINE_CACHE_SIZE - 1 ? 0 : p + 1);
+        p = (p >= MACHINELINE_CACHE_SIZE - 1 ? 0 : p + 1);
     }
 };
 
