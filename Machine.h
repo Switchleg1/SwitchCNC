@@ -167,7 +167,8 @@ public:
 
 	static uint8_t unitIsInches;
     static uint8_t fanSpeed; // Last fan speed set with M106/M107
-    static fast8_t stepsPerTimerCall;
+    static fast8_t stepsTillNextCalc;
+    static fast8_t stepsSinceLastCalc;
 	static uint8_t flag0, flag1;
     static uint32_t interval;    ///< Last step duration in ticks.
     static uint32_t timer;              ///< used for acceleration/deceleration timing
@@ -632,23 +633,71 @@ public:
 		WRITE(A_STEP_PIN, !START_STEP_WITH_HIGH);
     }
     static INLINE speed_t updateStepsPerTimerCall(speed_t vbase) {
-        if(vbase > STEP_DOUBLER_FREQUENCY) {
-#if ALLOW_QUADSTEPPING
-            if(vbase > STEP_DOUBLER_FREQUENCY * 2) {
-                Machine::stepsPerTimerCall = 4;
-                return vbase >> 2;
-            } else {
-                Machine::stepsPerTimerCall = 2;
-                return vbase >> 1;
-            }
-#else
-            Machine::stepsPerTimerCall = 2;
+#if MAX_STEPS_PER_CALL >= 8
+        if (vbase > STEP_DOUBLER_FREQUENCY * 4) {
+            Machine::stepsTillNextCalc = 8;
+#if QUICK_STEP
+            return vbase >> 3;
+#endif
+        } else
+#endif
+#if MAX_STEPS_PER_CALL >= 4
+        if(vbase > STEP_DOUBLER_FREQUENCY * 2) {
+            Machine::stepsTillNextCalc = 4;
+#if QUICK_STEP
+            return vbase >> 2;
+#endif
+        } else
+#endif
+#if MAX_STEPS_PER_CALL >= 2
+        if (vbase > STEP_DOUBLER_FREQUENCY) {
+            Machine::stepsTillNextCalc = 2;
+#if QUICK_STEP
             return vbase >> 1;
 #endif
-        } else {
-            Machine::stepsPerTimerCall = 1;
+        } else
+#endif
+        {
+            Machine::stepsTillNextCalc = 1;
         }
+
         return vbase;
+    }
+    static INLINE void updateStepsPerTimerCall(speed_t vbase, ticks_t fullInterval) {
+#if MAX_STEPS_PER_CALL >= 8
+        if (vbase > STEP_DOUBLER_FREQUENCY * 4) {
+            Machine::stepsTillNextCalc = 8;
+#if QUICK_STEP
+            interval = fullInterval << 3;
+#else
+            interval = fullInterval;
+#endif
+        } else
+#endif
+#if MAX_STEPS_PER_CALL >= 4
+        if (vbase > STEP_DOUBLER_FREQUENCY * 2) {
+            Machine::stepsTillNextCalc = 4;
+#if QUICK_STEP
+            interval = fullInterval << 2;
+#else
+            interval = fullInterval;
+#endif
+        } else
+#endif
+#if MAX_STEPS_PER_CALL >= 2
+        if (vbase > STEP_DOUBLER_FREQUENCY) {
+            Machine::stepsTillNextCalc = 2;
+#if QUICK_STEP
+            interval = fullInterval << 1;
+#else
+            interval = fullInterval;
+#endif
+        } else
+#endif
+        {
+            stepsTillNextCalc = 1;
+            interval = fullInterval;
+        }
     }
     static INLINE void disableAllowedStepper() {
 		if(DISABLE_X) disableXStepper();

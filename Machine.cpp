@@ -26,7 +26,8 @@ float Machine::coordinateOffset[Z_AXIS_ARRAY] = {0, 0, 0};
 uint8_t Machine::flag0 = 0;
 uint8_t Machine::flag1 = 0;
 uint8_t Machine::debugLevel = 6; ///< Bitfield defining debug output. 1 = echo, 2 = info, 4 = error, 8 = dry run., 16 = Only communication, 32 = No moves
-fast8_t Machine::stepsPerTimerCall = 1;
+fast8_t Machine::stepsTillNextCalc = 1;
+fast8_t Machine::stepsSinceLastCalc = 1;
 uint8_t Machine::fanSpeed = 0; // Last fan speed set with M106/M107
 uint8_t Machine::interruptEvent = 0;
 #if DISTORTION_CORRECTION
@@ -79,8 +80,8 @@ TMC5160Stepper Machine::tmcStepperZ(TMC_Z_CS, TMC_Z_RSENSE);
 TMC5160Stepper Machine::tmcStepper2(TMC_2_CS, TMC_2_RSENSE);
 #endif
 #endif
-#if defined(PAUSE_PIN) && PAUSE_PIN>-1
-uint8_t  Machine::isPaused = 0;
+#if defined(PAUSE_PIN) && PAUSE_PIN > -1
+uint8_t Machine::isPaused = false;
 #if PAUSE_STEPS > 120
 int16_t Machine::pauseSteps = 0;
 #else
@@ -618,7 +619,8 @@ void Machine::setup() {
 	maxJerk[Z_AXIS] = MAX_ZJERK;
 	maxJerk[A_AXIS] = MAX_AJERK;
 	interval = 5000;
-	stepsPerTimerCall = 1;
+    stepsTillNextCalc = 1;
+    stepsSinceLastCalc = 1;
     flag0 = MACHINE_FLAG0_STEPPER_DISABLED;
 	axisLength[X_AXIS] = X_MAX_LENGTH;
 	axisLength[Y_AXIS] = Y_MAX_LENGTH;
@@ -704,11 +706,11 @@ void Machine::defaultLoopActions() {
         previousMillisCmd = curtime;
     else {
         curtime -= previousMillisCmd;
-        if(maxInactiveTime != 0 && curtime >  maxInactiveTime )
+        if(maxInactiveTime != 0 && curtime >  maxInactiveTime)
             Machine::kill(false);
         else
             Machine::setAllKilled(false); // prevent repeated kills
-        if(stepperInactiveTime != 0 && curtime >  stepperInactiveTime )
+        if(stepperInactiveTime != 0 && curtime >  stepperInactiveTime)
             Machine::kill(true);
     }
 #if SDCARDDETECT > -1 && SDSUPPORT

@@ -4,8 +4,8 @@
 #ifndef STEP_DOUBLER_FREQUENCY
 #error Please add new parameter STEP_DOUBLER_FREQUENCY to your configuration.
 #else
-#if STEP_DOUBLER_FREQUENCY < 7000 || STEP_DOUBLER_FREQUENCY > 20000
-#error STEP_DOUBLER_FREQUENCY should be in range 10000-16000.
+#if STEP_DOUBLER_FREQUENCY < 4000 || STEP_DOUBLER_FREQUENCY > 10000
+#error STEP_DOUBLER_FREQUENCY should be in range 4000-10000.
 #endif
 #endif
 // ####################################################################################
@@ -143,7 +143,7 @@ void MachineLine::queueCartesianSegmentTo(uint8_t check_endstops, uint8_t pathOp
     MachineLine *p = MachineLine::getNextWriteLine();
 
 	float axisDistanceMM[A_AXIS_ARRAY]; // Axis movement in mm
-	p->flags = (check_endstops ? FLAG_CHECK_ENDSTOPS : 0);
+	p->flags = (check_endstops ? FLAG_CHECK_ENDSTOPS : 0) | FLAG_ACCELERATING;
     p->joinFlags = 0;
     if(!pathOptimize) p->setEndSpeedFixed(true);
     p->dir = 0;
@@ -329,7 +329,7 @@ void MachineLine::queueCartesianMove(uint8_t check_endstops, uint8_t pathOptimiz
     MachineLine *p = getNextWriteLine();
 
 	float axisDistanceMM[A_AXIS_ARRAY]; // Axis movement in mm
-	p->flags = (check_endstops ? FLAG_CHECK_ENDSTOPS : 0);
+	p->flags = (check_endstops ? FLAG_CHECK_ENDSTOPS : 0) | FLAG_ACCELERATING;
     p->joinFlags = 0;
     if(!pathOptimize) p->setEndSpeedFixed(true);
     p->dir = 0;
@@ -1034,8 +1034,6 @@ void MachineLine::arc(float *position, float *target, float *offset, float radiu
 }
 #endif
 
-
-
 /**
   Moves the stepper motors one step. If the last step is reached, the next movement is started.
   The function must be called from a timer loop. It returns the time for the next call.
@@ -1044,9 +1042,8 @@ void MachineLine::arc(float *position, float *target, float *offset, float radiu
 */
 int lastblk = -1;
 int32_t cur_errupd;
-int32_t MachineLine::bresenhamStep() { // version for Cartesian printer
-	if(cur == NULL)
-    {
+uint32_t MachineLine::bresenhamStep() {
+	if(cur == NULL) {
         setCurrentLine();
         if(cur->isBlocked()) { // This step is in computation - shouldn't happen
             /*if(lastblk!=(int)cur) // can cause output errors!
@@ -1112,80 +1109,90 @@ int32_t MachineLine::bresenhamStep() { // version for Cartesian printer
 #if MULTI_ZENDSTOP_HOMING
         Machine::multiZHomeFlags = MULTI_ZENDSTOP_ALL;  // move all z motors until endstop says differently
 #endif
+        Machine::stepsTillNextCalc  = 1;
+        Machine::stepsSinceLastCalc = 1;
+
         return Machine::interval; // Wait an other 50% from last step to make the 100% full
 	} // End cur=0
 
-	cur->checkEndstops();
+    /////////////// Step //////////////////////////
 
-	fast8_t max_loops = 0;
-#if defined(PAUSE_PIN) && PAUSE_PIN>-1
-	if(!Machine::isPaused || Machine::pauseSteps < PAUSE_STEPS)
-	{
+#if defined(PAUSE_PIN) && PAUSE_PIN > -1
+	if(!Machine::isPaused || Machine::pauseSteps < PAUSE_STEPS) {
 #endif // PAUSE
-		max_loops = Machine::stepsPerTimerCall;
-		if(cur->stepsRemaining < max_loops)
-			max_loops = cur->stepsRemaining;
-
-#if defined(PAUSE_PIN) && PAUSE_PIN>-1
-		if(Machine::isPaused && max_loops + Machine::pauseSteps > PAUSE_STEPS)
-			max_loops = PAUSE_STEPS - Machine::pauseSteps;
+#if QUICK_STEP
+        for (fast8_t loop = 0; loop < Machine::stepsSinceLastCalc; loop++) {
+#else
+        if (Machine::stepsTillNextCalc) {
 #endif
-
-		for(fast8_t loop = 0; loop < max_loops; loop++) {
-#if STEPPER_HIGH_DELAY + DOUBLE_STEP_DELAY > 0
-			if(loop)
-				HAL::delayMicroseconds(STEPPER_HIGH_DELAY + DOUBLE_STEP_DELAY);
+#if STEPPER_HIGH_DELAY > 0
+            if (loop)
+                HAL::delayMicroseconds(STEPPER_HIGH_DELAY);
 #endif
-			if(cur->isXMove())
-				if((cur->error[X_AXIS] -= cur->delta[X_AXIS]) < 0) {
-					cur->startXStep();
-					cur->error[X_AXIS] += cur_errupd;
+            if (cur->isXMove())
+                if ((cur->error[X_AXIS] -= cur->delta[X_AXIS]) < 0) {
+                    cur->startXStep();
+                    cur->error[X_AXIS] += cur_errupd;
 #ifdef DEBUG_STEPCOUNT
-					cur->totalStepsRemaining--;
+                    cur->totalStepsRemaining--;
 #endif
-				}
-			if(cur->isYMove())
-				if((cur->error[Y_AXIS] -= cur->delta[Y_AXIS]) < 0) {
-					cur->startYStep();
-					cur->error[Y_AXIS] += cur_errupd;
+                }
+            if (cur->isYMove())
+                if ((cur->error[Y_AXIS] -= cur->delta[Y_AXIS]) < 0) {
+                    cur->startYStep();
+                    cur->error[Y_AXIS] += cur_errupd;
 #ifdef DEBUG_STEPCOUNT
-					cur->totalStepsRemaining--;
+                    cur->totalStepsRemaining--;
 #endif
-				}
-			if(cur->isZMove())
-				if((cur->error[Z_AXIS] -= cur->delta[Z_AXIS]) < 0) {
-					cur->startZStep();
-					cur->error[Z_AXIS] += cur_errupd;
+                }
+            if (cur->isZMove())
+                if ((cur->error[Z_AXIS] -= cur->delta[Z_AXIS]) < 0) {
+                    cur->startZStep();
+                    cur->error[Z_AXIS] += cur_errupd;
 #ifdef DEBUG_STEPCOUNT
-					cur->totalStepsRemaining--;
+                    cur->totalStepsRemaining--;
 #endif
-				}
-			if(cur->isAMove())
-				if((cur->error[A_AXIS] -= cur->delta[A_AXIS]) < 0) {
-					cur->startAStep();
-					cur->error[A_AXIS] += cur_errupd;
+                }
+            if (cur->isAMove())
+                if ((cur->error[A_AXIS] -= cur->delta[A_AXIS]) < 0) {
+                    cur->startAStep();
+                    cur->error[A_AXIS] += cur_errupd;
 #ifdef DEBUG_STEPCOUNT
-					cur->totalStepsRemaining--;
+                    cur->totalStepsRemaining--;
 #endif
-				}
+                }
 
 #if STEPPER_HIGH_DELAY > 0
-			HAL::delayMicroseconds(STEPPER_HIGH_DELAY);
+            HAL::delayMicroseconds(STEPPER_HIGH_DELAY);
 #endif
-			cur->stepsRemaining--;
-			Machine::endXYZASteps();
-		} // for loop
+            cur->stepsRemaining--;
+            Machine::stepsTillNextCalc--;
+            Machine::endXYZASteps();
+        }
 #if defined(PAUSE_PIN) && PAUSE_PIN > -1
-		if(Machine::isPaused)
-		{
-			Machine::pauseSteps += max_loops;
-		} else
-		{
-			Machine::pauseSteps -= max_loops;
+    }
+#endif
 
-			if(Machine::pauseSteps < 0)
-				Machine::pauseSteps = 0;
-		}
+#if QUICK_STEP == 0
+    if (Machine::stepsTillNextCalc) {
+        return Machine::interval;
+    }
+#endif
+
+    /////////// main calculation interval //////////////
+
+    //check endstops
+    cur->checkEndstops();
+
+#if defined(PAUSE_PIN) && PAUSE_PIN > -1
+	if(Machine::isPaused) {
+		Machine::pauseSteps += Machine::stepsSinceLastCalc;
+	} else {
+		Machine::pauseSteps -= Machine::stepsSinceLastCalc;
+
+        if (Machine::pauseSteps < 0) {
+            Machine::pauseSteps = 0;
+        }
 	}
 #endif // PAUSE
     HAL::allowInterrupts(); // Allow interrupts for other types, timer1 is still disabled
@@ -1194,53 +1201,47 @@ int32_t MachineLine::bresenhamStep() { // version for Cartesian printer
     if (cur->moveAccelerating()) { // we are accelerating
 		Machine::vMaxReached = HAL::ComputeV(Machine::timer, cur->fAcceleration) + cur->vStart; // v = v0 + a * t
         if(Machine::vMaxReached > cur->vMax) Machine::vMaxReached = cur->vMax;
-        unsigned int v = Machine::updateStepsPerTimerCall(Machine::vMaxReached);
-		Machine::interval = HAL::CPUDivU2(v);
-		Machine::timer += Machine::interval;
-		Machine::stepNumber += max_loops; // only used for moveAccelerating
+        speed_t v = Machine::updateStepsPerTimerCall(Machine::vMaxReached);
+		Machine::interval   = HAL::CPUDivU2(v);
+#if QUICK_STEP
+        Machine::timer += Machine::interval;
+#else
+        Machine::timer += Machine::interval * Machine::stepsTillNextCalc;
+#endif
+        Machine::stepNumber += Machine::stepsSinceLastCalc; // only used for moveAccelerating
 	} else if (cur->moveDecelerating()) { // time to slow down
-        unsigned int v = HAL::ComputeV(Machine::timer, cur->fAcceleration);
-        if (v > Machine::vMaxReached)   // if deceleration goes too far it can become too large
+        uint16_t v = HAL::ComputeV(Machine::timer, cur->fAcceleration);
+        if (v > Machine::vMaxReached) {  // if deceleration goes too far it can become too large
             v = cur->vEnd;
-        else {
+        } else {
 			v = Machine::vMaxReached - v;
             if (v < cur->vEnd) v = cur->vEnd; // extra steps at the end of deceleration due to rounding errors
         }
-		v = Machine::updateStepsPerTimerCall(v);
+        v = Machine::updateStepsPerTimerCall(v);
 		Machine::interval = HAL::CPUDivU2(v);
+#if QUICK_STEP
         Machine::timer += Machine::interval;
-    } else { // full speed reached
-        // constant speed reached
-		if(cur->vMax > STEP_DOUBLER_FREQUENCY) {
-#if ALLOW_QUADSTEPPING
-			if(cur->vMax > STEP_DOUBLER_FREQUENCY * 2) {
-                Machine::stepsPerTimerCall = 4;
-                Machine::interval = cur->fullInterval << 2;
-            } else {
-                Machine::stepsPerTimerCall = 2;
-                Machine::interval = cur->fullInterval << 1;
-            }
 #else
-            Machine::stepsPerTimerCall = 2;
-            Machine::interval = cur->fullInterval << 1;
+        Machine::timer += Machine::interval * Machine::stepsTillNextCalc;
 #endif
-        } else {
-            Machine::stepsPerTimerCall = 1;
-            Machine::interval = cur->fullInterval;
-        }
+    } else 
+#endif
+    { // full speed reached
+        Machine::updateStepsPerTimerCall(cur->vMax, cur->fullInterval);
     }
-#else
-    Machine::stepsPerTimerCall = 1;
-    Machine::interval = cur->fullInterval; // without RAMPS always use full speed
-#endif // RAMP_ACCELERATION    
-	uint32 interval = Machine::interval;
+
+    if (Machine::stepsTillNextCalc > cur->stepsRemaining) {
+        Machine::stepsTillNextCalc = cur->stepsRemaining;
+    }
+    Machine::stepsSinceLastCalc = Machine::stepsTillNextCalc;
+
 #if defined(PAUSE_PIN) && PAUSE_PIN > -1
-	if(Machine::pauseSteps)
-		interval += interval * Machine::pauseSteps / PAUSE_SLOPE;
+	if(Machine::pauseSteps) Machine::interval += Machine::interval * Machine::pauseSteps / PAUSE_SLOPE;
 #endif // PAUSE
 #if SPEED_DIAL && SPEED_DIAL_PIN > -1
-        interval = (interval << SPEED_DIAL_BITS) / Machine::speed_dial;
+    if (Machine::speed_dial != (1 << SPEED_DIAL_BITS)) Machine::interval = (Machine::interval << SPEED_DIAL_BITS) / Machine::speed_dial;
 #endif // SPEED_DIAL
+    uint32_t interval = Machine::interval;
 	if(cur->stepsRemaining <= 0 || cur->isNoMove()) { // line finished
 #ifdef DEBUG_STEPCOUNT
         if(cur->totalStepsRemaining) {
@@ -1248,18 +1249,17 @@ int32_t MachineLine::bresenhamStep() { // version for Cartesian printer
             Com::printFLN(Com::tComma, cur->stepsRemaining);
         }
 #endif
-
         removeCurrentLineForbidInterrupt();
         Machine::disableAllowedStepper();
 		if(linesCount == 0) {
 			Machine::setFanSpeedDirectly(Machine::fanSpeed);
         }
-#if defined(PAUSE_PIN) && PAUSE_PIN>-1
-		interval = interval >> 1;
-#else
-		interval = Machine::interval = interval >> 1; // 50% of time to next call to do cur=0
-#endif // PAUSE
+
+        interval = interval >> 1; // 50% of time to next call to do cur=0
+        Machine::interval = interval;
+
         DEBUG_MEMORY;
 	} // Do even
+
     return interval;
 }

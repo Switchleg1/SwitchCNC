@@ -5,7 +5,7 @@
 #define FLAG_WARMUP 1
 #define FLAG_NOMINAL 2
 #define FLAG_DECELERATING 4
-#define FLAG_ACCELERATION_ENABLED 8 // unused
+#define FLAG_ACCELERATING 8
 #define FLAG_CHECK_ENDSTOPS 16
 #define FLAG_SKIP_DEACCELERATING 64 // unused
 #define FLAG_BLOCKED 128
@@ -333,6 +333,10 @@ public:
 		linesPos = linesWritePos;
 	}
     INLINE bool moveDecelerating() {
+        if (flags & FLAG_DECELERATING) {
+            return true;
+        }
+
         if(stepsRemaining <= static_cast<int32_t>(decelSteps)) {
             if (!(flags & FLAG_DECELERATING)) {
                 Machine::timer = 0;
@@ -342,7 +346,15 @@ public:
         } else return false;
     }
     INLINE bool moveAccelerating() {
-        return Machine::stepNumber <= accelSteps;
+        if (flags & FLAG_ACCELERATING) {
+            if (Machine::stepNumber <= accelSteps) {
+                return true;
+            }
+
+            flags &= ~FLAG_ACCELERATING;
+        }
+
+        return false;
     }
 	INLINE void startXStep() {
 		Machine::startXStep();
@@ -404,7 +416,7 @@ public:
         return &lines[linesWritePos];
     }
     static inline void computeMaxJunctionSpeed(MachineLine *previous, MachineLine *current);
-    static int32_t bresenhamStep();
+    static uint32_t bresenhamStep();
     static void waitForXFreeLines(uint8_t b = 1, bool allowMoves = false);
     static inline void forwardPlanner(ufast8_t p);
     static inline void backwardPlanner(ufast8_t p, ufast8_t last);

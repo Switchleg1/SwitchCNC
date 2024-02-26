@@ -4,7 +4,7 @@
 #include <math.h>
 #include <stdint.h>
 
-#define SWITCHCNC_VERSION   "0.0.1"
+#define SWITCHCNC_VERSION   "1.0.3"
 #define MACHINE_TYPE        "MILL"
 #define FIRMWARE_URL        "https://github.com/switchleg1/SwitchCNC"
 
