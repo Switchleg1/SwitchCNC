@@ -4,9 +4,12 @@
 #include <math.h>
 #include <stdint.h>
 
-#define SWITCHCNC_VERSION   "1.0.3"
-#define MACHINE_TYPE        "MILL"
-#define FIRMWARE_URL        "https://github.com/switchleg1/SwitchCNC"
+#define SWITCHCNC_VERSION       "1.0.3"
+#define MACHINE_TYPE            "MILL"
+#define FIRMWARE_URL            "https://github.com/switchleg1/SwitchCNC"
+
+#define MACHINE_MODE_SPINDLE    0
+#define MACHINE_MODE_LASER      1
 
 
 // Use new communication model for multiple channels - only until stable, then old version gets deleted

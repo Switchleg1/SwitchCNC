@@ -220,6 +220,13 @@ FSTRINGVALUE(Com::tZCorrectionDisabled, "Z correction disabled")
 #endif
 FSTRINGVALUE(Com::tConfig, "Config:")
 FSTRINGVALUE(Com::tExtrDot, "Extr.")
+FSTRINGVALUE(Com::tMachineModeLaser, "MachineMode: Laser")
+FSTRINGVALUE(Com::tMachineModeCNC, "MachineMode: Spindle")
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+FSTRINGVALUE(Com::tLaserMinIntensity, "Set min laser intensity to:");
+FSTRINGVALUE(Com::tLaserOn, "Laser on.");
+FSTRINGVALUE(Com::tLaserOff, "Laser off.");
+#endif
 #ifdef STARTUP_GCODE
 FSTRINGVALUE(Com::tStartupGCode, STARTUP_GCODE)
 #endif

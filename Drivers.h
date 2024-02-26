@@ -211,38 +211,67 @@ extern MotorDriverInterface *getMotorDriver(int idx);
 extern void initializeAllMotorDrivers();
 #endif
 
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+/**
+With laser support you can exchange a extruder by a laser. A laser gets controlled by a digital pin.
+By default all intensities > 200 are always on, and lower values are always off. You can overwrite
+this with a programmed event EVENT_SET_LASER(intensity) that return false to signal the default
+implementation that it has set it's value already.
+EVENT_INITIALIZE_LASER should return false to prevent default initialization.
+*/
+class LaserDriver {
+public:
+	static secondspeed_t intensity; // Intensity to use for next move queued. This is NOT the current value!
+	static secondspeed_t minIntensity;
+	static bool laserOn; // Enabled by M3?
+	static bool firstMove;
+	static void initialize();
+	static void changeIntensity(secondspeed_t newIntensity);
+	static void turnOn();
+	static void turnOff(bool instantOff = false);
+	static float temperature;
+	static uint8_t tempCount;
+	static uint16_t tempRaw;
+};
+#endif
+
 /**
 The CNC driver differs a bit from laser driver. Here only M3,M4,M5 have an influence on the spindle.
 The motor also keeps running for G0 moves. M3 and M4 wait for old moves to be finished and then enables
-the motor. It then waits CNC_WAIT_ON_ENABLE milliseconds for the spindle to reach target speed.
+the motor. It then waits SPINDLE_WAIT_ON_START milliseconds for the spindle to reach target speed.
 */
-class CNCDriver {
+class SpindleDriver {
 public:
     static int8_t direction;
     static secondspeed_t spindleSpeed;
     static uint16_t spindleRpm;
  
-    /** Initialize cnc pins. EVENT_INITIALIZE_CNC should return false to prevent default initialization.*/
+    /** Initialize cnc pins. EVENT_INITIALIZE_SPINDLE should return false to prevent default initialization.*/
     static void initialize();
     /** Turns off spindle. For event override implement
     EVENT_SPINDLE_OFF
     returning false.
     */
-    static void spindleOff();
-    /** Turns spindle on. Default implementation uses a enable pin CNC_ENABLE_PIN. If
-    CNC_DIRECTION_PIN is not -1 it sets direction to CNC_DIRECTION_CW. rpm is ignored.
+    static void turnOff();
+    /** Turns spindle on. Default implementation uses a enable pin SPINDLE_ON_PIN. If
+    SPINDLE_DIRECTION_PIN is not -1 it sets direction to SPINDLE_DIRECTION_CW. rpm is ignored.
     To override with event system, return false for the event
     EVENT_SPINDLE_CW(rpm)
     */
-    static void spindleOnCW(int32_t rpm);
-    /** Turns spindle on. Default implementation uses a enable pin CNC_ENABLE_PIN. If
-    CNC_DIRECTION_PIN is not -1 it sets direction to !CNC_DIRECTION_CW. rpm is ignored.
+    static void turnOnCW(int32_t rpm);
+    /** Turns spindle on. Default implementation uses a enable pin SPINDLE_ON_PIN. If
+    SPINDLE_DIRECTION_PIN is not -1 it sets direction to !SPINDLE_DIRECTION_CW. rpm is ignored.
     To override with event system, return false for the event
     EVENT_SPINDLE_CCW(rpm)
     */
-	static void spindleOnCCW(int32_t rpm);
-	static void vacuumOn();
-	static void vacuumOff();
+	static void turnOnCCW(int32_t rpm);
+};
+
+class VacuumDriver {
+public:
+	static void initialize();
+	static void turnOn();
+	static void turnOff();
 };
 
 #endif // DRIVERS_H_INCLUDED

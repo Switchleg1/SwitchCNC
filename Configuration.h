@@ -1,25 +1,8 @@
 #ifndef CONFIGURATION_H
 #define CONFIGURATION_H
 
-//Power settings
-#define AUTOMATIC_POWERUP						1
-#define ENABLE_POWER_ON_STARTUP					0
-#define POWER_INVERTING							1
-#define PS_ON_PIN								10
-
-//Spindle settings
-#define CNC_WAIT_ON_ENABLE						5
-#define CNC_WAIT_ON_DISABLE						0
-#define CNC_ENABLE_PIN							12
-#define CNC_ENABLE_WITH							1
-#define CNC_DIRECTION_PIN						-1
-#define CNC_DIRECTION_CW						1
-#define CNC_RPM_MIN								6000
-#define CNC_RPM_MAX								24000
-#define CNC_VACUUM_PIN							9
-#define CNC_SPINDLE_PWM_PIN						-1
-
 // ################# Misc. settings ##################
+#define DEFAULT_MACHINE_MODE					0				//0: SPINDLE 1: LASER
 #define BAUDRATE								250000
 #define KILL_METHOD								1
 #define ACK_WITH_LINENUMBER						1
@@ -29,7 +12,7 @@
 #define EEPROM_MODE								1
 #define FEATURE_WATCHDOG						1
 #define BLUETOOTH_SERIAL						-1
-#define BLUETOOTH_BAUD							115200
+#define BLUETOOTH_BAUD							250000
 #define PAUSE_START_COMMANDS					""
 #define PAUSE_END_COMMANDS						""
 #define ARC_SUPPORT								1
@@ -37,6 +20,32 @@
 #define FEATURE_CHECKSUM_FORCED					0
 #define CASE_LIGHTS_PIN							-1
 #define CASE_LIGHT_DEFAULT_ON					1
+#define VACUUM_PIN								9
+
+//Power settings
+#define AUTOMATIC_POWERUP						1
+#define ENABLE_POWER_ON_STARTUP					0
+#define POWER_INVERTING							1
+#define PS_ON_PIN								10
+
+//Spindle settings
+#define SUPPORT_SPINDLE							1
+#define SPINDLE_WAIT_ON_START					5
+#define SPINDLE_WAIT_ON_STOP					3
+#define SPINDLE_ON_PIN							12
+#define SPINDLE_ON_HIGH							1
+#define SPINDLE_DIRECTION_PIN					-1
+#define SPINDLE_DIRECTION_CW					1
+#define SPINDLE_PWM_PIN							-1
+#define SPINDLE_RPM_MIN							6000
+#define SPINDLE_RPM_MAX							24000
+
+//Laser settings
+#define SUPPORT_LASER							1
+#define LASER_ON_HIGH							1
+#define LASER_WARMUP_TIME						0
+#define LASER_PWM_MAX							255
+#define LASER_WATT								0
 
 //Fan settings
 #define FEATURE_FAN_CONTROL						1

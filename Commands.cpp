@@ -33,6 +33,7 @@ void Commands::checkForPeriodicalActions(bool allowNewMoves) {
 	EVENT_PERIODICAL;
     if(!executePeriodical) return; // gets true every 100ms
 	executePeriodical = 0;
+
 #if defined(PAUSE_PIN) && PAUSE_PIN>-1
 	bool getPaused = (READ(PAUSE_PIN) != !PAUSE_INVERTING);
 	if(Machine::isPaused != getPaused)
@@ -47,7 +48,13 @@ void Commands::checkForPeriodicalActions(bool allowNewMoves) {
 			else Com::printFLN(Com::tUnpaused);
 		Machine::isPaused = getPaused;
 	}
+
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+    if (Machine::isPaused && Machine::mode == MACHINE_MODE_LASER) {
+        LaserDriver::changeIntensity(0);
+    }
 #endif
+#endif //PAUSE_PIN
 
 #if SPEED_DIAL && SPEED_DIAL_PIN > -1
     uint8 maxSpeedValue = 1 << SPEED_DIAL_BITS;
@@ -63,7 +70,8 @@ void Commands::checkForPeriodicalActions(bool allowNewMoves) {
     }
    
     Machine::speed_dial = value;
-#endif
+#endif //SPEED_DIAL
+
 	EVENT_TIMER_100MS;
 	if(--counter500ms == 0) {
         counter500ms = 5;
@@ -171,7 +179,7 @@ void Commands::setFanSpeed(int speed, bool immediately) {
 	Machine::fanSpeed = speed;
 	if(MachineLine::linesCount == 0 || immediately) {
 		for(fast8_t i = 0; i < MACHINELINE_CACHE_SIZE; i++)
-			MachineLine::lines[i].secondSpeed = speed;         // fill all printline buffers with new fan speed value
+			MachineLine::lines[i].secondSpeed = speed;         // fill all machineline buffers with new fan speed value
         Machine::setFanSpeedDirectly(speed);
     }
     Com::printFLN(Com::tFanspeed, speed); // send only new values to break update loops!
@@ -314,12 +322,39 @@ void Commands::processGCode(GCode *com) {
     switch(com->G) {
     case 0: // G0 -> G1
 	case 1: // G1
-        if(com->hasS()) Machine::setNoDestinationCheck(com->S != 0);
-		if(Machine::setDestinationStepsFromGCode(com)) // For X Y Z A F
-			MachineLine::queueCartesianMove(ALWAYS_CHECK_ENDSTOPS, true);
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+    {
+        // disable laser for G0 moves
+        bool laserOn = LaserDriver::laserOn;
+        uint8_t laserIntensity = LaserDriver::intensity;
+        if (Machine::mode == MACHINE_MODE_LASER) {
+            if (com->G == 0) {
+                LaserDriver::laserOn = false;
+                LaserDriver::firstMove = true; //set G1 flag for Laser
+            } else {
+#if LASER_WARMUP_TIME > 0
+                uint8_t power = (com->hasX() || com->hasY()) && (LaserDriver::laserOn || com->hasE()) ? LaserDriver::intensity : 0;
+                if (power > 0 && LaserDriver::firstMove) {
+                    MachineLine::waitForXFreeLines(1, true);
+                    MachineLine::LaserWarmUp(LASER_WARMUP_TIME);
+                    LaserDriver::firstMove = false;
+                }
+#endif
+                if (com->hasS()) {
+                    LaserDriver::intensity  = constrain(com->S, 0, LASER_PWM_MAX);
+                    LaserDriver::laserOn    = com->S ? 1 : 0;
+                }
+            }
+        }
+#else
+        if (com->hasS()) Machine::setNoDestinationCheck(com->S != 0);
+#endif
+        if (Machine::setDestinationStepsFromGCode(com)) {// For X Y Z A F
+            MachineLine::queueCartesianMove(ALWAYS_CHECK_ENDSTOPS, true);
+        }
+
 #ifdef DEBUG_QUEUE_MOVE
         {
-
             InterruptProtectedBlock noInts;
             int lc = (int)MachineLine::linesCount;
             int lp = (int)MachineLine::linesPos;
@@ -331,11 +366,38 @@ void Commands::processGCode(GCode *com) {
                 Com::printFLN(PSTR("Buffer corrupted"));
         }
 #endif
+
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+        LaserDriver::laserOn    = laserOn;
+        LaserDriver::intensity  = laserIntensity;
+    }
+#endif // defined
     break;
 #if ARC_SUPPORT
     case 2: // CW Arc
 	case 3: // CCW Arc MOTION_MODE_CW_ARC: case MOTION_MODE_CCW_ARC:
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+    {
+        bool laserOn = LaserDriver::laserOn;
+        uint8_t laserIntensity = LaserDriver::intensity;
+#if LASER_WARMUP_TIME > 0
+        if (Machine::mode == MACHINE_MODE_LASER && LaserDriver::firstMove && (LaserDriver::laserOn || com->hasE())) {
+            MachineLine::waitForXFreeLines(1, true);
+            MachineLine::LaserWarmUp(LASER_WARMUP_TIME);
+            LaserDriver::firstMove = false;
+        }
+#endif
+        if (com->hasS()) {
+            LaserDriver::intensity = constrain(com->S, 0, LASER_PWM_MAX);
+            LaserDriver::laserOn = com->S ? 1 : 0;
+        }
+#endif
 		processArc(com);
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+        LaserDriver::laserOn    = laserOn;
+        LaserDriver::intensity  = laserIntensity;
+    }
+#endif
     break;
 #endif
     case 4: // G4 dwell
@@ -524,7 +586,9 @@ void Commands::processGCode(GCode *com) {
 			Com::printF(PSTR(" Y_OFFSET:"), Machine::coordinateOffset[Y_AXIS], 3);
 			Com::printFLN(PSTR(" Z_OFFSET:"), Machine::coordinateOffset[Z_AXIS], 3);
 		}
-		Machine::distortion.SetStartEnd(Machine::distortionStart, Machine::distortionEnd);
+#if DISTORTION_CORRECTION
+        Machine::distortion.SetStartEnd(Machine::distortionStart, Machine::distortionEnd);
+#endif
 	}
 	break;
 	case 93: { // G93
@@ -574,37 +638,57 @@ void Commands::processMCode(GCode *com) {
     if(EVENT_UNHANDLED_M_CODE(com))
         return;
     switch( com->M ) {
-	case 3: // Spindle
-		waitUntilEndOfAllMoves();
-		Endstops::update();
-		Endstops::update();
-		while(!Endstops::zProbe())
-		{
-			Com::printFLN(PSTR("Unclip Zprobe from tool prior to starting spindle!"));
-			millis_t wait = 1000 + HAL::timeInMilliseconds();
+	case 3: // Spindle CW
+    case 4: // Spindle CCW
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+        if (Machine::mode == MACHINE_MODE_LASER) {
+            waitUntilEndOfAllMoves();
+            if (com->hasS()) LaserDriver::intensity = constrain(com->S, 0, LASER_PWM_MAX);
+            else LaserDriver::intensity = 0xFF;
+            LaserDriver::turnOn();
+        }
+#endif // defined
+#if defined(SUPPORT_SPINDLE) && SUPPORT_SPINDLE
+        if (Machine::mode == MACHINE_MODE_SPINDLE) {
+		    waitUntilEndOfAllMoves();
+		    Endstops::update();
+		    Endstops::update();
+		    while(!Endstops::zProbe())
+		    {
+			    Com::printFLN(PSTR("Unclip Zprobe from tool prior to starting spindle!"));
+			    millis_t wait = 1000 + HAL::timeInMilliseconds();
 
-			while(wait - HAL::timeInMilliseconds() < 100000) {
-				Machine::defaultLoopActions();
-			}
-			Endstops::update();
-			Endstops::update();
-		}
+			    while(wait - HAL::timeInMilliseconds() < 100000) {
+				    Machine::defaultLoopActions();
+			    }
+			    Endstops::update();
+			    Endstops::update();
+		    }
 
-		CNCDriver::spindleOnCW(com->hasS() ? com->S : CNC_RPM_MAX);
-        break;
-	case 4: // Spindle CCW
-		waitUntilEndOfAllMoves();
-		CNCDriver::spindleOnCCW(com->hasS() ? com->S : CNC_RPM_MAX);
+            if (com->M == 3) SpindleDriver::turnOnCW(com->hasS() ? com->S : SPINDLE_RPM_MAX);
+            else SpindleDriver::turnOnCCW(com->hasS() ? com->S : SPINDLE_RPM_MAX);
+        }
+#endif // defined
         break;
 	case 5: // Spindle
-		waitUntilEndOfAllMoves();
-		CNCDriver::spindleOff();
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+        if (Machine::mode == MACHINE_MODE_LASER) {
+            waitUntilEndOfAllMoves();
+            LaserDriver::turnOff(true);
+        }
+#endif // defined
+#if defined(SUPPORT_SPINDLE) && SUPPORT_SPINDLE
+        if (Machine::mode == MACHINE_MODE_SPINDLE) {
+            waitUntilEndOfAllMoves();
+            SpindleDriver::turnOff();
+        }
+#endif // defined
 		break;
 	case 10: // Vacuum
-		CNCDriver::vacuumOn();
+		VacuumDriver::turnOn();
 		break;
 	case 11: //Vacuum off
-		CNCDriver::vacuumOff();
+        VacuumDriver::turnOff();
 		break;
 	case 17: //M17 is to enable named axis
         {
@@ -1032,6 +1116,31 @@ void Commands::processMCode(GCode *com) {
     case 402: // M402 Go to stored position
 		Machine::GoToMemoryPosition(com->hasX(), com->hasY(), com->hasZ(), com->hasA(), (com->hasF() ? com->F : Machine::feedrate));
 		break;
+    case 450:
+        Machine::reportPrinterMode();
+        break;
+    case 452:
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+        waitUntilEndOfAllMoves();
+#if defined(SUPPORT_SPINDLE) && SUPPORT_SPINDLE
+        SpindleDriver::turnOff();
+#endif
+        Machine::mode = MACHINE_MODE_LASER;
+#endif
+        Machine::reportPrinterMode();
+        break;
+    case 453:
+#if defined(SUPPORT_SPINDLE) && SUPPORT_SPINDLE
+        waitUntilEndOfAllMoves();
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+        if (Machine::mode == MACHINE_MODE_LASER) {
+            LaserDriver::turnOff(true);
+        }
+#endif // defined
+        Machine::mode = MACHINE_MODE_SPINDLE;
+#endif
+        Machine::reportPrinterMode();
+        break;
     case 500: { // M500
 #if EEPROM_MODE != 0
         EEPROM::storeDataIntoEEPROM(false);
@@ -1166,6 +1275,9 @@ void Commands::emergencyStop() {
         pwm_pos[i] = 0;
 #if FAN_PIN > -1 && FEATURE_FAN_CONTROL
     WRITE(FAN_PIN, 0);
+#endif
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+    OCR5B = 0;
 #endif
 	HAL::delayMilliseconds(200);
     InterruptProtectedBlock noInts;

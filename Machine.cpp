@@ -25,6 +25,7 @@ long Machine::destinationSteps[A_AXIS_ARRAY];
 float Machine::coordinateOffset[Z_AXIS_ARRAY] = {0, 0, 0};
 uint8_t Machine::flag0 = 0;
 uint8_t Machine::flag1 = 0;
+uint8_t Machine::mode = DEFAULT_MACHINE_MODE;
 uint8_t Machine::debugLevel = 6; ///< Bitfield defining debug output. 1 = echo, 2 = info, 4 = error, 8 = dry run., 16 = Only communication, 32 = No moves
 fast8_t Machine::stepsTillNextCalc = 1;
 fast8_t Machine::stepsSinceLastCalc = 1;
@@ -123,7 +124,7 @@ void Machine::constrainDestinationCoords() {
 	if (destinationSteps[Y_AXIS] > axisMaxSteps[Y_AXIS]) destinationSteps[Y_AXIS] = axisMaxSteps[Y_AXIS];
 #endif
 #if max_software_endstop_z
-	if (destinationSteps[Z_AXIS] > zMaxStepsAdj && !isZProbingActive()) destinationSteps[Z_AXIS] = axisMaxSteps[Z_AXIS];
+	if (destinationSteps[Z_AXIS] > axisMaxSteps[Z_AXIS] && !isZProbingActive()) destinationSteps[Z_AXIS] = axisMaxSteps[Z_AXIS];
 #endif
 	EVENT_CONTRAIN_DESTINATION_COORDINATES
 }
@@ -204,6 +205,18 @@ void Machine::setFan2SpeedDirectly(uint8_t speed) {
 #endif
     pwm_pos[PWM_FAN2] = trimmedSpeed;
 #endif
+}
+
+void Machine::reportPrinterMode() {
+    switch (mode) {
+    case MACHINE_MODE_LASER:
+        Com::printFLN(Com::tMachineModeLaser);
+        break;
+
+    case MACHINE_MODE_SPINDLE:
+        Com::printFLN(Com::tMachineModeCNC);
+        break;
+    }
 }
 
 void Machine::updateDerivedParameter() {
@@ -600,7 +613,14 @@ void Machine::setup() {
     SET_OUTPUT(CASE_LIGHTS_PIN);
     WRITE(CASE_LIGHTS_PIN, CASE_LIGHT_DEFAULT_ON);
 #endif // CASE_LIGHTS_PIN
-	CNCDriver::initialize();
+
+#if defined(SUPPORT_SPINDLE) && SUPPORT_SPINDLE
+	SpindleDriver::initialize();
+#endif
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+    LaserDriver::initialize();
+#endif
+    VacuumDriver::initialize();
 
 #ifdef RED_BLUE_STATUS_LEDS
     SET_OUTPUT(RED_STATUS_LED);
@@ -927,6 +947,11 @@ void Machine::homeAxis(bool xaxis, bool yaxis, bool zaxis) { // home non-delta p
     bool nocheck = isNoDestinationCheck();
     setNoDestinationCheck(true);
 
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+    bool oldLaser = LaserDriver::laserOn;
+    LaserDriver::laserOn = false;
+#endif
+
     float startX, startY, startZ, startA;
 	realPosition(startX, startY, startZ, startA);
 #if !defined(HOMING_ORDER)
@@ -1004,6 +1029,9 @@ void Machine::homeAxis(bool xaxis, bool yaxis, bool zaxis) { // home non-delta p
 	updateCurrentPosition(true);
     updateHomedAll();
 	Commands::printCurrentPosition();
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+    LaserDriver::laserOn = oldLaser;
+#endif
     setNoDestinationCheck(nocheck);
     Machine::updateCurrentPosition();
 }

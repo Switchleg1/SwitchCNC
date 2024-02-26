@@ -273,6 +273,13 @@ FSTRINGVAR(tZCorrectionDisabled)
 #endif
 FSTRINGVAR(tConfig)
 FSTRINGVAR(tExtrDot)
+FSTRINGVAR(tMachineModeLaser)
+FSTRINGVAR(tMachineModeCNC)
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+FSTRINGVAR(tLaserMinIntensity)
+FSTRINGVAR(tLaserOn)
+FSTRINGVAR(tLaserOff)
+#endif
 #ifdef STARTUP_GCODE
 FSTRINGVAR(tStartupGCode)
 #endif

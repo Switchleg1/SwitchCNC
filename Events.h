@@ -43,13 +43,19 @@ Each of the following events describe the parameter and when it is called.
 #define EVENT_CONTINUE_FROM_FATAL_ERROR
 
 // Initialize CNC
-#define EVENT_INITIALIZE_CNC true
+#define EVENT_INITIALIZE_SPINDLE true
 // Turn off spindle
 #define EVENT_SPINDLE_OFF true
 // Turn spindle clockwise
 #define EVENT_SPINDLE_CW(rpm) true
 // Turn spindle counter clockwise
 #define EVENT_SPINDLE_CCW(rpm) true
+
+// Called to initialize laser pins. Return false to prevent default initialization.
+#define EVENT_INITIALIZE_LASER true
+// Set laser to intensity level 0 = off, 255 = full. Return false if you have overridden the setting routine.
+// with true the default solution will set it as digital value.
+#define EVENT_SET_LASER(intensity) true
 
 // Allow adding new G and M codes. To implement it create a function
 // bool eventUnhandledGCode(GCode *com)

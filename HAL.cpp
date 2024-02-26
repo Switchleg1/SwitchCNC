@@ -657,7 +657,7 @@ ISR(PWM_TIMER_VECTOR) {
 	pwm_position++;
 
 	if(pwm_position == 0) {
-#if CNC_SPINDLE_PWM_PIN > -1
+#if SPINDLE_PWM_PIN > -1
 		if(pwm_pos[PWM_SPINDLE]) WRITE(SPINDLE_PWM_PIN, 1);
 			else WRITE(SPINDLE_PWM_PIN, 0);
 #endif
@@ -675,7 +675,7 @@ ISR(PWM_TIMER_VECTOR) {
 #endif
 	} else
 	{
-#if CNC_SPINDLE_PWM_PIN > -1
+#if SPINDLE_PWM_PIN > -1
 		if(pwm_pos[PWM_SPINDLE] == pwm_position) WRITE(SPINDLE_PWM_PIN, 0);
 #endif
 #if FAN_BOARD_PIN > -1

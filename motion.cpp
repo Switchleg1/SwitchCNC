@@ -337,7 +337,6 @@ void MachineLine::queueCartesianMove(uint8_t check_endstops, uint8_t pathOptimiz
     Machine::zCorrectionStepsIncluded = 0;
 	for(uint8_t axis = 0; axis < A_AXIS_ARRAY; axis++) {
 		p->delta[axis] = Machine::destinationSteps[axis] - Machine::currentPositionSteps[axis];
-		p->secondSpeed = Machine::fanSpeed;
         if(p->delta[axis] >= 0)
             p->setPositiveDirectionForAxis(axis);
         else
@@ -346,6 +345,15 @@ void MachineLine::queueCartesianMove(uint8_t check_endstops, uint8_t pathOptimiz
         if(p->delta[axis]) p->setMoveOfAxis(axis);
         Machine::currentPositionSteps[axis] = Machine::destinationSteps[axis];
     }
+
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+    if (Machine::mode == MACHINE_MODE_LASER && (p->delta[X_AXIS] != 0 || p->delta[Y_AXIS] != 0)) {
+        p->secondSpeed = LaserDriver::laserOn ? LaserDriver::intensity : 0;
+    }
+    else 
+#endif
+    p->secondSpeed = Machine::fanSpeed;
+
     if(p->isNoMove()) {
         if(newPath)   // need to delete dummy elements, otherwise commands can get locked.
             resetPathPlanner();
@@ -1099,7 +1107,13 @@ uint32_t MachineLine::bresenhamStep() {
 		Machine::setZDirection(cur->isZPositiveMove());
 		Machine::setADirection(cur->isAPositiveMove());
 
-		Machine::setFanSpeedDirectly(static_cast<uint8_t>(cur->secondSpeed));
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+        if (Machine::mode == MACHINE_MODE_LASER) {
+            LaserDriver::changeIntensity(cur->secondSpeed);
+        } else
+#endif
+        Machine::setFanSpeedDirectly(static_cast<uint8_t>(cur->secondSpeed));
+
 #if MULTI_XENDSTOP_HOMING
 		Machine::multiXHomeFlags = MULTI_XENDSTOP_ALL;  // move all x motors until endstop says differently
 #endif
@@ -1252,7 +1266,12 @@ uint32_t MachineLine::bresenhamStep() {
         removeCurrentLineForbidInterrupt();
         Machine::disableAllowedStepper();
 		if(linesCount == 0) {
-			Machine::setFanSpeedDirectly(Machine::fanSpeed);
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+            if (Machine::mode == MACHINE_MODE_LASER) { // Last move disables laser for safety!
+                LaserDriver::changeIntensity(0);
+            } else
+#endif
+            Machine::setFanSpeedDirectly(Machine::fanSpeed);
         }
 
         interval = interval >> 1; // 50% of time to next call to do cur=0

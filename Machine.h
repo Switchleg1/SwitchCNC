@@ -170,6 +170,7 @@ public:
     static fast8_t stepsTillNextCalc;
     static fast8_t stepsSinceLastCalc;
 	static uint8_t flag0, flag1;
+    static uint8_t mode;
     static uint32_t interval;    ///< Last step duration in ticks.
     static uint32_t timer;              ///< used for acceleration/deceleration timing
     static uint32_t stepNumber;         ///< Step number in current move.
@@ -255,6 +256,7 @@ public:
             interruptEvent = evt;
     }
 
+    static void reportPrinterMode();
     static void setDebugLevel(uint8_t newLevel);
     static void toggleEcho();
     static void toggleInfo();
