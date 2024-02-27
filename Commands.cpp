@@ -1,4 +1,5 @@
 #include "SwitchCNC.h"
+#include "Temperature.h"
 
 const int8_t sensitive_pins[] PROGMEM = SENSITIVE_PINS; // Sensitive pin list for M42
 int Commands::lowestRAMValue = MAX_RAM;
@@ -71,6 +72,42 @@ void Commands::checkForPeriodicalActions(bool allowNewMoves) {
    
     Machine::speed_dial = value;
 #endif //SPEED_DIAL
+
+#if SUPPORT_LASER && LASER_TEMP_PIN > -1
+#if ANALOG_OUTPUT_BITS > TEMPERATURE_TABLE_BITS
+    LaserDriver::tempRaw = AnalogIn::values[LASER_TEMP_ANALOG_INDEX] >> (ANALOG_OUTPUT_BITS - TEMPERATURE_TABLE_BITS);
+#elif ANALOG_OUTPUT_BITS == TEMPERATURE_TABLE_BITS
+    LaserDriver::tempRaw = AnalogIn::values[LASER_TEMP_ANALOG_INDEX]
+#else
+    LaserDriver::tempRaw = AnalogIn::values[LASER_TEMP_ANALOG_INDEX] << (TEMPERATURE_TABLE_BITS - ANALOG_OUTPUT_BITS);
+#endif
+
+    int16_t oldraw = pgm_read_word(&temperatureTables[0][TEMPERATURE_RAW][LASER_TEMP_SENSOR_TYPE]);
+    int16_t oldtemp = pgm_read_word(&temperatureTables[0][TEMERATURE_TEMP][LASER_TEMP_SENSOR_TYPE]);
+    int16_t newraw, newtemp = 0;
+    uint8_t i = 1;
+    while (i < TEMPERATURE_TABLE_ENTRIES)
+    {
+        newraw = pgm_read_word(&temperatureTables[i][TEMPERATURE_RAW][LASER_TEMP_SENSOR_TYPE]);
+        newtemp = pgm_read_word(&temperatureTables[i][TEMERATURE_TEMP][LASER_TEMP_SENSOR_TYPE]);
+        if (newraw > LaserDriver::tempRaw)
+        {
+            LaserDriver::temperature = oldtemp + ((float)(LaserDriver::tempRaw - oldraw) * (float)(newtemp - oldtemp) / (float)(newraw - oldraw));
+            i = TEMPERATURE_TABLE_ENTRIES + 2;
+        }
+        oldtemp = newtemp;
+        oldraw = newraw;
+        i++;
+    }
+
+    // Overflow: Set to last value in the table
+    if (i == TEMPERATURE_TABLE_ENTRIES + 1) {
+        LaserDriver::temperature = newtemp;
+    }
+
+    LaserDriver::tempRaw = 0;
+    LaserDriver::tempCount = 0;
+#endif //LASER_TEMP_PIN
 
 	EVENT_TIMER_100MS;
 	if(--counter500ms == 0) {
@@ -637,8 +674,8 @@ void Commands::processGCode(GCode *com) {
 void Commands::processMCode(GCode *com) {
     if(EVENT_UNHANDLED_M_CODE(com))
         return;
-    switch( com->M ) {
-	case 3: // Spindle CW
+    switch (com->M) {
+    case 3: // Spindle CW
     case 4: // Spindle CCW
 #if defined(SUPPORT_LASER) && SUPPORT_LASER
         if (Machine::mode == MACHINE_MODE_LASER) {
@@ -650,27 +687,27 @@ void Commands::processMCode(GCode *com) {
 #endif // defined
 #if defined(SUPPORT_SPINDLE) && SUPPORT_SPINDLE
         if (Machine::mode == MACHINE_MODE_SPINDLE) {
-		    waitUntilEndOfAllMoves();
-		    Endstops::update();
-		    Endstops::update();
-		    while(!Endstops::zProbe())
-		    {
-			    Com::printFLN(PSTR("Unclip Zprobe from tool prior to starting spindle!"));
-			    millis_t wait = 1000 + HAL::timeInMilliseconds();
+            waitUntilEndOfAllMoves();
+            Endstops::update();
+            Endstops::update();
+            while (!Endstops::zProbe())
+            {
+                Com::printFLN(PSTR("Unclip Zprobe from tool prior to starting spindle!"));
+                millis_t wait = 1000 + HAL::timeInMilliseconds();
 
-			    while(wait - HAL::timeInMilliseconds() < 100000) {
-				    Machine::defaultLoopActions();
-			    }
-			    Endstops::update();
-			    Endstops::update();
-		    }
+                while (wait - HAL::timeInMilliseconds() < 100000) {
+                    Machine::defaultLoopActions();
+                }
+                Endstops::update();
+                Endstops::update();
+            }
 
             if (com->M == 3) SpindleDriver::turnOnCW(com->hasS() ? com->S : SPINDLE_RPM_MAX);
             else SpindleDriver::turnOnCCW(com->hasS() ? com->S : SPINDLE_RPM_MAX);
         }
 #endif // defined
         break;
-	case 5: // Spindle
+    case 5: // Spindle
 #if defined(SUPPORT_LASER) && SUPPORT_LASER
         if (Machine::mode == MACHINE_MODE_LASER) {
             waitUntilEndOfAllMoves();
@@ -683,73 +720,73 @@ void Commands::processMCode(GCode *com) {
             SpindleDriver::turnOff();
         }
 #endif // defined
-		break;
-	case 10: // Vacuum
-		VacuumDriver::turnOn();
-		break;
-	case 11: //Vacuum off
+        break;
+    case 10: // Vacuum
+        VacuumDriver::turnOn();
+        break;
+    case 11: //Vacuum off
         VacuumDriver::turnOff();
-		break;
-	case 17: //M17 is to enable named axis
-        {
-			Commands::waitUntilEndOfAllMoves();
-			bool named = false;
-			if(com->hasX()) {
-				named = true;
-				Machine::enableXStepper();
-			}
-			if(com->hasY()) {
-				named = true;
-				Machine::enableYStepper();
-			}
-			if(com->hasZ()) {
-				named = true;
-				Machine::enableZStepper();
-			}
-			if(com->hasA()) {
-				named = true;
-				Machine::enableAStepper();
-			}
-			if(!named) {
-				Machine::enableXStepper();
-				Machine::enableYStepper();
-				Machine::enableZStepper();
-				Machine::enableAStepper();
-			}
-			Machine::unsetAllSteppersDisabled();
-		}
-		break;
-	case 18: // M18 is to disable named axis
-		{
-			Commands::waitUntilEndOfAllMoves();
-			bool named = false;
-			if(com->hasX()) {
-				named = true;
-				Machine::disableXStepper();
-			}
-			if(com->hasY()) {
-				named = true;
-				Machine::disableYStepper();
-			}
-			if(com->hasZ()) {
-				named = true;
-				Machine::disableZStepper();
-			}
-			if(com->hasA()) {
-				named = true;
-				Machine::disableAStepper();
-			}
-			if(!named) {
-				Machine::disableXStepper();
-				Machine::disableYStepper();
-				Machine::disableZStepper();
-				Machine::disableAStepper();
-				Machine::setAllSteppersDiabled();
-			}
-		}
-		break;
+        break;
+    case 17: //M17 is to enable named axis
+    {
+        Commands::waitUntilEndOfAllMoves();
+        bool named = false;
+        if (com->hasX()) {
+            named = true;
+            Machine::enableXStepper();
+        }
+        if (com->hasY()) {
+            named = true;
+            Machine::enableYStepper();
+        }
+        if (com->hasZ()) {
+            named = true;
+            Machine::enableZStepper();
+        }
+        if (com->hasA()) {
+            named = true;
+            Machine::enableAStepper();
+        }
+        if (!named) {
+            Machine::enableXStepper();
+            Machine::enableYStepper();
+            Machine::enableZStepper();
+            Machine::enableAStepper();
+        }
+        Machine::unsetAllSteppersDisabled();
+    }
+    break;
+    case 18: // M18 is to disable named axis
+    {
+        Commands::waitUntilEndOfAllMoves();
+        bool named = false;
+        if (com->hasX()) {
+            named = true;
+            Machine::disableXStepper();
+        }
+        if (com->hasY()) {
+            named = true;
+            Machine::disableYStepper();
+        }
+        if (com->hasZ()) {
+            named = true;
+            Machine::disableZStepper();
+        }
+        if (com->hasA()) {
+            named = true;
+            Machine::disableAStepper();
+        }
+        if (!named) {
+            Machine::disableXStepper();
+            Machine::disableYStepper();
+            Machine::disableZStepper();
+            Machine::disableAStepper();
+            Machine::setAllSteppersDiabled();
+        }
+    }
+    break;
 #if SDSUPPORT
-	case 20: // M20 - list SD card
+    case 20: // M20 - list SD card
         sd.ls();
         break;
     case 21: // M21 - init SD card
@@ -759,7 +796,7 @@ void Commands::processMCode(GCode *com) {
         sd.unmount();
         break;
     case 23: //M23 - Select file
-        if(com->hasString()) {
+        if (com->hasString()) {
             sd.fat.chdir();
             sd.selectFile(com->text);
         }
@@ -771,14 +808,14 @@ void Commands::processMCode(GCode *com) {
         sd.pausePrint();
         break;
     case 26: //M26 - Set SD index
-        if(com->hasS())
+        if (com->hasS())
             sd.setIndex(com->S);
         break;
     case 27: //M27 - Get SD status
         sd.printStatus();
         break;
     case 28: //M28 - Start SD write
-        if(com->hasString())
+        if (com->hasString())
             sd.startWrite(com->text);
         break;
     case 29: //M29 - Stop SD write
@@ -786,13 +823,13 @@ void Commands::processMCode(GCode *com) {
         //savetosd = false;
         break;
     case 30: // M30 filename - Delete file
-        if(com->hasString()) {
+        if (com->hasString()) {
             sd.fat.chdir();
             sd.deleteFile(com->text);
         }
         break;
     case 32: // M32 directoryname
-        if(com->hasString()) {
+        if (com->hasString()) {
             sd.fat.chdir();
             sd.makeDirectory(com->text);
         }
@@ -801,103 +838,119 @@ void Commands::processMCode(GCode *com) {
     case 42: //M42 -Change pin status via gcode
         if (com->hasP()) {
             int pin_number = com->P;
-            for(uint8_t i = 0; i < (uint8_t)sizeof(sensitive_pins); i++) {
+            for (uint8_t i = 0; i < (uint8_t)sizeof(sensitive_pins); i++) {
                 if (pgm_read_byte(&sensitive_pins[i]) == pin_number) {
                     pin_number = -1;
                     break;
                 }
             }
             if (pin_number > -1) {
-                if(com->hasS()) {
-                    if(com->S >= 0 && com->S <= 255) {
+                if (com->hasS()) {
+                    if (com->S >= 0 && com->S <= 255) {
                         pinMode(pin_number, OUTPUT);
                         digitalWrite(pin_number, com->S);
                         analogWrite(pin_number, com->S);
                         Com::printF(Com::tSetOutputSpace, pin_number);
                         Com::printFLN(Com::tSpaceToSpace, (int)com->S);
-                    } else
+                    }
+                    else
                         Com::printErrorFLN(PSTR("Illegal S value for M42"));
-                } else {
+                }
+                else {
                     pinMode(pin_number, INPUT_PULLUP);
                     Com::printF(Com::tSpaceToSpace, pin_number);
                     Com::printFLN(Com::tSpaceIsSpace, digitalRead(pin_number));
                 }
-            } else {
+            }
+            else {
                 Com::printErrorFLN(PSTR("Pin can not be set by M42, is in sensitive pins! "));
             }
         }
         break;
 #if PS_ON_PIN > -1
-	case 80: // M80 - ATX Power On
-		Commands::waitUntilEndOfAllMoves();
+    case 80: // M80 - ATX Power On
+        Commands::waitUntilEndOfAllMoves();
         previousMillisCmd = HAL::timeInMilliseconds();
         SET_OUTPUT(PS_ON_PIN); //GND
         Machine::setPowerOn(true);
         WRITE(PS_ON_PIN, (POWER_INVERTING ? HIGH : LOW));
-		break;
-	case 81: // M81 - ATX Power Off
+        break;
+    case 81: // M81 - ATX Power Off
         Commands::waitUntilEndOfAllMoves();
         SET_OUTPUT(PS_ON_PIN); //GND
         Machine::setPowerOn(false);
         WRITE(PS_ON_PIN, (POWER_INVERTING ? LOW : HIGH));
-		break;
+        break;
 #endif
     case 84: // M84
-        if(com->hasS()) {
+        if (com->hasS()) {
             stepperInactiveTime = com->S * 1000;
-        } else {
+        }
+        else {
             Commands::waitUntilEndOfAllMoves();
             Machine::kill(true);
         }
         break;
     case 85: // M85
-        if(com->hasS())
+        if (com->hasS())
             maxInactiveTime = (int32_t)com->S * 1000;
         else
             maxInactiveTime = 0;
         break;
     case 92: // M92
-        if(com->hasX()) Machine::axisStepsPerMM[X_AXIS] = com->X;
-        if(com->hasY()) Machine::axisStepsPerMM[Y_AXIS] = com->Y;
-        if(com->hasZ()) Machine::axisStepsPerMM[Z_AXIS] = com->Z;
+        if (com->hasX()) Machine::axisStepsPerMM[X_AXIS] = com->X;
+        if (com->hasY()) Machine::axisStepsPerMM[Y_AXIS] = com->Y;
+        if (com->hasZ()) Machine::axisStepsPerMM[Z_AXIS] = com->Z;
         Machine::updateDerivedParameter();
-		break;
+        break;
     case 99: { // M99 S<time>
-		millis_t wait = 10000;
-        if(com->hasS())
+        millis_t wait = 10000;
+        if (com->hasS())
             wait = 1000 * com->S;
-        if(com->hasX())
+        if (com->hasX())
             Machine::disableXStepper();
-        if(com->hasY())
+        if (com->hasY())
             Machine::disableYStepper();
-        if(com->hasZ())
+        if (com->hasZ())
             Machine::disableZStepper();
         wait += HAL::timeInMilliseconds();
 #ifdef DEBUG_MACHINE
         debugWaitLoop = 2;
 #endif
-        while(wait - HAL::timeInMilliseconds() < 100000) {
-			Machine::defaultLoopActions();
+        while (wait - HAL::timeInMilliseconds() < 100000) {
+            Machine::defaultLoopActions();
         }
-        if(com->hasX())
+        if (com->hasX())
             Machine::enableXStepper();
-		if(com->hasY())
+        if (com->hasY())
             Machine::enableYStepper();
-        if(com->hasZ())
-			Machine::enableZStepper();
-		if(com->hasA())
-			Machine::enableAStepper();
+        if (com->hasZ())
+            Machine::enableZStepper();
+        if (com->hasA())
+            Machine::enableAStepper();
     }
-    break;
-#if SPEED_DIAL && SPEED_DIAL_PIN > -1
+           break;
     case 105: // M105  get speed. Always returns the speed
-        Com::writeToAll = false;
-        Com::printF(Com::tTColon, (Machine::speed_dial * 100) >> SPEED_DIAL_BITS);
-        Com::printF(Com::tSpaceSlash, 0, 0);
-        Com::printF(Com::tSpaceAtColon, 0);
-        Com::println();
-        break;
+#if SUPPORT_LASER
+        if (Machine::mode == MACHINE_MODE_LASER) {
+            //print temperature
+            Com::printF(Com::tTColon, LaserDriver::temperature);
+            Com::printF(Com::tSpaceSlash, 0, 0);
+            Com::printF(Com::tSpaceAt);
+            Com::printFLN(Com::tColon, 0);
+        }
 #endif
+
+#if SUPPORT_SPINDLE && SPEED_DIAL && SPEED_DIAL_PIN > -1
+        if (Machine::mode == MACHINE_MODE_SPINDLE) {
+            Com::writeToAll = false;
+            Com::printF(Com::tTColon, (Machine::speed_dial * 100) >> SPEED_DIAL_BITS);
+            Com::printF(Com::tSpaceSlash, 0, 0);
+            Com::printF(Com::tSpaceAtColon, 0);
+            Com::println();
+        }
+#endif
+        break;
 
 #if FAN_PIN > -1 && FEATURE_FAN_CONTROL
     case 106: // M106 Fan On

@@ -653,7 +653,7 @@ This timer is called 31248 timer per second. It is used to update pwm values for
 ISR(PWM_TIMER_VECTOR) {
 	static uint8_t pwm_position = 0;
 
-	PWM_OCR += 8;
+	PWM_OCR += 8 * PWM_FREQUENCY_DIVISOR;
 	pwm_position++;
 
 	if(pwm_position == 0) {
@@ -689,7 +689,7 @@ ISR(PWM_TIMER_VECTOR) {
 #endif
     }
 	counterPeriodical++; // Approximate a 100ms timer
-	if(counterPeriodical >= (int)(F_CPU / 5120)) {
+	if(counterPeriodical >= (int)(F_CPU / 5120 / PWM_FREQUENCY_DIVISOR)) {
         counterPeriodical = 0;
 		executePeriodical = 1;
 #if FEATURE_FAN_CONTROL

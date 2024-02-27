@@ -3,9 +3,19 @@
 
 #include <math.h>
 #include <stdint.h>
+#include "Configuration.h"
 
 #define SWITCHCNC_VERSION       "1.0.3"
-#define MACHINE_TYPE            "MILL"
+#if SUPPORT_SPINDLE
+#if SUPPORT_LASER
+#define MACHINE_TYPE            "SPINDLE/LASER"
+#else
+#define MACHINE_TYPE            "SPINDLE"
+#endif
+#else
+#define MACHINE_TYPE            "LASER"
+#endif
+
 #define FIRMWARE_URL            "https://github.com/switchleg1/SwitchCNC"
 
 #define MACHINE_MODE_SPINDLE    0

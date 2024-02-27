@@ -637,7 +637,7 @@ public:
     static INLINE speed_t updateStepsPerTimerCall(speed_t vbase) {
 #if MAX_STEPS_PER_CALL >= 8
         if (vbase > STEP_DOUBLER_FREQUENCY * 4) {
-            Machine::stepsTillNextCalc = 8;
+            stepsTillNextCalc = 8;
 #if QUICK_STEP
             return vbase >> 3;
 #endif
@@ -645,7 +645,7 @@ public:
 #endif
 #if MAX_STEPS_PER_CALL >= 4
         if(vbase > STEP_DOUBLER_FREQUENCY * 2) {
-            Machine::stepsTillNextCalc = 4;
+            stepsTillNextCalc = 4;
 #if QUICK_STEP
             return vbase >> 2;
 #endif
@@ -653,7 +653,7 @@ public:
 #endif
 #if MAX_STEPS_PER_CALL >= 2
         if (vbase > STEP_DOUBLER_FREQUENCY) {
-            Machine::stepsTillNextCalc = 2;
+            stepsTillNextCalc = 2;
 #if QUICK_STEP
             return vbase >> 1;
 #endif
@@ -668,7 +668,7 @@ public:
     static INLINE void updateStepsPerTimerCall(speed_t vbase, ticks_t fullInterval) {
 #if MAX_STEPS_PER_CALL >= 8
         if (vbase > STEP_DOUBLER_FREQUENCY * 4) {
-            Machine::stepsTillNextCalc = 8;
+            stepsTillNextCalc = 8;
 #if QUICK_STEP
             interval = fullInterval << 3;
 #else
@@ -678,7 +678,7 @@ public:
 #endif
 #if MAX_STEPS_PER_CALL >= 4
         if (vbase > STEP_DOUBLER_FREQUENCY * 2) {
-            Machine::stepsTillNextCalc = 4;
+            stepsTillNextCalc = 4;
 #if QUICK_STEP
             interval = fullInterval << 2;
 #else
@@ -688,7 +688,7 @@ public:
 #endif
 #if MAX_STEPS_PER_CALL >= 2
         if (vbase > STEP_DOUBLER_FREQUENCY) {
-            Machine::stepsTillNextCalc = 2;
+            stepsTillNextCalc = 2;
 #if QUICK_STEP
             interval = fullInterval << 1;
 #else

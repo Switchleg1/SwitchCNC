@@ -171,7 +171,7 @@ void LaserDriver::turnOn()
     Com::printFLN(Com::tLaserOn, (int)LaserDriver::intensity);
 }
 
-void LaserDriver::turnOff(bool instantOff = false)
+void LaserDriver::turnOff(bool instantOff)
 {
     LaserDriver::laserOn = false;
     if(instantOff) OCR5B = 0;

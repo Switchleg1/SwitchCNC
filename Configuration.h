@@ -21,6 +21,7 @@
 #define CASE_LIGHTS_PIN							-1
 #define CASE_LIGHT_DEFAULT_ON					1
 #define VACUUM_PIN								9
+#define PWM_FREQUENCY_DIVISOR					8
 
 //Power settings
 #define AUTOMATIC_POWERUP						1
@@ -41,11 +42,13 @@
 #define SPINDLE_RPM_MAX							24000
 
 //Laser settings
-#define SUPPORT_LASER							1
+#define SUPPORT_LASER							0
 #define LASER_ON_HIGH							1
 #define LASER_WARMUP_TIME						0
 #define LASER_PWM_MAX							255
 #define LASER_WATT								0
+#define LASER_TEMP_PIN							-1
+#define LASER_TEMP_SENSOR_TYPE					0
 
 //Fan settings
 #define FEATURE_FAN_CONTROL						1

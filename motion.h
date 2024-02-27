@@ -402,7 +402,8 @@ public:
         nextPlannerIndex(linesPos);
         cur = NULL;
         HAL::forbidInterrupts();
-		--linesCount;	}
+		--linesCount;
+    }
     static INLINE void pushLine() {
         nextPlannerIndex(linesWritePos);
         InterruptProtectedBlock noInts;

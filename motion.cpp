@@ -1137,6 +1137,7 @@ uint32_t MachineLine::bresenhamStep() {
 #if QUICK_STEP
         for (fast8_t loop = 0; loop < Machine::stepsSinceLastCalc; loop++) {
 #else
+        HAL::forbidInterrupts();
         if (Machine::stepsTillNextCalc) {
 #endif
 #if STEPPER_HIGH_DELAY > 0
@@ -1187,6 +1188,8 @@ uint32_t MachineLine::bresenhamStep() {
     }
 #endif
 
+    HAL::allowInterrupts(); // Allow interrupts for other types, timer1 is still disabled
+
 #if QUICK_STEP == 0
     if (Machine::stepsTillNextCalc) {
         return Machine::interval;
@@ -1209,7 +1212,7 @@ uint32_t MachineLine::bresenhamStep() {
         }
 	}
 #endif // PAUSE
-    HAL::allowInterrupts(); // Allow interrupts for other types, timer1 is still disabled
+
 #if RAMP_ACCELERATION
 	//If acceleration is enabled on this move and we are in the acceleration segment, calculate the current interval
     if (cur->moveAccelerating()) { // we are accelerating
@@ -1255,7 +1258,6 @@ uint32_t MachineLine::bresenhamStep() {
 #if SPEED_DIAL && SPEED_DIAL_PIN > -1
     if (Machine::speed_dial != (1 << SPEED_DIAL_BITS)) Machine::interval = (Machine::interval << SPEED_DIAL_BITS) / Machine::speed_dial;
 #endif // SPEED_DIAL
-    uint32_t interval = Machine::interval;
 	if(cur->stepsRemaining <= 0 || cur->isNoMove()) { // line finished
 #ifdef DEBUG_STEPCOUNT
         if(cur->totalStepsRemaining) {
@@ -1263,6 +1265,7 @@ uint32_t MachineLine::bresenhamStep() {
             Com::printFLN(Com::tComma, cur->stepsRemaining);
         }
 #endif
+        uint32_t interval = Machine::interval;
         removeCurrentLineForbidInterrupt();
         Machine::disableAllowedStepper();
 		if(linesCount == 0) {
@@ -1278,7 +1281,9 @@ uint32_t MachineLine::bresenhamStep() {
         Machine::interval = interval;
 
         DEBUG_MEMORY;
+
+        return interval;
 	} // Do even
 
-    return interval;
+    return Machine::interval;
 }
