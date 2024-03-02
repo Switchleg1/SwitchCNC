@@ -5,7 +5,6 @@ class Commands
 {
 public:
     static void commandLoop();
-    static void checkForPeriodicalActions(bool allowNewMoves);
     static void processArc(GCode *com);
     static void processGCode(GCode *com);
     static void processMCode(GCode *com);
@@ -15,7 +14,8 @@ public:
     static void printCurrentPosition();
     static void setFanSpeed(int speed, bool immediately = false); /// Set fan speed 0..255
     static void setFan2Speed(int speed); /// Set fan speed 0..255
-    static void changeFeedrateMultiply(int factorInPercent);
+    static void changeFeedrateMultiply(int factor);
+    static void changeFlowrateMultiply(int factor);
     static void emergencyStop();
     static void checkFreeMemory();
     static void writeLowestFreeRAM();

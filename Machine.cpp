@@ -1,13 +1,16 @@
 #include "SwitchCNC.h"
 
-unsigned int counterPeriodical = 0;
-volatile uint8_t executePeriodical = 0;
-uint8_t counter500ms = 5;
-uint8_t Machine::unitIsInches = 0; ///< 0 = Units are mm, 1 = units are inches.
+long Machine::baudrate = BAUDRATE;
+//Inactivity shutdown variables
+millis_t Machine::previousMillisCmd     = 0;
+millis_t Machine::maxInactiveTime       = MAX_INACTIVE_TIME * 1000L;
+millis_t Machine::stepperInactiveTime   = STEPPER_INACTIVE_TIME * 1000L;
+
+uint8_t Machine::unitIsInches           = 0;        ///< 0 = Units are mm, 1 = units are inches.
 //Stepper Movement Variables
 float Machine::axisStepsPerMM[A_AXIS_ARRAY] = {XAXIS_STEPS_PER_MM, YAXIS_STEPS_PER_MM, ZAXIS_STEPS_PER_MM, AAXIS_STEPS_PER_MM}; ///< Number of steps per mm needed.
 float Machine::invAxisStepsPerMM[A_AXIS_ARRAY]; ///< Inverse of axisStepsPerMM for faster conversion
-float Machine::maxFeedrate[A_AXIS_ARRAY] = {MAX_FEEDRATE_X, MAX_FEEDRATE_Y, MAX_FEEDRATE_Z, MAX_FEEDRATE_A}; ///< Maximum allowed feedrate.
+float Machine::maxFeedrate[A_AXIS_ARRAY]    = {MAX_FEEDRATE_X, MAX_FEEDRATE_Y, MAX_FEEDRATE_Z, MAX_FEEDRATE_A}; ///< Maximum allowed feedrate.
 float Machine::homingFeedrate[Z_AXIS_ARRAY] = {HOMING_FEEDRATE_X, HOMING_FEEDRATE_Y, HOMING_FEEDRATE_Z};
 #if RAMP_ACCELERATION
 //  float max_start_speed_units_per_second[A_AXIS_ARRAY] = MAX_START_SPEED_UNITS_PER_SECOND; ///< Speed we can use, without acceleration.
@@ -15,46 +18,36 @@ float Machine::maxAccelerationMMPerSquareSecond[A_AXIS_ARRAY] = {MAX_ACCELERATIO
 /** Acceleration in steps/s^3 in printing mode.*/
 unsigned long Machine::maxAccelerationStepsPerSquareSecond[A_AXIS_ARRAY];
 #endif
-int32_t Machine::zCorrectionStepsIncluded = 0;
-uint8_t Machine::relativeCoordinateMode = false;  ///< Determines absolute (false) or relative Coordinates (true).
+int32_t Machine::zCorrectionStepsIncluded   = 0;
+uint8_t Machine::relativeCoordinateMode     = false;///< Determines absolute (false) or relative Coordinates (true).
 
 long Machine::currentPositionSteps[A_AXIS_ARRAY];
 float Machine::currentPosition[A_AXIS_ARRAY];
 float Machine::lastCmdPos[A_AXIS_ARRAY];
 long Machine::destinationSteps[A_AXIS_ARRAY];
-float Machine::coordinateOffset[Z_AXIS_ARRAY] = {0, 0, 0};
-uint8_t Machine::flag0 = 0;
-uint8_t Machine::flag1 = 0;
-uint8_t Machine::mode = DEFAULT_MACHINE_MODE;
-uint8_t Machine::debugLevel = 6; ///< Bitfield defining debug output. 1 = echo, 2 = info, 4 = error, 8 = dry run., 16 = Only communication, 32 = No moves
+float Machine::coordinateOffset[Z_AXIS_ARRAY]   = {0, 0, 0};
+uint8_t Machine::flag0  = 0;
+uint8_t Machine::flag1  = 0;
+uint8_t Machine::mode   = DEFAULT_MACHINE_MODE;
+uint8_t Machine::debugLevel = 6;                    ///< Bitfield defining debug output. 1 = echo, 2 = info, 4 = error, 8 = dry run., 16 = Only communication, 32 = No moves
 fast8_t Machine::stepsTillNextCalc = 1;
 fast8_t Machine::stepsSinceLastCalc = 1;
-uint8_t Machine::fanSpeed = 0; // Last fan speed set with M106/M107
-uint8_t Machine::interruptEvent = 0;
-#if DISTORTION_CORRECTION
-int16_t Machine::distortionXMIN;
-int16_t Machine::distortionXMAX;
-int16_t Machine::distortionYMIN;
-int16_t Machine::distortionYMAX;
-uint8_t Machine::distortionPoints;
-float Machine::distortionStart;
-float Machine::distortionEnd;
-uint8_t Machine::distortionUseOffset;
-#endif
-uint32_t Machine::interval = 30000;           ///< Last step duration in ticks.
-uint32_t Machine::timer;              ///< used for acceleration/deceleration timing
-uint32_t Machine::stepNumber;         ///< Step number in current move.
+uint8_t Machine::fanSpeed = 0;                      // Last fan speed set with M106/M107
+float Machine::extrudeMultiply = 0;
+uint32_t Machine::interval = 30000;                 ///< Last step duration in ticks.
+uint32_t Machine::timer;                            ///< used for acceleration/deceleration timing
+uint32_t Machine::stepNumber;                       ///< Step number in current move.
 #if FEATURE_Z_PROBE || MAX_HARDWARE_ENDSTOP_Z
 int32_t Machine::stepsRemainingAtZHit;
 #endif
-int32_t Machine::axisMaxSteps[Z_AXIS_ARRAY];      ///< For software endstops, limit of move in positive direction.
-int32_t Machine::axisMinSteps[Z_AXIS_ARRAY];      ///< For software endstops, limit of move in negative direction.
+int32_t Machine::axisMaxSteps[Z_AXIS_ARRAY];        ///< For software endstops, limit of move in positive direction.
+int32_t Machine::axisMinSteps[Z_AXIS_ARRAY];        ///< For software endstops, limit of move in negative direction.
 float Machine::axisLength[Z_AXIS_ARRAY];
 float Machine::axisMin[Z_AXIS_ARRAY];
-float Machine::feedrate;                   ///< Last requested feedrate.
-int Machine::feedrateMultiply;             ///< Multiplier for feedrate in percent (factor 1 = 100)
-float Machine::maxJerk[A_AXIS_ARRAY];      ///< Maximum allowed jerk in mm/s
-speed_t Machine::vMaxReached;               ///< Maximum reached speed
+float Machine::feedrate;                            ///< Last requested feedrate.
+int Machine::feedrateMultiply;                      ///< Multiplier for feedrate in percent (factor 1 = 100)
+float Machine::maxJerk[A_AXIS_ARRAY];               ///< Maximum allowed jerk in mm/s
+speed_t Machine::vMaxReached;                       ///< Maximum reached speed
 #if ENABLE_BACKLASH_COMPENSATION
 float Machine::backlash[A_AXIS_ARRAY];
 uint8_t Machine::backlashDir;
@@ -103,6 +96,18 @@ fast8_t Machine::multiZHomeFlags;  // 1 = move Z0, 2 = move Z1
 #endif
 #ifdef DEBUG_MACHINE
 int debugWaitLoop = 0;
+#endif
+#if DISTORTION_CORRECTION
+Distortion Machine::distortion;
+#endif
+static PWM Machine::pwm;
+
+//private variables
+uint16_t            Machine::counterPeriodical = 0;
+volatile uint8_t    Machine::executePeriodical = 0;
+uint8_t             Machine::counter500ms = 5;
+#if ANALOG_INPUTS > 0
+Analog Machine::analog;
 #endif
 
 void Machine::constrainDestinationCoords() {
@@ -178,32 +183,120 @@ bool Machine::isPositionAllowed(float x, float y, float z) {
     return allowed;
 }
 
-void Machine::setFanSpeedDirectly(uint8_t speed) {
-	uint8_t trimmedSpeed = TRIM_FAN_PWM(speed);
-#if FAN_PIN > -1 && FEATURE_FAN_CONTROL
-    if(pwm_pos[PWM_FAN1] == trimmedSpeed)
+void Machine::checkForPeriodicalActions(bool allowNewMoves)
+{
+    EVENT_PERIODICAL;
+
+    // gets true every 100ms from timerInterrupt()
+    if (!executePeriodical) {
         return;
-#if FAN_KICKSTART_TIME
-    if(fanKickstart == 0 && speed > pwm_pos[PWM_FAN1] && speed < 85) {
-        if(pwm_pos[PWM_FAN1]) fanKickstart = FAN_KICKSTART_TIME / 100;
-        else                  fanKickstart = FAN_KICKSTART_TIME / 25;
+    }
+    executePeriodical = 0;
+
+#if defined(PAUSE_PIN) && PAUSE_PIN>-1
+    bool getPaused = (READ(PAUSE_PIN) != !PAUSE_INVERTING);
+    if (Machine::isPaused != getPaused)
+    {
+        if (!MachineLine::hasLines())
+        {
+            if (getPaused) Machine::pauseSteps = PAUSE_STEPS;
+            else Machine::pauseSteps = 0;
+        }
+
+        if (getPaused) Com::printFLN(Com::tPaused);
+        else Com::printFLN(Com::tUnpaused);
+        Machine::isPaused = getPaused;
+    }
+
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+    if (Machine::isPaused && Machine::mode == MACHINE_MODE_LASER) {
+        LaserDriver::changeIntensity(0);
     }
 #endif
-    pwm_pos[PWM_FAN1] = trimmedSpeed;
+#endif //PAUSE_PIN
+
+#if SPEED_DIAL && SPEED_DIAL_PIN > -1
+    uint8 maxSpeedValue = 1 << SPEED_DIAL_BITS;
+    uint8 minSpeedValue = (uint)maxSpeedValue * SPEED_DIAL_MIN_PERCENT / 100;
+    uint8 speedDivisor = (ANALOG_MAX_VALUE >> SPEED_DIAL_BITS) * 100 / (100 - SPEED_DIAL_MIN_PERCENT);
+#if SPEED_DIAL_INVERT
+    uint8 value = (ANALOG_MAX_VALUE - analog.values[SPEED_DIAL_ANALOG_INDEX]) / speedDivisor + minSpeedValue;
+#else
+    uint8 value = analog.values[SPEED_DIAL_ANALOG_INDEX] / speedDivisor + minSpeedValue;
 #endif
+    if (value > maxSpeedValue) {
+        value = maxSpeedValue;
+    }
+
+    Machine::speed_dial = value;
+#endif //SPEED_DIAL
+
+#if SUPPORT_LASER && LASER_TEMP_PIN > -1
+#if ANALOG_OUTPUT_BITS > TEMPERATURE_TABLE_BITS
+    LaserDriver::tempRaw = analog.values[LASER_TEMP_ANALOG_INDEX] >> (ANALOG_OUTPUT_BITS - TEMPERATURE_TABLE_BITS);
+#elif ANALOG_OUTPUT_BITS == TEMPERATURE_TABLE_BITS
+    LaserDriver::tempRaw = analog.values[LASER_TEMP_ANALOG_INDEX]
+#else
+    LaserDriver::tempRaw = analog.values[LASER_TEMP_ANALOG_INDEX] << (TEMPERATURE_TABLE_BITS - ANALOG_OUTPUT_BITS);
+#endif
+
+    int16_t oldraw = pgm_read_word(&temperatureTables[0][TEMPERATURE_RAW][LASER_TEMP_SENSOR_TYPE]);
+    int16_t oldtemp = pgm_read_word(&temperatureTables[0][TEMERATURE_TEMP][LASER_TEMP_SENSOR_TYPE]);
+    int16_t newraw, newtemp = 0;
+    uint8_t i = 1;
+    while (i < TEMPERATURE_TABLE_ENTRIES)
+    {
+        newraw = pgm_read_word(&temperatureTables[i][TEMPERATURE_RAW][LASER_TEMP_SENSOR_TYPE]);
+        newtemp = pgm_read_word(&temperatureTables[i][TEMERATURE_TEMP][LASER_TEMP_SENSOR_TYPE]);
+        if (newraw > LaserDriver::tempRaw)
+        {
+            LaserDriver::temperature = oldtemp + ((float)(LaserDriver::tempRaw - oldraw) * (float)(newtemp - oldtemp) / (float)(newraw - oldraw));
+            i = TEMPERATURE_TABLE_ENTRIES + 2;
+        }
+        oldtemp = newtemp;
+        oldraw = newraw;
+        i++;
+    }
+
+    // Overflow: Set to last value in the table
+    if (i == TEMPERATURE_TABLE_ENTRIES + 1) {
+        LaserDriver::temperature = newtemp;
+    }
+
+    LaserDriver::tempRaw = 0;
+    LaserDriver::tempCount = 0;
+#endif //LASER_TEMP_PIN
+
+    EVENT_TIMER_100MS;
+    if (--counter500ms == 0) {
+        counter500ms = 5;
+        EVENT_TIMER_500MS;
+#if TMC_DRIVERS
+        Machine::CheckTMCDrivers();
+#endif
+#if FEATURE_WATCHDOG
+        HAL::pingWatchdog();
+#endif
+    }
 }
-void Machine::setFan2SpeedDirectly(uint8_t speed) {
-	uint8_t trimmedSpeed = TRIM_FAN_PWM(speed);
-#if FAN2_PIN > -1 && FEATURE_FAN2_CONTROL
-    if(pwm_pos[PWM_FAN2] == trimmedSpeed)
-        return;
-#if FAN_KICKSTART_TIME
-    if(fan2Kickstart == 0 && speed > pwm_pos[PWM_FAN2] && speed < 85) {
-        if(pwm_pos[PWM_FAN2]) fan2Kickstart = FAN_KICKSTART_TIME / 100;
-        else                  fan2Kickstart = FAN_KICKSTART_TIME / 25;
+
+void Machine::timerInterrupt()
+{
+    // Approximate a 100ms timer
+    bool deincrementKickStart = false;
+    counterPeriodical++;
+    if (counterPeriodical >= (int)(F_CPU / 5120 / INTERRUPT_FREQUENCY_DIVISOR)) {
+        counterPeriodical = 0;
+        executePeriodical = 1;
+        deincrementKickStart = true;
     }
-#endif
-    pwm_pos[PWM_FAN2] = trimmedSpeed;
+
+    //PWM
+    Machine::pwm.doPWM(deincrementKickStart);
+
+    // read analog values
+#if ANALOG_INPUTS > 0
+    analog.read();
 #endif
 }
 
@@ -312,7 +405,7 @@ void Machine::kill(uint8_t onlySteppers) {
         Machine::setAllKilled(true);
 	}
 #if FAN_BOARD_PIN > -1
-        pwm_pos[PWM_BOARD_FAN] = BOARD_FAN_MIN_SPEED;
+    Machine::pwm.set(FAN_BOARD_PWM_INDEX, BOARD_FAN_MIN_SPEED);
 #endif // FAN_BOARD_PIN
 }
 
@@ -461,7 +554,7 @@ void Machine::setup() {
 	digitalWrite(SS, LOW);
 
     HAL::stopWatchdog();
-	for(uint8_t i = 0; i < NUM_PWM; i++) pwm_pos[i] = 0;
+    Machine::pwm.clear();
 #if defined(MB_SETUP)
     MB_SETUP;
 #endif
@@ -606,7 +699,7 @@ void Machine::setup() {
 #if FAN_BOARD_PIN>-1
     SET_OUTPUT(FAN_BOARD_PIN);
     WRITE(FAN_BOARD_PIN, LOW);
-    pwm_pos[PWM_BOARD_FAN] = BOARD_FAN_MIN_SPEED;
+    Machine::pwm.set(FAN_BOARD_PWM_INDEX, BOARD_FAN_MIN_SPEED);
 #endif
     HAL::delayMilliseconds(1);
 #if CASE_LIGHTS_PIN >= 0
@@ -715,23 +808,23 @@ void Machine::setup() {
 #endif
 #endif
 #if ANALOG_INPUTS > 0
-    AnalogIn::start();
+    analog.start();
 #endif
 }
 
 void Machine::defaultLoopActions() {
-    Commands::checkForPeriodicalActions(true);
+    checkForPeriodicalActions(true);
 	millis_t curtime = HAL::timeInMilliseconds();
 	if(MachineLine::hasLines())
-        previousMillisCmd = curtime;
+        Machine::previousMillisCmd = curtime;
     else {
         curtime -= previousMillisCmd;
-        if(maxInactiveTime != 0 && curtime >  maxInactiveTime)
-            Machine::kill(false);
+        if(Machine::maxInactiveTime != 0 && curtime > Machine::maxInactiveTime)
+            kill(false);
         else
-            Machine::setAllKilled(false); // prevent repeated kills
-        if(stepperInactiveTime != 0 && curtime >  stepperInactiveTime)
-            Machine::kill(true);
+            setAllKilled(false); // prevent repeated kills
+        if(Machine::stepperInactiveTime != 0 && curtime > Machine::stepperInactiveTime)
+            kill(true);
     }
 #if SDCARDDETECT > -1 && SDSUPPORT
     sd.automount();
@@ -1054,17 +1147,8 @@ void Machine::reportCaseLightStatus() {
 #endif
 }
 
-void Machine::handleInterruptEvent() {
-    if(interruptEvent == 0) return;
-    int event = interruptEvent;
-    interruptEvent = 0;
-    switch(event) {
-
-    }
-}
-
 void Machine::showConfiguration() {
-	Com::config(PSTR("Baudrate:"), baudrate);
+	Com::config(PSTR("Baudrate:"), Machine::baudrate);
 #ifndef EXTERNALSERIAL
     Com::config(PSTR("InputBuffer:"), SERIAL_BUFFER_SIZE - 1);
 #endif
@@ -1152,22 +1236,46 @@ void Machine::configTMC5160(TMC5160Stepper* driver, uint8_t intpol, uint16_t rms
 
 void Machine::CheckTMCDrivers()
 {
-	if(Machine::tmcStepperX.DRV_STATUS() & 0b00011010000000000011000000000000)
-	{
-		Com::printErrorFLN(PSTR("X TMC Driver faulted."));
-		Commands::emergencyStop();
-	} else if(Machine::tmcStepperY.DRV_STATUS() & 0b00011010000000000011000000000000)
-	{
-		Com::printErrorFLN(PSTR("Y TMC Driver faulted."));
-		Commands::emergencyStop();
-	} else if(Machine::tmcStepperZ.DRV_STATUS() & 0b00011010000000000011000000000000)
-	{
-		Com::printErrorFLN(PSTR("Z TMC Driver faulted."));
-		Commands::emergencyStop();
-	} else if(Machine::tmcStepper2.DRV_STATUS() & 0b00011010000000000011000000000000)
-	{
-		Com::printErrorFLN(PSTR("2 TMC Driver faulted."));
-		Commands::emergencyStop();
-	}
+    if (Machine::tmcStepperX.DRV_STATUS() & 0b00011010000000000011000000000000)
+    {
+        Com::printErrorFLN(PSTR("X TMC Driver faulted."));
+        Commands::emergencyStop();
+    }
+    else if (Machine::tmcStepperY.DRV_STATUS() & 0b00011010000000000011000000000000)
+    {
+        Com::printErrorFLN(PSTR("Y TMC Driver faulted."));
+        Commands::emergencyStop();
+    }
+    else if (Machine::tmcStepperZ.DRV_STATUS() & 0b00011010000000000011000000000000)
+    {
+        Com::printErrorFLN(PSTR("Z TMC Driver faulted."));
+        Commands::emergencyStop();
+    }
+    else if (Machine::tmcStepper2.DRV_STATUS() & 0b00011010000000000011000000000000)
+    {
+        Com::printErrorFLN(PSTR("2 TMC Driver faulted."));
+        Commands::emergencyStop();
+    }
+}
+#endif
+
+#if DISTORTION_CORRECTION
+void Machine::measureDistortion(float maxDistance, int repetitions) {
+    float oldFeedrate   = feedrate;
+    float oldOffsetX    = coordinateOffset[X_AXIS];
+    float oldOffsetY    = coordinateOffset[Y_AXIS];
+    float oldOffsetZ    = coordinateOffset[Z_AXIS];
+
+    coordinateOffset[X_AXIS] = coordinateOffset[Y_AXIS] = coordinateOffset[Z_AXIS] = 0;
+
+    if (!distortion.measure(maxDistance, repetitions)) {
+        Com::printErrorFLN(PSTR("G33 failed!"));
+        //GCode::fatalError(PSTR("G33 failed!"));
+        //return;
+    }
+    feedrate                    = oldFeedrate;
+    coordinateOffset[X_AXIS]    = oldOffsetX;
+    coordinateOffset[Y_AXIS]    = oldOffsetY;
+    coordinateOffset[Z_AXIS]    = oldOffsetZ;
 }
 #endif

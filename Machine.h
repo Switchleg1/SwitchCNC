@@ -72,8 +72,10 @@ union floatLong {
 #define HOME_DISTANCE_MM (HOME_DISTANCE_STEPS * invAxisStepsPerMM[Z_AXIS])
 
 #include "Distortion.h"
-
 #include "Endstops.h"
+#include "Analog.h"
+#include "PWM.h"
+#include "Temperature.h"
 
 /**
 The Printer class is the main class for the control of the 3d printer. Here all
@@ -157,63 +159,58 @@ Step 2: Convert to RWC
 class Machine {
     static uint8_t debugLevel;
 public:
-	static float axisStepsPerMM[]; ///< Resolution of each axis in steps per mm.
-    static float invAxisStepsPerMM[]; ///< 1/axisStepsPerMM for faster computation.
-    static float maxFeedrate[]; ///< Maximum feedrate in mm/s per axis.
-    static float homingFeedrate[]; // Feedrate in mm/s for homing.
+    static long baudrate;                                       ///< Communication speed rate.
+    static millis_t previousMillisCmd;
+    static millis_t maxInactiveTime;
+    static millis_t stepperInactiveTime;
+
+	static float axisStepsPerMM[];                              ///< Resolution of each axis in steps per mm.
+    static float invAxisStepsPerMM[];                           ///< 1/axisStepsPerMM for faster computation.
+    static float maxFeedrate[];                                 ///< Maximum feedrate in mm/s per axis.
+    static float homingFeedrate[];                              // Feedrate in mm/s for homing.
 	static float maxAccelerationMMPerSquareSecond[];
 	static unsigned long maxAccelerationStepsPerSquareSecond[];
-	static uint8_t relativeCoordinateMode;    ///< Determines absolute (false) or relative Coordinates (true).
+	static uint8_t relativeCoordinateMode;                      ///< Determines absolute (false) or relative Coordinates (true).
 
 	static uint8_t unitIsInches;
-    static uint8_t fanSpeed; // Last fan speed set with M106/M107
+    static uint8_t fanSpeed;                                    // Last fan speed set with M106/M107
+    static float extrudeMultiply;
     static fast8_t stepsTillNextCalc;
     static fast8_t stepsSinceLastCalc;
 	static uint8_t flag0, flag1;
     static uint8_t mode;
-    static uint32_t interval;    ///< Last step duration in ticks.
-    static uint32_t timer;              ///< used for acceleration/deceleration timing
-    static uint32_t stepNumber;         ///< Step number in current move.
+    static uint32_t interval;                                   ///< Last step duration in ticks.
+    static uint32_t timer;                                      ///< used for acceleration/deceleration timing
+    static uint32_t stepNumber;                                 ///< Step number in current move.
 	static float coordinateOffset[Z_AXIS_ARRAY];
-	static int32_t currentPositionSteps[A_AXIS_ARRAY];     ///< Position in steps from origin.
-	static float currentPosition[A_AXIS_ARRAY]; ///< Position in global coordinates
-	static float lastCmdPos[A_AXIS_ARRAY]; ///< Last coordinates (global coordinates) send by g-codes
-	static int32_t destinationSteps[A_AXIS_ARRAY];         ///< Target position in steps.
+	static int32_t currentPositionSteps[A_AXIS_ARRAY];          ///< Position in steps from origin.
+	static float currentPosition[A_AXIS_ARRAY];                 ///< Position in global coordinates
+	static float lastCmdPos[A_AXIS_ARRAY];                      ///< Last coordinates (global coordinates) send by g-codes
+	static int32_t destinationSteps[A_AXIS_ARRAY];              ///< Target position in steps.
 	static int32_t zCorrectionStepsIncluded;
 #if FEATURE_Z_PROBE || MAX_HARDWARE_ENDSTOP_Z
     static int32_t stepsRemainingAtZHit;
 #endif
-#if DISTORTION_CORRECTION
-	static int16_t distortionXMIN;
-	static int16_t distortionXMAX;
-	static int16_t distortionYMIN;
-	static int16_t distortionYMAX;
-	static uint8_t distortionPoints;
-	static float distortionStart;
-	static float distortionEnd;
-	static uint8_t distortionUseOffset;
-#endif
-	static int32_t axisMaxSteps[Z_AXIS_ARRAY];         ///< For software endstops, limit of move in positive direction.
-	static int32_t axisMinSteps[Z_AXIS_ARRAY];         ///< For software endstops, limit of move in negative direction.
+	static int32_t axisMaxSteps[Z_AXIS_ARRAY];                  ///< For software endstops, limit of move in positive direction.
+	static int32_t axisMinSteps[Z_AXIS_ARRAY];                  ///< For software endstops, limit of move in negative direction.
 	static float axisLength[Z_AXIS_ARRAY];
 	static float axisMin[Z_AXIS_ARRAY];
-    static float feedrate;                   ///< Last requested feedrate.
-    static int feedrateMultiply;             ///< Multiplier for feedrate in percent (factor 1 = 100)
-	static float maxJerk[A_AXIS_ARRAY];      ///< Maximum allowed jerk in mm/s
-	static uint8_t interruptEvent;           ///< Event generated in interrupts that should/could be handled in main thread
-	static speed_t vMaxReached;               ///< Maximum reached speed
+    static float feedrate;                                      ///< Last requested feedrate.
+    static int feedrateMultiply;                                ///< Multiplier for feedrate in percent (factor 1 = 100)
+	static float maxJerk[A_AXIS_ARRAY];                         ///< Maximum allowed jerk in mm/s
+	static speed_t vMaxReached;                                 ///< Maximum reached speed
 #if ENABLE_BACKLASH_COMPENSATION
 	static float backlash[A_AXIS_ARRAY];
     static uint8_t backlashDir;
 #endif
 #if MULTI_XENDSTOP_HOMING
-    static fast8_t multiXHomeFlags;  // 1 = move X0, 2 = move X1
+    static fast8_t multiXHomeFlags;                             // 1 = move X0, 2 = move X1
 #endif
 #if MULTI_YENDSTOP_HOMING
-    static fast8_t multiYHomeFlags;  // 1 = move Y0, 2 = move Y1
+    static fast8_t multiYHomeFlags;                             // 1 = move Y0, 2 = move Y1
 #endif
 #if MULTI_ZENDSTOP_HOMING
-	static fast8_t multiZHomeFlags;  // 1 = move Z0, 2 = move Z1
+	static fast8_t multiZHomeFlags;                             // 1 = move Z0, 2 = move Z1
 #endif
 	static float memoryPosition[A_AXIS_ARRAY];
 	static float memoryF;
@@ -248,14 +245,13 @@ public:
 #if SPEED_DIAL && SPEED_DIAL_PIN > -1
     static uint8_t speed_dial;
 #endif
+#if DISTORTION_CORRECTION
+    static Distortion distortion;
+#endif
+    static PWM pwm;
 
-    static void handleInterruptEvent();
-
-    static INLINE void setInterruptEvent(uint8_t evt, bool highPriority) {
-        if(highPriority || interruptEvent == 0)
-            interruptEvent = evt;
-    }
-
+    static void checkForPeriodicalActions(bool allowNewMoves);
+    static void timerInterrupt();
     static void reportPrinterMode();
     static void setDebugLevel(uint8_t newLevel);
     static void toggleEcho();
@@ -305,10 +301,6 @@ public:
 #if AUTOMATIC_POWERUP
     static void enablePowerIfNeeded();
 #endif
-    /** Sets the pwm for the fan speed. Gets called by motion control or Commands::setFanSpeed. */
-    static void setFanSpeedDirectly(uint8_t speed);
-    /** Sets the pwm for the fan 2 speed. Gets called by motion control or Commands::setFan2Speed. */
-    static void setFan2SpeedDirectly(uint8_t speed);
     /** \brief Disable stepper motor for x direction. */
     static INLINE void disableXStepper() {
 #if (X_ENABLE_PIN > -1)
@@ -544,13 +536,13 @@ public:
 	static INLINE void setAllSteppersDiabled() {
 		flag0 |= MACHINE_FLAG0_STEPPER_DISABLED;
 #if FAN_BOARD_PIN > -1
-		pwm_pos[PWM_BOARD_FAN] = BOARD_FAN_MIN_SPEED;
+        Machine::pwm.set(FAN_BOARD_PWM_INDEX, BOARD_FAN_MIN_SPEED);
 #endif // FAN_BOARD_PIN
     }
 	static INLINE void unsetAllSteppersDisabled() {
         flag0 &= ~MACHINE_FLAG0_STEPPER_DISABLED;
 #if FAN_BOARD_PIN > -1
-		pwm_pos[PWM_BOARD_FAN] = BOARD_FAN_SPEED;
+        Machine::pwm.set(FAN_BOARD_PWM_INDEX, BOARD_FAN_SPEED);
 #endif // FAN_BOARD_PIN
 	}
     static INLINE bool isManualMoveMode() {
@@ -788,29 +780,6 @@ public:
     \param x Z position in mm.
     \return true if position is valid and can be reached. */
     static bool isPositionAllowed(float x, float y, float z);
-    static INLINE int getFanSpeed() {
-        return (int)pwm_pos[PWM_FAN1];
-    }
-    static INLINE int getFan2Speed() {
-        return (int)pwm_pos[PWM_FAN2];
-    }
-#if MAX_HARDWARE_ENDSTOP_Z
-    static float runZMaxProbe();
-#endif
-#if FEATURE_Z_PROBE
-    static bool startProbing(bool runScript, bool enforceStartHeight = true);
-    static void finishProbing();
-	static float runZProbe(bool first, bool last, uint8_t repeat = Z_PROBE_REPETITIONS, bool runStartScript = true, bool enforceStartHeight = true);
-	static float runProbe(uint8_t axisDirection, float maxDistance, uint8_t repeat);
-	static void measureZProbeHeight(float curHeight);
-    static void waitForZProbeStart();
-#endif
-    // Moved outside FEATURE_Z_PROBE to allow auto-level functional test on
-    // system without Z-probe
-#if DISTORTION_CORRECTION
-	static void measureDistortion(float maxDistance, int repetitions);
-	static Distortion distortion;
-#endif
 	static void SetMemoryPosition();
     static void GoToMemoryPosition(bool x, bool y, bool z, bool a, float feed);
 
@@ -830,10 +799,27 @@ public:
     - Go to a position, where enabling the z-probe is possible without leaving the valid print area.
     */
 	static void prepareForProbing();
+    static bool startProbing(bool runScript, bool enforceStartHeight = true);
+    static void finishProbing();
+    static float runZProbe(bool first, bool last, uint8_t repeat = Z_PROBE_REPETITIONS, bool runStartScript = true, bool enforceStartHeight = true);
+    static float runProbe(uint8_t axisDirection, float maxDistance, uint8_t repeat);
+    static void measureZProbeHeight(float curHeight);
+    static void waitForZProbeStart();
 #endif
 #if TMC_DRIVERS
 	static void configTMC5160(TMC5160Stepper* driver, uint8_t intpol, uint16_t rms, float hold_mult, uint8_t hold_delay, uint8_t tpower_down, uint8_t hstart, uint8_t hend, uint8_t toff, uint8_t tbl, uint8_t tpfd, uint8_t pwm_freq, uint16_t tpwmthrs, uint16_t tcoolthrs, uint16_t thighthrs, uint8_t semin, uint8_t semax, int8_t sgt, uint8_t s2vs, uint8_t s2g, uint8_t sfilter, uint16_t microsteps, uint8_t pwm_grad, uint8_t pwm_ofs, uint8_t pwm_lim, uint8_t mode);
 	static void CheckTMCDrivers();
+#endif
+#if DISTORTION_CORRECTION
+    static void measureDistortion(float maxDistance, int repetitions);
+#endif
+
+private:
+    static uint16_t         counterPeriodical;
+    static volatile uint8_t executePeriodical;
+    static uint8_t          counter500ms;
+#if ANALOG_INPUTS > 0
+    static Analog           analog;
 #endif
 };
 

@@ -214,16 +214,18 @@ int32_t HAL::CPUDivU2(unsigned int divisor) {
 }
 
 void HAL::setupTimer() {
-    PWM_TCCR = 0;  // Setup PWM interrupt
-    PWM_OCR = 8;
-    PWM_TIMSK |= (1 << PWM_OCIE);
+    // Setup AUX interrupt
+    TCCR0A  = 0;
+    OCR0B   = 8;
+    TIMSK0  |= _BV(OCIE0B);
 
-    TCCR1A = 0;  // Stepper timer 1 interrupt to no prescale CTC mode
-    TCCR1C = 0;
-    TIMSK1 = 0;
-    TCCR1B =  (_BV(WGM12) | _BV(CS10)); // no prescaler == 0.0625 usec tick | 001 = clk/1
-    OCR1A = 65500; //start off with a slow frequency.
-    TIMSK1 |= (1 << OCIE1A); // Enable interrupt
+    // Stepper timer 1 interrupt to no prescale CTC mode
+    TCCR1A  = 0;
+    TCCR1C  = 0;
+    TIMSK1  = 0;
+    TCCR1B  =  (_BV(WGM12) | _BV(CS10)); // no prescaler == 0.0625 usec tick | 001 = clk/1
+    OCR1A   = 65500; //start off with a slow frequency.
+    TIMSK1  |= (1 << OCIE1A); // Enable interrupt
 #if FEATURE_SERVO
 #if SERVO0_PIN>-1
     SET_OUTPUT(SERVO0_PIN);
@@ -650,66 +652,14 @@ ISR(TIMER1_COMPA_vect) {
 /**
 This timer is called 31248 timer per second. It is used to update pwm values for frequent jobs.
 */
-ISR(PWM_TIMER_VECTOR) {
-	static uint8_t pwm_position = 0;
+ISR(TIMER0_COMPB_vect)
+{
+    OCR0B += 8 * INTERRUPT_FREQUENCY_DIVISOR;
 
-	PWM_OCR += 8 * PWM_FREQUENCY_DIVISOR;
-	pwm_position++;
-
-	if(pwm_position == 0) {
-#if SPINDLE_PWM_PIN > -1
-		if(pwm_pos[PWM_SPINDLE]) WRITE(SPINDLE_PWM_PIN, 1);
-			else WRITE(SPINDLE_PWM_PIN, 0);
-#endif
-#if FAN_BOARD_PIN > -1
-		if(pwm_pos[PWM_BOARD_FAN]) WRITE(FAN_BOARD_PIN, 1);
-			else WRITE(FAN_BOARD_PIN, 0);
-#endif
-#if FAN_PIN > -1 && FEATURE_FAN_CONTROL
-		if(pwm_pos[PWM_FAN1]) WRITE(FAN_PIN, 1);
-			else WRITE(FAN_PIN, 0);
-#endif
-#if FAN2_PIN > -1 && FEATURE_FAN2_CONTROL
-		if(pwm_pos[PWM_FAN2]) WRITE(FAN2_PIN, 1);
-			else WRITE(FAN2_PIN, 0);
-#endif
-	} else
-	{
-#if SPINDLE_PWM_PIN > -1
-		if(pwm_pos[PWM_SPINDLE] == pwm_position) WRITE(SPINDLE_PWM_PIN, 0);
-#endif
-#if FAN_BOARD_PIN > -1
-		if(pwm_pos[PWM_BOARD_FAN] == pwm_position) WRITE(FAN_BOARD_PIN, 0);
-#endif
-#if FAN_PIN > -1 && FEATURE_FAN_CONTROL
-		if(fanKickstart == 0 && pwm_pos[PWM_FAN1] == pwm_position) WRITE(FAN_PIN, 0);
-#endif
-#if FAN2_PIN > -1 && FEATURE_FAN2_CONTROL
-		if(fan2Kickstart == 0 && pwm_pos[PWM_FAN2] == pwm_position) WRITE(FAN2_PIN, 0);
-#endif
-    }
-	counterPeriodical++; // Approximate a 100ms timer
-	if(counterPeriodical >= (int)(F_CPU / 5120 / PWM_FREQUENCY_DIVISOR)) {
-        counterPeriodical = 0;
-		executePeriodical = 1;
-#if FEATURE_FAN_CONTROL
-		if(fanKickstart) fanKickstart--;
-#endif
-#if FEATURE_FAN2_CONTROL
-		if(fan2Kickstart) fan2Kickstart--;
-#endif
-	}
-
-    // read analog values
-#if ANALOG_INPUTS > 0
-    AnalogIn::read();
-#endif
+    Machine::timerInterrupt();
 
 #if FEATURE_WATCHDOG
-    if(HAL::wdPinged) {
-        wdt_reset();
-        HAL::wdPinged = false;
-    }
+    HAL::resetWatchdog();
 #endif
 }
 

@@ -23,12 +23,6 @@
 #error MACHINELINE_CACHE_SIZE must be at least 5
 #endif
 
-//Inactivity shutdown variables
-millis_t previousMillisCmd = 0;
-millis_t maxInactiveTime = MAX_INACTIVE_TIME * 1000L;
-millis_t stepperInactiveTime = STEPPER_INACTIVE_TIME * 1000L;
-long baudrate = BAUDRATE;         ///< Communication speed rate.
-uint8_t pwm_pos[NUM_PWM];
 MachineLine MachineLine::lines[MACHINELINE_CACHE_SIZE]; ///< Cache for print moves.
 MachineLine *MachineLine::cur = NULL;               ///< Current printing line
 ufast8_t MachineLine::linesWritePos = 0;            ///< Position where we write the next cached line move.
@@ -80,7 +74,7 @@ void MachineLine::moveRelativeDistanceInSteps(int32_t x, int32_t y, int32_t z, i
     Machine::updateCurrentPosition(false);
     if(waitEnd)
         Commands::waitUntilEndOfAllMoves();
-    previousMillisCmd = HAL::timeInMilliseconds();
+    Machine::previousMillisCmd = HAL::timeInMilliseconds();
 }
 
 /** Adds the steps converted to mm to the lastCmdPos position and moves to that position using Machine::moveToReal.
@@ -123,7 +117,7 @@ void MachineLine::moveRelativeDistanceInStepsReal(int32_t x, int32_t y, int32_t 
     Machine::updateCurrentPosition();
     if(waitEnd)
         Commands::waitUntilEndOfAllMoves();
-    previousMillisCmd = HAL::timeInMilliseconds();
+    Machine::previousMillisCmd = HAL::timeInMilliseconds();
 }
 
 #if DISTORTION_CORRECTION || ALWAYS_SPLIT_LINES
@@ -921,7 +915,7 @@ void MachineLine::logLine() {
 void MachineLine::waitForXFreeLines(uint8_t b, bool allowMoves) {
     while(getLinesCount() + b > MACHINELINE_CACHE_SIZE) { // wait for a free entry in movement cache
         //GCode::readFromSerial();
-        Commands::checkForPeriodicalActions(allowMoves);
+        Machine::checkForPeriodicalActions(allowMoves);
     }
 }
 
@@ -1012,7 +1006,7 @@ void MachineLine::arc(float *position, float *target, float *offset, float radiu
 
         if((count & 3) == 0) {
             //GCode::readFromSerial();
-            Commands::checkForPeriodicalActions(false);
+            Machine::checkForPeriodicalActions(false);
 		}
 
         if (count < N_ARC_CORRECTION) { //25 pieces
@@ -1112,7 +1106,7 @@ uint32_t MachineLine::bresenhamStep() {
             LaserDriver::changeIntensity(cur->secondSpeed);
         } else
 #endif
-        Machine::setFanSpeedDirectly(static_cast<uint8_t>(cur->secondSpeed));
+        Machine::pwm.set(FAN_PWM_INDEX, cur->secondSpeed);
 
 #if MULTI_XENDSTOP_HOMING
 		Machine::multiXHomeFlags = MULTI_XENDSTOP_ALL;  // move all x motors until endstop says differently
@@ -1272,9 +1266,10 @@ uint32_t MachineLine::bresenhamStep() {
 #if defined(SUPPORT_LASER) && SUPPORT_LASER
             if (Machine::mode == MACHINE_MODE_LASER) { // Last move disables laser for safety!
                 LaserDriver::changeIntensity(0);
-            } else
+            }
+            else
 #endif
-            Machine::setFanSpeedDirectly(Machine::fanSpeed);
+            Machine::pwm.set(FAN_PWM_INDEX, Machine::fanSpeed);
         }
 
         interval = interval >> 1; // 50% of time to next call to do cur=0

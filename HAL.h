@@ -218,9 +218,6 @@ extern RFHardwareSerial RFSerial;
 class HAL
 {
 public:
-#if FEATURE_WATCHDOG
-    static bool wdPinged;
-#endif
     HAL();
     virtual ~HAL();
     static inline void hwSetup(void)
@@ -685,18 +682,25 @@ public:
       wdPinged = true;
 #endif
     };
+#if FEATURE_WATCHDOG
+    static void resetWatchdog()
+    {
+        if (wdPinged) {
+            wdt_reset();
+            wdPinged = false;
+        }
+    }
+#endif
+    
 #if FEATURE_SERVO
     static unsigned int servoTimings[4];
     static void servoMicroseconds(uint8_t servo,int ms, uint16_t autoOff);
 #endif
 protected:
 private:
+#if FEATURE_WATCHDOG
+    static bool wdPinged;
+#endif
 };
-
-#define PWM_TIMER_VECTOR TIMER0_COMPB_vect
-#define PWM_OCR OCR0B
-#define PWM_TCCR TCCR0A
-#define PWM_TIMSK TIMSK0
-#define PWM_OCIE OCIE0B
 
 #endif // HAL_H

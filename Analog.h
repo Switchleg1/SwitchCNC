@@ -17,7 +17,6 @@
 
 #if SPEED_DIAL && SPEED_DIAL_PIN > -1
 #define SPEED_DIAL_ANALOG_INPUTS        1
-#define SPEED_DIAL_ANALOG_INDEX         0
 #define SPEED_DIAL_ANALOG_CHANNEL       SPEED_DIAL_PIN
 #define SPEED_DIAL_COMMA			    ,
 #else
@@ -25,10 +24,10 @@
 #define SPEED_DIAL_ANALOG_CHANNEL
 #define SPEED_DIAL_COMMA			    
 #endif
+#define SPEED_DIAL_ANALOG_INDEX         0
 
 #if SUPPORT_LASER && LASER_TEMP_PIN > -1
 #define LASER_TEMP_ANALOG_INPUTS        1
-#define LASER_TEMP_ANALOG_INDEX         SPEED_DIAL_ANALOG_INPUTS
 #define LASER_TEMP_ANALOG_CHANNEL       SPEED_DIAL_COMMA LASER_TEMP_PIN
 #define LASER_TEMP_COMMA			    ,
 #else
@@ -36,34 +35,37 @@
 #define LASER_TEMP_ANALOG_CHANNEL
 #define LASER_TEMP_COMMA				SPEED_DIAL_COMMA
 #endif
+#define LASER_TEMP_ANALOG_INDEX         SPEED_DIAL_ANALOG_INDEX + SPEED_DIAL_ANALOG_INPUTS
 
 
 #define ANALOG_INPUTS                   (SPEED_DIAL_ANALOG_INPUTS + LASER_TEMP_ANALOG_INPUTS)
 #define ANALOG_INPUT_CHANNELS           {SPEED_DIAL_ANALOG_CHANNEL LASER_TEMP_ANALOG_CHANNEL}
 
 #if ANALOG_INPUTS > 0
-class AnalogIn {
+class Analog {
 public:
-	static void start();
-	static void read();
+	Analog();
+
+	void start();
+	void read();
 
 #if ANALOG_OUTPUT_BITS <= 8
-	static volatile uint8_t values[ANALOG_INPUTS];
+	volatile uint8_t values[ANALOG_INPUTS];
 #elif ANALOG_OUTPUT_BITS <= 16
-	static volatile uint16_t values[ANALOG_INPUTS];
+	volatile uint16_t values[ANALOG_INPUTS];
 #else
-	static volatile uint32_t values[ANALOG_INPUTS];
+	volatile uint32_t values[ANALOG_INPUTS];
 #endif
 
 private:
-	static uint8_t inputPosition;
-	static uint8_t inputCounter[ANALOG_INPUTS];
+	uint8_t inputPosition;
+	uint8_t inputCounter[ANALOG_INPUTS];
 #if (ANALOG_INPUT_BITS + ANALOG_INPUT_SAMPLE)  <= 8
-	static uint8_t inputValues[ANALOG_INPUTS];
+	uint8_t inputValues[ANALOG_INPUTS];
 #elif (ANALOG_INPUT_BITS + ANALOG_INPUT_SAMPLE)  <= 16
-	static uint16_t inputValues[ANALOG_INPUTS];
+	uint16_t inputValues[ANALOG_INPUTS];
 #else
-	static uint32_t inputValues[ANALOG_INPUTS];
+	uint32_t inputValues[ANALOG_INPUTS];
 #endif
 	static const uint8_t inputChannels[ANALOG_INPUTS];
 };

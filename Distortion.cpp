@@ -2,27 +2,6 @@
 
 #if DISTORTION_CORRECTION
 
-Distortion Machine::distortion;
-
-void Machine::measureDistortion(float maxDistance, int repetitions) {
-    float oldFeedrate = Machine::feedrate;
-	float oldOffsetX = Machine::coordinateOffset[X_AXIS];
-	float oldOffsetY = Machine::coordinateOffset[Y_AXIS];
-	float oldOffsetZ = Machine::coordinateOffset[Z_AXIS];
-
-	Machine::coordinateOffset[X_AXIS] = Machine::coordinateOffset[Y_AXIS] = Machine::coordinateOffset[Z_AXIS] = 0;
-
-	if(!distortion.measure(maxDistance, repetitions)) {
-		Com::printErrorFLN(PSTR("G33 failed!"));
-		//GCode::fatalError(PSTR("G33 failed!"));
-		//return;
-	}
-	Machine::feedrate = oldFeedrate;
-	Machine::coordinateOffset[X_AXIS] = oldOffsetX;
-	Machine::coordinateOffset[Y_AXIS] = oldOffsetY;
-	Machine::coordinateOffset[Z_AXIS] = oldOffsetZ;
-}
-
 Distortion::Distortion() {
 }
 
@@ -40,11 +19,11 @@ void Distortion::init() {
 }
 
 void Distortion::updateDerived() {
-	xCorrectionSteps = ((float)Machine::distortionXMAX - (float)Machine::distortionXMIN) * Machine::axisStepsPerMM[X_AXIS] / (Machine::distortionPoints - 1);      //SL
-	xOffsetSteps = (float)Machine::distortionXMIN * Machine::axisStepsPerMM[X_AXIS];                                                                        //SL
-	yCorrectionSteps = ((float)Machine::distortionYMAX - Machine::distortionYMIN) * Machine::axisStepsPerMM[Y_AXIS] / (Machine::distortionPoints - 1);      //SL
-	yOffsetSteps = (float)Machine::distortionYMIN * Machine::axisStepsPerMM[Y_AXIS];                                                                        //SL
-	SetStartEnd(Machine::distortionStart, Machine::distortionEnd);
+	xCorrectionSteps	= ((float)XMAX - (float)XMIN) * Machine::axisStepsPerMM[X_AXIS] / (points - 1);			//SL
+	xOffsetSteps		= (float)XMIN * Machine::axisStepsPerMM[X_AXIS];                                        //SL
+	yCorrectionSteps	= ((float)YMAX - YMIN) * Machine::axisStepsPerMM[Y_AXIS] / (points - 1);				//SL
+	yOffsetSteps		= (float)YMIN * Machine::axisStepsPerMM[Y_AXIS];                                        //SL
+	SetStartEnd(start, end);
 }
 
 void Distortion::enable(bool permanent) {
@@ -67,18 +46,94 @@ void Distortion::disable(bool permanent) {
     Com::printFLN(Com::tZCorrectionDisabled);
 }
 
+bool Distortion::measure(float maxDistance, int repetitions) {
+	fast8_t ix, iy;
+
+	resetCorrection();
+	disable(true);
+	//Machine::prepareForProbing();
+	float z = Machine::currentPosition[Z_AXIS];
+	Com::printFLN(PSTR("Reference Z for measurement:"), z, 3);
+	updateDerived();
+	Machine::updateCurrentPosition(true);
+
+	int32_t zCorrection = 0;
+	Machine::startProbing(true);
+	Machine::moveToReal(IGNORE_COORDINATE, IGNORE_COORDINATE, z, IGNORE_COORDINATE, Machine::homingFeedrate[Z_AXIS]);
+	for (iy = points - 1; iy >= 0; iy--)
+		for (ix = 0; ix < points; ix++) {
+
+			float mtx = Machine::invAxisStepsPerMM[X_AXIS] * (ix * xCorrectionSteps + xOffsetSteps);
+			float mty = Machine::invAxisStepsPerMM[Y_AXIS] * (iy * yCorrectionSteps + yOffsetSteps);
+			//Com::printF(PSTR("mx "),mtx);
+			//Com::printF(PSTR("my "),mty);
+			//Com::printF(PSTR("ix "),(int)ix);
+			//Com::printFLN(PSTR("iy "),(int)iy);
+			Machine::moveToReal(mtx, mty, z, IGNORE_COORDINATE, EEPROM::zProbeXYSpeed());
+			float zp = Machine::runProbe(Z_AXIS, maxDistance, repetitions);
+#if defined(DISTORTION_LIMIT_TO) && DISTORTION_LIMIT_TO != 0
+			if (zp == ILLEGAL_Z_PROBE || fabs(z - zp + zCorrection * Machine::invAxisStepsPerMM[Z_AXIS]) > DISTORTION_LIMIT_TO) {
+#else
+			if (zp == ILLEGAL_Z_PROBE) {
+#endif
+				Com::printErrorFLN(PSTR("Stopping distortion measurement due to errors."));
+				Machine::finishProbing();
+				return false;
+			}
+			setMatrix(floor(0.5f + Machine::axisStepsPerMM[Z_AXIS] * (z - zp)) + zCorrection,
+				matrixIndex(ix, iy));
+			}
+	Machine::finishProbing();
+
+	// make average center
+	// Disabled since we can use grid measurement to get average plane if that is what we want.
+	// Shifting z with each measuring is a pain and can result in unexpected behavior.
+
+	float sum = 0;
+	for (iy = 0; iy < points; iy++)
+		for (ix = 0; ix < points; ix++)
+			sum += getMatrix(matrixIndex(ix, iy));
+
+	sum /= static_cast<float>(points == 0 ? 1 : (points * points));
+	for (iy = 0; iy < points; iy++)
+		for (ix = 0; ix < points; ix++)
+			setMatrix(getMatrix(matrixIndex(ix, iy)) - sum, matrixIndex(ix, iy));
+	//	Machine::zLength -= sum * Machine::invAxisStepsPerMM[Z_AXIS];
+
+#if EEPROM_MODE
+	EEPROM::storeDataIntoEEPROM();
+#endif
+	// print matrix
+	/*	Com::printInfoFLN(PSTR("Distortion correction matrix:"));
+		for (iy = points - 1; iy >= 0 ; iy--) {
+			for(ix = 0; ix < points; ix++)
+				Com::printF(ix ? PSTR(", ") : PSTR(""), getMatrix(matrixIndex(ix, iy)));
+			Com::println();
+		} */
+	showMatrix();
+	enable(false);
+	return true;
+		}
+
 void Distortion::reportStatus() {
     Com::printFLN(enabled ? Com::tZCorrectionEnabled : Com::tZCorrectionDisabled);
 }
 
+bool Distortion::isEnabled() {
+	return enabled;
+}
+int32_t Distortion::zMaxSteps() {
+	return zEnd;
+}
+
 void Distortion::SetStartEnd(float Start, float End)
 {
-	zStart = Start * Machine::axisStepsPerMM[Z_AXIS] + Machine::axisMinSteps[Z_AXIS];
-	zEnd = (Start+End) * Machine::axisStepsPerMM[Z_AXIS] + Machine::axisMinSteps[Z_AXIS];
-	if(Machine::distortionUseOffset)
+	zStart	= Start * Machine::axisStepsPerMM[Z_AXIS] + Machine::axisMinSteps[Z_AXIS];
+	zEnd	= (Start+End) * Machine::axisStepsPerMM[Z_AXIS] + Machine::axisMinSteps[Z_AXIS];
+	if(useOffset)
 	{
-		zStart -= Machine::coordinateOffset[Z_AXIS] * Machine::axisStepsPerMM[Z_AXIS];
-		zEnd -= Machine::coordinateOffset[Z_AXIS] * Machine::axisStepsPerMM[Z_AXIS];
+		zStart	-= Machine::coordinateOffset[Z_AXIS] * Machine::axisStepsPerMM[Z_AXIS];
+		zEnd	-= Machine::coordinateOffset[Z_AXIS] * Machine::axisStepsPerMM[Z_AXIS];
 	}
 }
 
@@ -104,58 +159,58 @@ void Distortion::smooth(float amount)
 	if(amount < 0.0f)
 		amount = 0.0f;
 
-	int32_t nMatrix[Machine::distortionPoints * Machine::distortionPoints];
+	int32_t nMatrix[points * points];
 
-	for(uint8_t x=0; x < Machine::distortionPoints; x++)
+	for(uint8_t x = 0; x < points; x++)
 	{
-		for(uint8_t y=0; y < Machine::distortionPoints; y++)
+		for(uint8_t y = 0; y < points; y++)
 		{
-			uint8_t idx11 = y*DISTORTION_CORRECTION_POINTS+x;
-			uint8_t idn = y*Machine::distortionPoints+x;
+			uint8_t idx11 = y * DISTORTION_CORRECTION_POINTS + x;
+			uint8_t idn = y * points + x;
 
 			uint8_t cnt = 1;
 			nMatrix[idn] = getMatrix(idx11);
 
-			if(x>0)
+			if(x > 0)
 			{
 				nMatrix[idn] += getMatrix(idx11-1);
 				cnt++;
 
-				if(y>0)
+				if(y > 0)
 				{
 					nMatrix[idn] += getMatrix(idx11-DISTORTION_CORRECTION_POINTS-1);
 					cnt++;
 				}
-				if(y<Machine::distortionPoints-1)
+				if(y < points - 1)
 				{
 					nMatrix[idn] += getMatrix(idx11+DISTORTION_CORRECTION_POINTS-1);
 					cnt++;
 				}
 			}
 
-			if(x<Machine::distortionPoints-1)
+			if(x < points - 1)
 			{
 				nMatrix[idn] += getMatrix(idx11+1);
 				cnt++;
-				if(y>0)
+				if(y > 0)
 				{
 					nMatrix[idn] += getMatrix(idx11-DISTORTION_CORRECTION_POINTS+1);
 					cnt++;
 				}
-				if(y<Machine::distortionPoints-1)
+				if(y < points - 1)
 				{
 					nMatrix[idn] += getMatrix(idx11+DISTORTION_CORRECTION_POINTS+1);
 					cnt++;
 				}
 			}
 
-			if(y>0)
+			if(y > 0)
 			{
 				nMatrix[idn] += getMatrix(idx11-DISTORTION_CORRECTION_POINTS);
 				cnt++;
 			}
 
-			if(y<Machine::distortionPoints-1)
+			if(y < points - 1)
 			{
 				nMatrix[idn] += getMatrix(idx11+DISTORTION_CORRECTION_POINTS);
 				cnt++;
@@ -165,16 +220,34 @@ void Distortion::smooth(float amount)
 		}
 	}
 
-	for(uint8_t x=0; x < Machine::distortionPoints; x++)
+	for(uint8_t x = 0; x < points; x++)
 	{
-		for(uint8_t y=0; y < Machine::distortionPoints; y++)
+		for(uint8_t y = 0; y < points; y++)
 		{
-			uint8_t idx11 = y*DISTORTION_CORRECTION_POINTS+x;
-			uint8_t idn = y*Machine::distortionPoints+x;
+			uint8_t idx11 = y * DISTORTION_CORRECTION_POINTS + x;
+			uint8_t idn = y * points + x;
 
 			setMatrix(getMatrix(idx11)*(1.0f-amount) + nMatrix[idn]*amount, idx11);
 		}
 	}
+}
+
+uint8_t Distortion::setPoints(uint8_t count)
+{
+	if (count > DISTORTION_CORRECTION_POINTS) {
+		points = DISTORTION_CORRECTION_POINTS;
+	} else if (count < 2) {
+		points = 2;
+	} else {
+		points = count;
+	}
+
+	return points;
+}
+
+uint8_t Distortion::getPoints()
+{
+	return points;
 }
 
 int Distortion::matrixIndex(fast8_t x, fast8_t y) const {
@@ -199,8 +272,8 @@ void Distortion::setMatrix(int32_t val, int index) {
 }
 
 bool Distortion::isCorner(fast8_t i, fast8_t j) const {
-	return (i == 0 || i == Machine::distortionPoints - 1)
-		   && (j == 0 || j == Machine::distortionPoints - 1);
+	return (i == 0 || i == points - 1)
+		   && (j == 0 || j == points - 1);
 }
 
 /**
@@ -216,82 +289,12 @@ void Distortion::extrapolateCorner(fast8_t x, fast8_t y, fast8_t dx, fast8_t dy)
 }
 
 void Distortion::extrapolateCorners() {
-	const fast8_t m = Machine::distortionPoints - 1;
+	const fast8_t m = points - 1;
     extrapolateCorner(0, 0, 1, 1);
     extrapolateCorner(0, m, 1, -1);
     extrapolateCorner(m, 0, -1, 1);
     extrapolateCorner(m, m, -1, -1);
 }
-
-bool Distortion::measure(float maxDistance, int repetitions) {
-	fast8_t ix, iy;
-
-	resetCorrection();
-	disable(true);
-	//Machine::prepareForProbing();
-	float z = Machine::currentPosition[Z_AXIS];
-	Com::printFLN(PSTR("Reference Z for measurement:"), z, 3);
-	updateDerived();
-	Machine::updateCurrentPosition(true);
-
-	int32_t zCorrection = 0;
-	Machine::startProbing(true);
-	Machine::moveToReal(IGNORE_COORDINATE, IGNORE_COORDINATE, z, IGNORE_COORDINATE, Machine::homingFeedrate[Z_AXIS]);
-	for (iy = Machine::distortionPoints - 1; iy >= 0; iy--)
-		for (ix = 0; ix < Machine::distortionPoints; ix++) {
-
-			float mtx = Machine::invAxisStepsPerMM[X_AXIS] * (ix * xCorrectionSteps + xOffsetSteps);
-			float mty = Machine::invAxisStepsPerMM[Y_AXIS] * (iy * yCorrectionSteps + yOffsetSteps);
-			//Com::printF(PSTR("mx "),mtx);
-			//Com::printF(PSTR("my "),mty);
-			//Com::printF(PSTR("ix "),(int)ix);
-			//Com::printFLN(PSTR("iy "),(int)iy);
-			Machine::moveToReal(mtx, mty, z, IGNORE_COORDINATE, EEPROM::zProbeXYSpeed());
-			float zp = Machine::runProbe(Z_AXIS, maxDistance, repetitions);
-#if defined(DISTORTION_LIMIT_TO) && DISTORTION_LIMIT_TO != 0
-			if(zp == ILLEGAL_Z_PROBE || fabs(z - zp + zCorrection * Machine::invAxisStepsPerMM[Z_AXIS]) > DISTORTION_LIMIT_TO) {
-#else
-            if(zp == ILLEGAL_Z_PROBE) {
-#endif
-				Com::printErrorFLN(PSTR("Stopping distortion measurement due to errors."));
-				Machine::finishProbing();
-                return false;
-			}
-            setMatrix(floor(0.5f + Machine::axisStepsPerMM[Z_AXIS] * (z - zp)) + zCorrection,
-                      matrixIndex(ix, iy));
-        }
-	Machine::finishProbing();
-
-	// make average center
-    // Disabled since we can use grid measurement to get average plane if that is what we want.
-    // Shifting z with each measuring is a pain and can result in unexpected behavior.
-
-	float sum = 0;
-	for (iy = 0; iy < Machine::distortionPoints; iy++)
-		for (ix = 0; ix < Machine::distortionPoints; ix++)
-			sum += getMatrix(matrixIndex(ix, iy));
-
-	sum /= static_cast<float>(Machine::distortionPoints == 0 ? 1 : (Machine::distortionPoints * Machine::distortionPoints));
-	for (iy = 0; iy < Machine::distortionPoints; iy++)
-		for (ix = 0; ix < Machine::distortionPoints; ix++)
-			setMatrix(getMatrix(matrixIndex(ix, iy)) - sum, matrixIndex(ix, iy));
-//	Machine::zLength -= sum * Machine::invAxisStepsPerMM[Z_AXIS];
-
-#if EEPROM_MODE
-	EEPROM::storeDataIntoEEPROM();
-#endif
-// print matrix
-/*	Com::printInfoFLN(PSTR("Distortion correction matrix:"));
-	for (iy = Machine::distortionPoints - 1; iy >= 0 ; iy--) {
-		for(ix = 0; ix < Machine::distortionPoints; ix++)
-			Com::printF(ix ? PSTR(", ") : PSTR(""), getMatrix(matrixIndex(ix, iy)));
-		Com::println();
-	} */
-	showMatrix();
-	enable(false);
-	return true;
-}
-
 
 int32_t Distortion::correct(int32_t x, int32_t y, int32_t z) const {
 	if (!enabled || Machine::isZProbingActive()) {
@@ -315,16 +318,16 @@ int32_t Distortion::correct(int32_t x, int32_t y, int32_t z) const {
     if (fxFloor < 0) {
         fxFloor = 0;
         fx = 0;
-	} else if (fxFloor >= Machine::distortionPoints - 1) {
-		fxFloor = Machine::distortionPoints - 2;
-        fx = xCorrectionSteps;
+	} else if (fxFloor >= points - 1) {
+		fxFloor	= points - 2;
+        fx		= xCorrectionSteps;
     }
     if (fyFloor < 0) {
         fyFloor = 0;
         fy = 0;
-	} else if (fyFloor >= Machine::distortionPoints - 1) {
-		fyFloor = Machine::distortionPoints - 2;
-        fy = yCorrectionSteps;
+	} else if (fyFloor >= points - 1) {
+		fyFloor	= points - 2;
+        fy		= yCorrectionSteps;
     }
 
     int32_t idx11 = matrixIndex(fxFloor, fyFloor);
@@ -353,15 +356,15 @@ void Distortion::set(float x, float y, float z) {
 	int iy = (y * Machine::axisStepsPerMM[Y_AXIS] - yOffsetSteps + yCorrectionSteps / 2) / yCorrectionSteps;
     if(ix < 0) ix = 0;
     if(iy < 0) iy = 0;
-	if(ix >= Machine::distortionPoints - 1) ix = Machine::distortionPoints - 1;
-	if(iy >= Machine::distortionPoints - 1) iy = Machine::distortionPoints - 1;
+	if(ix >= points - 1) ix = points - 1;
+	if(iy >= points - 1) iy = points - 1;
     int32_t idx = matrixIndex(ix, iy);
     setMatrix(z * Machine::axisStepsPerMM[Z_AXIS], idx);
 }
 
 void Distortion::showMatrix() {
-	for(int ix = 0; ix < Machine::distortionPoints; ix++) {
-		for(int iy = 0; iy < Machine::distortionPoints; iy++) {
+	for(int ix = 0; ix < points; ix++) {
+		for(int iy = 0; iy < points; iy++) {
             float x = (xOffsetSteps + ix * xCorrectionSteps) * Machine::invAxisStepsPerMM[X_AXIS];
             float y = (yOffsetSteps + iy * yCorrectionSteps) * Machine::invAxisStepsPerMM[Y_AXIS];
             int32_t idx = matrixIndex(ix, iy);

@@ -39,9 +39,9 @@ void EEPROM::restoreEEPROMSettingsFromConfiguration()
     uint8_t newcheck = computeChecksum();
     if(newcheck != HAL::eprGetByte(EPR_INTEGRITY_BYTE))
 		HAL::eprSetByte(EPR_INTEGRITY_BYTE, newcheck);	
-    baudrate = BAUDRATE;
-    maxInactiveTime = MAX_INACTIVE_TIME * 1000L;
-    stepperInactiveTime = STEPPER_INACTIVE_TIME * 1000L;
+	Machine::baudrate = BAUDRATE;
+	Machine::maxInactiveTime = MAX_INACTIVE_TIME * 1000L;
+	Machine::stepperInactiveTime = STEPPER_INACTIVE_TIME * 1000L;
     Machine::axisStepsPerMM[X_AXIS] = XAXIS_STEPS_PER_MM;
 	Machine::axisStepsPerMM[Y_AXIS] = YAXIS_STEPS_PER_MM;
 	Machine::axisStepsPerMM[Z_AXIS] = ZAXIS_STEPS_PER_MM;
@@ -76,14 +76,14 @@ void EEPROM::restoreEEPROMSettingsFromConfiguration()
 	Machine::backlash[A_AXIS] = A_BACKLASH;
 #endif
 #if DISTORTION_CORRECTION
-	Machine::distortionXMIN	= DISTORTION_XMIN; //SL
-	Machine::distortionXMAX = DISTORTION_XMAX; //SL
-	Machine::distortionYMIN = DISTORTION_YMIN; //SL
-	Machine::distortionYMAX = DISTORTION_YMAX; //SL
-	Machine::distortionPoints = DISTORTION_CORRECTION_POINTS; //SL
-	Machine::distortionStart = DISTORTION_START; //SL
-	Machine::distortionEnd = DISTORTION_END; //SL
-	Machine::distortionUseOffset = DISTORTION_USE_OFFSET; //SL
+	Machine::distortion.XMIN		= DISTORTION_XMIN;					//SL
+	Machine::distortion.XMAX		= DISTORTION_XMAX;					//SL
+	Machine::distortion.YMIN		= DISTORTION_YMIN;					//SL
+	Machine::distortion.YMAX		= DISTORTION_YMAX;					//SL
+	Machine::distortion.setPoints(DISTORTION_CORRECTION_POINTS);		//SL
+	Machine::distortion.start		= DISTORTION_START;					//SL
+	Machine::distortion.end			= DISTORTION_END;					//SL
+	Machine::distortion.useOffset	= DISTORTION_USE_OFFSET;			//SL
 #endif
     initalizeUncached();
 	Machine::updateDerivedParameter();
@@ -96,9 +96,9 @@ void EEPROM::restoreEEPROMSettingsFromConfiguration()
 void EEPROM::storeDataIntoEEPROM(uint8_t corrupted)
 {
 #if EEPROM_MODE != 0
-    HAL::eprSetInt32(EPR_BAUDRATE,baudrate);
-    HAL::eprSetInt32(EPR_MAX_INACTIVE_TIME,maxInactiveTime);
-    HAL::eprSetInt32(EPR_STEPPER_INACTIVE_TIME,stepperInactiveTime);
+    HAL::eprSetInt32(EPR_BAUDRATE, Machine::baudrate);
+    HAL::eprSetInt32(EPR_MAX_INACTIVE_TIME, Machine::maxInactiveTime);
+    HAL::eprSetInt32(EPR_STEPPER_INACTIVE_TIME, Machine::stepperInactiveTime);
 	HAL::eprSetFloat(EPR_XAXIS_STEPS_PER_MM,Machine::axisStepsPerMM[X_AXIS]);
     HAL::eprSetFloat(EPR_YAXIS_STEPS_PER_MM,Machine::axisStepsPerMM[Y_AXIS]);
 	HAL::eprSetFloat(EPR_ZAXIS_STEPS_PER_MM,Machine::axisStepsPerMM[Z_AXIS]);
@@ -133,14 +133,14 @@ void EEPROM::storeDataIntoEEPROM(uint8_t corrupted)
 	HAL::eprSetFloat(EPR_BACKLASH_Z,Machine::backlash[A_AXIS]);
 #endif
 #if DISTORTION_CORRECTION
-	HAL::eprSetInt16(EPR_DISTORTION_XMIN, Machine::distortionXMIN); //SL
-	HAL::eprSetInt16(EPR_DISTORTION_XMAX, Machine::distortionXMAX); //SL
-	HAL::eprSetInt16(EPR_DISTORTION_YMIN, Machine::distortionYMIN); //SL
-	HAL::eprSetInt16(EPR_DISTORTION_YMAX, Machine::distortionYMAX); //SL
-	HAL::eprSetByte(EPR_DISTORTION_POINTS, Machine::distortionPoints); //SL
-	HAL::eprSetFloat(EPR_DISTORTION_START, Machine::distortionStart); //SL
-	HAL::eprSetFloat(EPR_DISTORTION_END, Machine::distortionEnd); //SL
-	HAL::eprSetByte(EPR_DISTORTION_USE_OFFSET, Machine::distortionUseOffset); //SL
+	HAL::eprSetInt16(EPR_DISTORTION_XMIN, Machine::distortion.XMIN); //SL
+	HAL::eprSetInt16(EPR_DISTORTION_XMAX, Machine::distortion.XMAX); //SL
+	HAL::eprSetInt16(EPR_DISTORTION_YMIN, Machine::distortion.YMIN); //SL
+	HAL::eprSetInt16(EPR_DISTORTION_YMAX, Machine::distortion.YMAX); //SL
+	HAL::eprSetByte(EPR_DISTORTION_POINTS, Machine::distortion.getPoints()); //SL
+	HAL::eprSetFloat(EPR_DISTORTION_START, Machine::distortion.start); //SL
+	HAL::eprSetFloat(EPR_DISTORTION_END, Machine::distortion.end); //SL
+	HAL::eprSetByte(EPR_DISTORTION_USE_OFFSET, Machine::distortion.useOffset); //SL
 #endif
     if(corrupted)
     {
@@ -165,9 +165,9 @@ void EEPROM::readDataFromEEPROM()
 #if EEPROM_MODE != 0
     uint8_t version = HAL::eprGetByte(EPR_VERSION); // This is the saved version. Don't copy data nor set it to older versions!
     Com::printFLN(PSTR("Detected EEPROM version:"),(int)version);
-    baudrate = HAL::eprGetInt32(EPR_BAUDRATE);
-    maxInactiveTime = HAL::eprGetInt32(EPR_MAX_INACTIVE_TIME);
-    stepperInactiveTime = HAL::eprGetInt32(EPR_STEPPER_INACTIVE_TIME);
+	Machine::baudrate = HAL::eprGetInt32(EPR_BAUDRATE);
+	Machine::maxInactiveTime = HAL::eprGetInt32(EPR_MAX_INACTIVE_TIME);
+	Machine::stepperInactiveTime = HAL::eprGetInt32(EPR_STEPPER_INACTIVE_TIME);
 	Machine::axisStepsPerMM[X_AXIS] = HAL::eprGetFloat(EPR_XAXIS_STEPS_PER_MM);
     Machine::axisStepsPerMM[Y_AXIS] = HAL::eprGetFloat(EPR_YAXIS_STEPS_PER_MM);
 	Machine::axisStepsPerMM[Z_AXIS] = HAL::eprGetFloat(EPR_ZAXIS_STEPS_PER_MM);
@@ -202,19 +202,15 @@ void EEPROM::readDataFromEEPROM()
 	Machine::backlash[A_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_A);
 #endif
 #if DISTORTION_CORRECTION
-	Machine::distortionXMIN = HAL::eprGetInt16(EPR_DISTORTION_XMIN); //SL
-	Machine::distortionXMAX = HAL::eprGetInt16(EPR_DISTORTION_XMAX); //SL
-	Machine::distortionYMIN = HAL::eprGetInt16(EPR_DISTORTION_YMIN); //SL
-	Machine::distortionYMAX = HAL::eprGetInt16(EPR_DISTORTION_YMAX); //SL
-	Machine::distortionPoints = HAL::eprGetByte(EPR_DISTORTION_POINTS); //SL
-	if(Machine::distortionPoints > DISTORTION_CORRECTION_POINTS)
-		Machine::distortionPoints = DISTORTION_CORRECTION_POINTS;
-	if(Machine::distortionPoints < 2)
-		Machine::distortionPoints = 2;
-	Machine::distortionStart = HAL::eprGetFloat(EPR_DISTORTION_START); //SL
-	Machine::distortionEnd = HAL::eprGetFloat(EPR_DISTORTION_END); //SL
-	Machine::distortionUseOffset = HAL::eprGetByte(EPR_DISTORTION_USE_OFFSET); //SL
-	Machine::distortion.SetStartEnd(Machine::distortionStart, Machine::distortionEnd);
+	Machine::distortion.XMIN		= HAL::eprGetInt16(EPR_DISTORTION_XMIN); //SL
+	Machine::distortion.XMAX		= HAL::eprGetInt16(EPR_DISTORTION_XMAX); //SL
+	Machine::distortion.YMIN		= HAL::eprGetInt16(EPR_DISTORTION_YMIN); //SL
+	Machine::distortion.YMAX		= HAL::eprGetInt16(EPR_DISTORTION_YMAX); //SL
+	Machine::distortion.setPoints(HAL::eprGetByte(EPR_DISTORTION_POINTS)); //SL
+	Machine::distortion.start		= HAL::eprGetFloat(EPR_DISTORTION_START); //SL
+	Machine::distortion.end			= HAL::eprGetFloat(EPR_DISTORTION_END); //SL
+	Machine::distortion.useOffset	= HAL::eprGetByte(EPR_DISTORTION_USE_OFFSET); //SL
+	Machine::distortion.SetStartEnd(Machine::distortion.start, Machine::distortion.end);
 #endif
 	if(version != EEPROM_PROTOCOL_VERSION)
     {
@@ -236,11 +232,10 @@ void EEPROM::readDataFromEEPROM()
 void EEPROM::initBaudrate()
 {
     // Invariant - baudrate is initialized with or without eeprom!
-    baudrate = BAUDRATE;
+	Machine::baudrate = BAUDRATE;
 #if EEPROM_MODE != 0
-    if(HAL::eprGetByte(EPR_MAGIC_BYTE) == EEPROM_MODE)
-    {
-        baudrate = HAL::eprGetInt32(EPR_BAUDRATE);
+    if(HAL::eprGetByte(EPR_MAGIC_BYTE) == EEPROM_MODE) {
+		Machine::baudrate = HAL::eprGetInt32(EPR_BAUDRATE);
     }
 #endif
 }
@@ -253,16 +248,13 @@ void EEPROM::init()
 #if EEPROM_MODE != 0
     uint8_t check = computeChecksum();
     uint8_t storedcheck = HAL::eprGetByte(EPR_INTEGRITY_BYTE);
-    if(HAL::eprGetByte(EPR_MAGIC_BYTE) == EEPROM_MODE && storedcheck == check)
-    {
+    if(HAL::eprGetByte(EPR_MAGIC_BYTE) == EEPROM_MODE && storedcheck == check) {
         readDataFromEEPROM();
-        if (USE_CONFIGURATION_BAUD_RATE)
-        {
+        if (USE_CONFIGURATION_BAUD_RATE) {
             // Used if eeprom gets unusable baud rate set and communication wont work at all.
-            if(HAL::eprGetInt32(EPR_BAUDRATE) != BAUDRATE)
-            {
+            if(HAL::eprGetInt32(EPR_BAUDRATE) != BAUDRATE) {
                 HAL::eprSetInt32(EPR_BAUDRATE,BAUDRATE);
-                baudrate = BAUDRATE;
+				Machine::baudrate = BAUDRATE;
                 uint8_t newcheck = computeChecksum();
                 if(newcheck != HAL::eprGetByte(EPR_INTEGRITY_BYTE))
                     HAL::eprSetByte(EPR_INTEGRITY_BYTE,newcheck);

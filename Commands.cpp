@@ -1,5 +1,4 @@
 #include "SwitchCNC.h"
-#include "Temperature.h"
 
 const int8_t sensitive_pins[] PROGMEM = SENSITIVE_PINS; // Sensitive pin list for M42
 int Commands::lowestRAMValue = MAX_RAM;
@@ -29,99 +28,6 @@ void Commands::commandLoop() {
     Machine::defaultLoopActions();
 }
 
-void Commands::checkForPeriodicalActions(bool allowNewMoves) {
-    Machine::handleInterruptEvent();
-	EVENT_PERIODICAL;
-    if(!executePeriodical) return; // gets true every 100ms
-	executePeriodical = 0;
-
-#if defined(PAUSE_PIN) && PAUSE_PIN>-1
-	bool getPaused = (READ(PAUSE_PIN) != !PAUSE_INVERTING);
-	if(Machine::isPaused != getPaused)
-	{
-		if(!MachineLine::hasLines())
-		{
-			if(getPaused) Machine::pauseSteps = PAUSE_STEPS;
-				else Machine::pauseSteps = 0;
-		}
-
-		if(getPaused) Com::printFLN(Com::tPaused);
-			else Com::printFLN(Com::tUnpaused);
-		Machine::isPaused = getPaused;
-	}
-
-#if defined(SUPPORT_LASER) && SUPPORT_LASER
-    if (Machine::isPaused && Machine::mode == MACHINE_MODE_LASER) {
-        LaserDriver::changeIntensity(0);
-    }
-#endif
-#endif //PAUSE_PIN
-
-#if SPEED_DIAL && SPEED_DIAL_PIN > -1
-    uint8 maxSpeedValue = 1 << SPEED_DIAL_BITS;
-    uint8 minSpeedValue = (uint)maxSpeedValue * SPEED_DIAL_MIN_PERCENT / 100;
-    uint8 speedDivisor  = (ANALOG_MAX_VALUE >> SPEED_DIAL_BITS) * 100 / (100 - SPEED_DIAL_MIN_PERCENT);
-#if SPEED_DIAL_INVERT
-    uint8 value = (ANALOG_MAX_VALUE - AnalogIn::values[SPEED_DIAL_ANALOG_INDEX]) / speedDivisor + minSpeedValue;
-#else
-    uint8 value = AnalogIn::values[SPEED_DIAL_ANALOG_INDEX] / speedDivisor + minSpeedValue;
-#endif
-    if (value > maxSpeedValue) {
-        value = maxSpeedValue;
-    }
-   
-    Machine::speed_dial = value;
-#endif //SPEED_DIAL
-
-#if SUPPORT_LASER && LASER_TEMP_PIN > -1
-#if ANALOG_OUTPUT_BITS > TEMPERATURE_TABLE_BITS
-    LaserDriver::tempRaw = AnalogIn::values[LASER_TEMP_ANALOG_INDEX] >> (ANALOG_OUTPUT_BITS - TEMPERATURE_TABLE_BITS);
-#elif ANALOG_OUTPUT_BITS == TEMPERATURE_TABLE_BITS
-    LaserDriver::tempRaw = AnalogIn::values[LASER_TEMP_ANALOG_INDEX]
-#else
-    LaserDriver::tempRaw = AnalogIn::values[LASER_TEMP_ANALOG_INDEX] << (TEMPERATURE_TABLE_BITS - ANALOG_OUTPUT_BITS);
-#endif
-
-    int16_t oldraw = pgm_read_word(&temperatureTables[0][TEMPERATURE_RAW][LASER_TEMP_SENSOR_TYPE]);
-    int16_t oldtemp = pgm_read_word(&temperatureTables[0][TEMERATURE_TEMP][LASER_TEMP_SENSOR_TYPE]);
-    int16_t newraw, newtemp = 0;
-    uint8_t i = 1;
-    while (i < TEMPERATURE_TABLE_ENTRIES)
-    {
-        newraw = pgm_read_word(&temperatureTables[i][TEMPERATURE_RAW][LASER_TEMP_SENSOR_TYPE]);
-        newtemp = pgm_read_word(&temperatureTables[i][TEMERATURE_TEMP][LASER_TEMP_SENSOR_TYPE]);
-        if (newraw > LaserDriver::tempRaw)
-        {
-            LaserDriver::temperature = oldtemp + ((float)(LaserDriver::tempRaw - oldraw) * (float)(newtemp - oldtemp) / (float)(newraw - oldraw));
-            i = TEMPERATURE_TABLE_ENTRIES + 2;
-        }
-        oldtemp = newtemp;
-        oldraw = newraw;
-        i++;
-    }
-
-    // Overflow: Set to last value in the table
-    if (i == TEMPERATURE_TABLE_ENTRIES + 1) {
-        LaserDriver::temperature = newtemp;
-    }
-
-    LaserDriver::tempRaw = 0;
-    LaserDriver::tempCount = 0;
-#endif //LASER_TEMP_PIN
-
-	EVENT_TIMER_100MS;
-	if(--counter500ms == 0) {
-        counter500ms = 5;
-		EVENT_TIMER_500MS;
-#if TMC_DRIVERS
-		Machine::CheckTMCDrivers();
-#endif
-#if FEATURE_WATCHDOG
-		HAL::pingWatchdog();
-#endif
-	}
-}
-
 /** \brief Waits until movement cache is empty.
 
 Some commands expect no movement, before they can execute. This function
@@ -134,7 +40,7 @@ void Commands::waitUntilEndOfAllMoves() {
 #endif
     while(MachineLine::hasLines()) {
         //GCode::readFromSerial();
-        checkForPeriodicalActions(false);
+        Machine::checkForPeriodicalActions(false);
 		GCode::keepAlive(Processing);
     }
 }
@@ -162,7 +68,7 @@ void Commands::waitUntilEndOfAllBuffers() {
                 Commands::executeGCode(code);
             code->popCurrentCommand();
         }
-		Commands::checkForPeriodicalActions(false); // only called from memory
+		Machine::checkForPeriodicalActions(false); // only called from memory
     }
 }
 
@@ -201,12 +107,12 @@ void Commands::changeFeedrateMultiply(int factor) {
     Com::printFLN(Com::tSpeedMultiply, factor);
 }
 
-#if FEATURE_FAN_CONTROL
-uint8_t fanKickstart;
-#endif
-#if FEATURE_FAN2_CONTROL
-uint8_t fan2Kickstart;
-#endif
+void Commands::changeFlowrateMultiply(int factor) {
+    if (factor < 25) factor = 25;
+    if (factor > 200) factor = 200;
+    Machine::extrudeMultiply = factor;
+    Com::printFLN(Com::tFlowMultiply, factor);
+}
 
 void Commands::setFanSpeed(int speed, bool immediately) {
 #if FAN_PIN >- 1 && FEATURE_FAN_CONTROL
@@ -217,7 +123,7 @@ void Commands::setFanSpeed(int speed, bool immediately) {
 	if(MachineLine::linesCount == 0 || immediately) {
 		for(fast8_t i = 0; i < MACHINELINE_CACHE_SIZE; i++)
 			MachineLine::lines[i].secondSpeed = speed;         // fill all machineline buffers with new fan speed value
-        Machine::setFanSpeedDirectly(speed);
+        Machine::pwm.set(FAN_PWM_INDEX, speed);
     }
     Com::printFLN(Com::tFanspeed, speed); // send only new values to break update loops!
 #endif
@@ -225,7 +131,7 @@ void Commands::setFanSpeed(int speed, bool immediately) {
 void Commands::setFan2Speed(int speed) {
 #if FAN2_PIN >- 1 && FEATURE_FAN2_CONTROL
     speed = constrain(speed, 0, 255);
-    Machine::setFan2SpeedDirectly(speed);
+    Machine::pwm.set(FAN2_PWM_INDEX, speed);
     Com::printFLN(Com::tFan2speed, speed); // send only new values to break update loops!
 #endif
 }
@@ -352,7 +258,7 @@ void Commands::processArc(GCode *com) {
 */
 void Commands::processGCode(GCode *com) {
     if(EVENT_UNHANDLED_G_CODE(com)) {
-        previousMillisCmd = HAL::timeInMilliseconds();
+        Machine::previousMillisCmd = HAL::timeInMilliseconds();
         return;
     }
     uint32_t codenum; //throw away variable
@@ -445,7 +351,7 @@ void Commands::processGCode(GCode *com) {
         codenum += HAL::timeInMilliseconds();  // keep track of when we started waiting
         while((uint32_t)(codenum - HAL::timeInMilliseconds())  < 2000000000 ) {
             GCode::keepAlive(Processing);
-            Commands::checkForPeriodicalActions(true);
+            Machine::checkForPeriodicalActions(true);
         }
         break;
     case 20: // G20 Units to inches
@@ -502,26 +408,23 @@ void Commands::processGCode(GCode *com) {
 			if(Endstops::zProbe())
 			{
 				Com::printErrorFLN(PSTR("probe triggered before starting G33."));
-			} else
-			{
-				if(com->hasT() && com->T > 0)
-				{
+			} else {
+				if(com->hasT() && com->T > 0) {
 					Machine::updateCurrentPosition(true);
 					Machine::distortion.resetCorrection();
 					Machine::distortion.disable(true);
-					if(com->T > 1)
-					{
+					if(com->T > 1) {
 						HAL::eprSetInt16(EPR_DISTORTION_POINTS, com->T);
-						Machine::distortionPoints = com->T;
+						Machine::distortion.setPoints(com->T);
 					}
 					HAL::eprSetInt16(EPR_DISTORTION_XMIN, -Machine::coordinateOffset[X_AXIS]);
 					HAL::eprSetInt16(EPR_DISTORTION_XMAX, Machine::currentPosition[X_AXIS]);
 					HAL::eprSetInt16(EPR_DISTORTION_YMIN, -Machine::coordinateOffset[Y_AXIS]);
 					HAL::eprSetInt16(EPR_DISTORTION_YMAX, Machine::currentPosition[Y_AXIS]);
-					Machine::distortionXMIN = -Machine::coordinateOffset[X_AXIS];
-					Machine::distortionXMAX = Machine::currentPosition[X_AXIS]; //SL
-					Machine::distortionYMIN = -Machine::coordinateOffset[Y_AXIS];
-					Machine::distortionYMAX = Machine::currentPosition[Y_AXIS]; //SL
+					Machine::distortion.XMIN    = -Machine::coordinateOffset[X_AXIS];
+					Machine::distortion.XMAX    = Machine::currentPosition[X_AXIS]; //SL
+					Machine::distortion.YMIN    = -Machine::coordinateOffset[Y_AXIS];
+					Machine::distortion.YMAX    = Machine::currentPosition[Y_AXIS]; //SL
 				}
 
 				float md = -10;
@@ -577,7 +480,7 @@ void Commands::processGCode(GCode *com) {
 				Machine::coordinateOffset[Z_AXIS] = zp - Machine::currentPosition[Z_AXIS];
 				Com::printF(PSTR(" TOOL OFFSET:"), zp, 3);
 				Com::printFLN(PSTR(" Z_OFFSET:"), Machine::coordinateOffset[Z_AXIS], 3);
-				Machine::distortion.SetStartEnd(Machine::distortionStart, Machine::distortionEnd);
+				Machine::distortion.SetStartEnd(Machine::distortion.start, Machine::distortion.end);
 			}
 		}
 		printCurrentPosition();
@@ -624,7 +527,7 @@ void Commands::processGCode(GCode *com) {
 			Com::printFLN(PSTR(" Z_OFFSET:"), Machine::coordinateOffset[Z_AXIS], 3);
 		}
 #if DISTORTION_CORRECTION
-        Machine::distortion.SetStartEnd(Machine::distortionStart, Machine::distortionEnd);
+        Machine::distortion.SetStartEnd(Machine::distortion.start, Machine::distortion.end);
 #endif
 	}
 	break;
@@ -666,7 +569,7 @@ void Commands::processGCode(GCode *com) {
             com->printCommand();
         }
     }
-    previousMillisCmd = HAL::timeInMilliseconds();
+    Machine::previousMillisCmd = HAL::timeInMilliseconds();
 }
 /**
 \brief Execute the G command stored in com.
@@ -870,7 +773,7 @@ void Commands::processMCode(GCode *com) {
 #if PS_ON_PIN > -1
     case 80: // M80 - ATX Power On
         Commands::waitUntilEndOfAllMoves();
-        previousMillisCmd = HAL::timeInMilliseconds();
+        Machine::previousMillisCmd = HAL::timeInMilliseconds();
         SET_OUTPUT(PS_ON_PIN); //GND
         Machine::setPowerOn(true);
         WRITE(PS_ON_PIN, (POWER_INVERTING ? HIGH : LOW));
@@ -884,7 +787,7 @@ void Commands::processMCode(GCode *com) {
 #endif
     case 84: // M84
         if (com->hasS()) {
-            stepperInactiveTime = com->S * 1000;
+            Machine::stepperInactiveTime = com->S * 1000;
         }
         else {
             Commands::waitUntilEndOfAllMoves();
@@ -893,9 +796,9 @@ void Commands::processMCode(GCode *com) {
         break;
     case 85: // M85
         if (com->hasS())
-            maxInactiveTime = (int32_t)com->S * 1000;
+            Machine::maxInactiveTime = (int32_t)com->S * 1000;
         else
-            maxInactiveTime = 0;
+            Machine::maxInactiveTime = 0;
         break;
     case 92: // M92
         if (com->hasX()) Machine::axisStepsPerMM[X_AXIS] = com->X;
@@ -1073,6 +976,9 @@ void Commands::processMCode(GCode *com) {
     case 220: // M220 S<Feedrate multiplier in percent>
         changeFeedrateMultiply(com->getS(100));
         break;
+    case 221: // M221 S<Extrusion flow multiplier in percent>
+        changeFlowrateMultiply(com->getS(100));
+        break;
     case 226: // M226 P<pin> S<state 0/1> - Wait for pin getting state S
         if(!com->hasS() || !com->hasP())
             break;
@@ -1085,7 +991,7 @@ void Commands::processMCode(GCode *com) {
                     HAL::pinMode(com->P, INPUT_PULLUP);
             }
             do {
-                Commands::checkForPeriodicalActions(true);
+                Machine::checkForPeriodicalActions(true);
                 GCode::keepAlive(Waiting);
             } while(HAL::digitalRead(com->P) != comp);
         }
@@ -1295,7 +1201,7 @@ void Commands::executeGCode(GCode *com) {
     if (INCLUDE_DEBUG_COMMUNICATION) {
         if(Machine::debugCommunication()) {
             if(com->hasG() || (com->hasM() && com->M != 111)) {
-                previousMillisCmd = HAL::timeInMilliseconds();
+                Machine::previousMillisCmd = HAL::timeInMilliseconds();
 #if NEW_COMMUNICATION
                 GCodeSource::activeSource = actSource;
 #endif
@@ -1324,14 +1230,7 @@ void Commands::emergencyStop() {
 #else
     //HAL::forbidInterrupts(); // Don't allow interrupts to do their work
     Machine::kill(false);
-    for(uint8_t i = 0; i < PWM_FAN2; i++)
-        pwm_pos[i] = 0;
-#if FAN_PIN > -1 && FEATURE_FAN_CONTROL
-    WRITE(FAN_PIN, 0);
-#endif
-#if defined(SUPPORT_LASER) && SUPPORT_LASER
-    OCR5B = 0;
-#endif
+    Machine::pwm.clear();
 	HAL::delayMilliseconds(200);
     InterruptProtectedBlock noInts;
     while(1) {}

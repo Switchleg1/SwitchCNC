@@ -147,18 +147,15 @@ void LaserDriver::changeIntensity(secondspeed_t newIntensity)
 {
 #if defined(SUPPORT_LASER) && SUPPORT_LASER
     uint16_t addFlow = newIntensity;
-    /*if (addFlow)
-    {
+    if (addFlow) {
         addFlow *= Machine::extrudeMultiply;
         addFlow /= 100;
-        if (addFlow > 0xFF)
-        {
+        if (addFlow > 0xFF) {
             addFlow = 0xFF;
         }
-    }*/
+    }
 
-    if (addFlow < LaserDriver::minIntensity)
-    {
+    if (addFlow < LaserDriver::minIntensity) {
         addFlow = LaserDriver::minIntensity;
     }
     OCR5B = addFlow;
@@ -212,10 +209,12 @@ void SpindleDriver::turnOff()
 {
     spindleRpm=0;
     if(direction == 0) return; // already off
-    if(EVENT_SPINDLE_OFF)
-    {
+    if(EVENT_SPINDLE_OFF) {
 #if SPINDLE_ON_PIN > -1
         WRITE(SPINDLE_ON_PIN,!SPINDLE_ON_HIGH);
+#endif
+#if SPINDLE_PWM_PIN > -1
+        Machine::pwm.set(SPINDLE_PWM_INDEX, 0);
 #endif
     }
     HAL::delayMilliseconds(SPINDLE_WAIT_ON_STOP);
@@ -245,7 +244,7 @@ void SpindleDriver::turnOnCW(int32_t rpm)
         WRITE(SPINDLE_ON_PIN, SPINDLE_ON_HIGH);
 #endif
 #if SPINDLE_PWM_PIN > -1
-		pwm_pos[PWM_SPINDLE] = spindleSpeed;
+        Machine::pwm.set(SPINDLE_PWM_INDEX, spindleSpeed);
 #endif
 	}
 	HAL::delaySeconds(SPINDLE_WAIT_ON_START);
@@ -274,7 +273,7 @@ void SpindleDriver::turnOnCCW(int32_t rpm)
         WRITE(SPINDLE_ON_PIN, SPINDLE_ON_HIGH);
 #endif
 #if SPINDLE_PWM_PIN > -1
-		pwm_pos[PWM_SPINDLE] = spindleSpeed;
+        Machine::pwm.set(SPINDLE_PWM_INDEX, spindleSpeed);
 #endif
     }
     HAL::delayMilliseconds(SPINDLE_WAIT_ON_START);

@@ -21,7 +21,7 @@
 #define CASE_LIGHTS_PIN							-1
 #define CASE_LIGHT_DEFAULT_ON					1
 #define VACUUM_PIN								9
-#define PWM_FREQUENCY_DIVISOR					8
+#define INTERRUPT_FREQUENCY_DIVISOR				8
 
 //Power settings
 #define AUTOMATIC_POWERUP						1
@@ -38,6 +38,7 @@
 #define SPINDLE_DIRECTION_PIN					-1
 #define SPINDLE_DIRECTION_CW					1
 #define SPINDLE_PWM_PIN							-1
+#define SPINDLE_KICKSTART_TIME					200
 #define SPINDLE_RPM_MIN							6000
 #define SPINDLE_RPM_MAX							24000
 
@@ -53,15 +54,16 @@
 //Fan settings
 #define FEATURE_FAN_CONTROL						1
 #define FAN_KICKSTART_TIME						200
-#define MAX_FAN_PWM								255
 #define FAN_PIN									-1
 
 #define FEATURE_FAN2_CONTROL					0
+#define FAN2_KICKSTART_TIME						200
 #define FAN2_PIN								-1
 
 //Fanboard settings
 #define BOARD_FAN_SPEED							255
 #define BOARD_FAN_MIN_SPEED						0
+#define BOARD_FAN_KICKSTART_TIME				200
 #define FAN_BOARD_PIN 							11
 
 //Pause settings

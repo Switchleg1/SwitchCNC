@@ -1,32 +1,19 @@
 #include "SwitchCNC.h"
 #include <compat/twi.h>
 
+const uint8_t Analog::inputChannels[ANALOG_INPUTS] PROGMEM = ANALOG_INPUT_CHANNELS;
+
 #if ANALOG_INPUTS > 0
-uint8_t AnalogIn::inputPosition = 0; // Current sampling position
-uint8_t AnalogIn::inputCounter[ANALOG_INPUTS];
-#if (ANALOG_INPUT_BITS + ANALOG_INPUT_SAMPLE)  <= 8
-uint8_t AnalogIn::inputValues[ANALOG_INPUTS];
-#elif (ANALOG_INPUT_BITS + ANALOG_INPUT_SAMPLE)  <= 16
-uint16_t AnalogIn::inputValues[ANALOG_INPUTS];
-#else
-uint32_t AnalogIn::inputValues[ANALOG_INPUTS];
-#endif
-#if ANALOG_OUTPUT_BITS <= 8
-volatile uint8_t AnalogIn::values[ANALOG_INPUTS];
-#elif ANALOG_OUTPUT_BITS <= 16
-volatile uint16_t AnalogIn::values[ANALOG_INPUTS];
-#else
-volatile uint32_t AnalogIn::values[ANALOG_INPUTS];
-#endif
-const uint8_t AnalogIn::inputChannels[ANALOG_INPUTS] PROGMEM = ANALOG_INPUT_CHANNELS;
+Analog::Analog() {
+    inputPosition = 0; // Current sampling position
+}
 
-
-void AnalogIn::start() {
+void Analog::start() {
     ADMUX = ANALOG_REF; // reference voltage
     for (uint8_t i = 0; i < ANALOG_INPUTS; i++) {
         inputCounter[i] = 0;
-        inputValues[i] = 0;
-        values[i] = 0;
+        inputValues[i]  = 0;
+        values[i]       = 0;
     }
     ADCSRA = _BV(ADEN) | _BV(ADSC) | ANALOG_PRESCALER;
     //ADCSRA |= _BV(ADSC);                  // start ADC-conversion
@@ -46,7 +33,7 @@ void AnalogIn::start() {
     ADCSRA |= _BV(ADSC); // start conversion without interrupt!
 }
 
-void AnalogIn::read() {
+void Analog::read() {
     if ((ADCSRA & _BV(ADSC)) == 0) { // Conversion finished?
         inputValues[inputPosition] += ADCW;
         if (++inputCounter[inputPosition] >= _BV(ANALOG_INPUT_SAMPLE)) {

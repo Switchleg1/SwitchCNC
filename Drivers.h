@@ -80,7 +80,7 @@ public:
             target--;
             HAL::pingWatchdog();
             if((target & 127) == 0) {
-                Commands::checkForPeriodicalActions(false);
+                Machine::checkForPeriodicalActions(false);
 				GCode::keepAlive(Processing);
 			}
         }
@@ -160,7 +160,7 @@ class StepperDriverWithEndstop : public MotorDriverInterface
 			target--;
 			HAL::pingWatchdog();
 			if((target & 127) == 0) {
-				Commands::checkForPeriodicalActions(false);
+				Machine::checkForPeriodicalActions(false);
 				GCode::keepAlive(Processing);
 			}
 			if(up != minEndstop) {
