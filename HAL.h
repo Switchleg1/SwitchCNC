@@ -9,23 +9,19 @@
 
 #include <avr/pgmspace.h>
 #include <avr/io.h>
-
-
-#define INLINE __attribute__((always_inline))
-
-#define PACK
-
-#define FSTRINGVALUE(var,value) const char var[] PROGMEM = value;
-#define FSTRINGVAR(var) static const char var[] PROGMEM;
-#define FSTRINGPARAM(var) PGM_P var
-
 #include <avr/eeprom.h>
 #include <avr/wdt.h>
+
+#define INLINE                      __attribute__((always_inline))
+#define PACK
+#define FSTRINGVALUE(var,value)     const char var[] PROGMEM = value;
+#define FSTRINGVAR(var)             static const char var[] PROGMEM;
+#define FSTRINGPARAM(var)           PGM_P var
+
 /** \brief Prescale factor, timer0 runs at.
 
 All known Arduino boards use 64. This value is needed for the extruder timing. */
 #define TIMER0_PRESCALE 64
-
 
 #if NEW_COMMUNICATION && defined(BLUETOOTH_SERIAL) && BLUETOOTH_SERIAL > 0
 #undef EXTERNALSERIAL
@@ -43,70 +39,35 @@ All known Arduino boards use 64. This value is needed for the extruder timing. *
 // Can not change buffer size here, need add build flag -D SERIAL_RX_BUFFER_SIZE=128
 //#define SERIAL_RX_BUFFER_SIZE 128
 #endif
-#if defined(ARDUINO) && ARDUINO >= 100
-#include "Arduino.h"
-#else
-#include "WProgram.h"
-#define COMPAT_PRE1
-#endif
-#include "fastio.h"
+
 #ifndef cbi
-#define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit))
+#define cbi(sfr, bit)                   (_SFR_BYTE(sfr) &= ~_BV(bit))
 #endif
 #ifndef sbi
-#define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
+#define sbi(sfr, bit)                   (_SFR_BYTE(sfr) |= _BV(bit))
 #endif
 
-class InterruptProtectedBlock
-{
-    uint8_t sreg;
-public:
-    inline void protect()
-    {
-        cli();
-    }
+#define EEPROM_OFFSET                   0
+#define SECONDS_TO_TICKS(s)             (unsigned long)(s*(float)F_CPU)
 
-    inline void unprotect()
-    {
-        SREG = sreg;
-    }
+#define MAX_RAM                         32767
 
-    inline InterruptProtectedBlock(bool later = false)
-    {
-        sreg = SREG;
-        if(!later)
-            cli();
-    }
-
-    inline ~InterruptProtectedBlock()
-    {
-        SREG = sreg;
-    }
-};
-
-#define EEPROM_OFFSET               0
-#define SECONDS_TO_TICKS(s) (unsigned long)(s*(float)F_CPU)
-
-#define MAX_RAM 32767
-
-#define bit_clear(x,y) x&= ~(1<<y) //cbi(x,y)
-#define bit_set(x,y)   x|= (1<<y)//sbi(x,y)
+#define bit_clear(x,y)                  x&= ~(1<<y) //cbi(x,y)
+#define bit_set(x,y)                    x|= (1<<y)//sbi(x,y)
 
 /** defines the data direction (reading from I2C device) in i2cStart(),i2cRepStart() */
-#define I2C_READ    1
+#define I2C_READ                        1
 /** defines the data direction (writing to I2C device) in i2cStart(),i2cRepStart() */
-#define I2C_WRITE   0
+#define I2C_WRITE                       0
 
-#define LIMIT_INTERVAL ((F_CPU/40000)+1)
-
-typedef uint16_t speed_t;
-typedef uint32_t ticks_t;
-typedef uint32_t millis_t;
-typedef uint8_t flag8_t;
-typedef int8_t fast8_t;
-typedef uint8_t ufast8_t;
+#define LIMIT_INTERVAL                  ((F_CPU/40000)+1)
 
 #define FAST_INTEGER_SQRT
+#ifdef FAST_INTEGER_SQRT
+#define SQRT(x)                         (HAL::integerSqrt(x))
+#else
+#define SQRT(x)                         sqrt(x)
+#endif
 
 #ifndef EXTERNALSERIAL
 // Implement serial communication for one stream only!
@@ -133,16 +94,16 @@ typedef uint8_t ufast8_t;
   Modified to use only 1 queue with fixed length by Repetier
 */
 
-#define SERIAL_BUFFER_SIZE 128
-#define SERIAL_BUFFER_MASK 127
+#define SERIAL_BUFFER_SIZE              128
+#define SERIAL_BUFFER_MASK              127
 #undef SERIAL_TX_BUFFER_SIZE
 #undef SERIAL_TX_BUFFER_MASK
 #ifdef BIG_OUTPUT_BUFFER
-  #define SERIAL_TX_BUFFER_SIZE 128
-  #define SERIAL_TX_BUFFER_MASK 127
+  #define SERIAL_TX_BUFFER_SIZE         128
+  #define SERIAL_TX_BUFFER_MASK         127
 #else
-  #define SERIAL_TX_BUFFER_SIZE 64
-  #define SERIAL_TX_BUFFER_MASK 63
+  #define SERIAL_TX_BUFFER_SIZE         64
+  #define SERIAL_TX_BUFFER_MASK         63
 #endif
 
 struct ring_buffer
@@ -215,13 +176,13 @@ extern RFHardwareSerial RFSerial;
 #endif
 #endif
 
-class HAL
-{
+class HAL {
 public:
     HAL();
     virtual ~HAL();
-    static inline void hwSetup(void)
-    {}
+    static inline void hwSetup(void) {
+    }
+
     // return val*val
     static uint16_t integerSqrt(uint32_t a);
     /** \brief Optimized division
@@ -552,7 +513,7 @@ public:
     }
     static void setupTimer();
     static void showStartReason();
-    static int getFreeRam();
+    static int  getFreeRam();
     static void resetHardware();
 
 
@@ -576,8 +537,8 @@ public:
     }
     static inline void spiInit(uint8_t spiRate)
     {
-         uint8_t r = 0;
-         for (uint8_t b = 2; spiRate > b && r < 6; b <<= 1, r++);
+        uint8_t r = 0;
+        for (uint8_t b = 2; spiRate > b && r < 6; b <<= 1, r++);
 		SET_OUTPUT(SS);
 		WRITE(SS,HIGH);
         SET_OUTPUT(SCK);
@@ -651,18 +612,16 @@ public:
     }
 
     // I2C Support
-
-	static void i2cSetClockspeed(uint32_t clockSpeedHz);
-    static void i2cInit(uint32_t clockSpeedHz);
-    static unsigned char i2cStart(uint8_t address);
-    static void i2cStartWait(uint8_t address);
-    static void i2cStop(void);
-    static void i2cWrite( uint8_t data );
-    static uint8_t i2cReadAck(void);
-    static uint8_t i2cReadNak(void);
+	static void     i2cSetClockspeed(uint32_t clockSpeedHz);
+    static void     i2cInit(uint32_t clockSpeedHz);
+    static uint8_t  i2cStart(uint8_t address);
+    static void     i2cStartWait(uint8_t address);
+    static void     i2cStop(void);
+    static void     i2cWrite( uint8_t data );
+    static uint8_t  i2cReadAck(void);
+    static uint8_t  i2cReadNak(void);
 
     // Watchdog support
-
     inline static void startWatchdog()
     {
 #if defined (__AVR_ATmega1280__) || defined (__AVR_ATmega2560__)

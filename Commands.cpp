@@ -6,7 +6,7 @@ int Commands::lowestRAMValueSend = MAX_RAM;
 
 void Commands::commandLoop() {
 #ifdef DEBUG_MACHINE
-    debugWaitLoop = 1;
+    Machine::debugWaitLoop = 1;
 #endif
 	GCode::readFromSerial();
 	GCode *code = GCode::peekCurrentCommand();
@@ -36,7 +36,7 @@ commands and manages temperatures.
 */
 void Commands::waitUntilEndOfAllMoves() {
 #ifdef DEBUG_MACHINE
-    debugWaitLoop = 8;
+    Machine::debugWaitLoop = 8;
 #endif
     while(MachineLine::hasLines()) {
         //GCode::readFromSerial();
@@ -48,7 +48,7 @@ void Commands::waitUntilEndOfAllMoves() {
 void Commands::waitUntilEndOfAllBuffers() {
     GCode *code = NULL;
 #ifdef DEBUG_MACHINE
-    debugWaitLoop = 9;
+    Machine::debugWaitLoop = 9;
 #endif
     while(MachineLine::hasLines() || (code != NULL)) {
         //GCode::readFromSerial();
@@ -199,13 +199,13 @@ void Commands::processArc(GCode *com) {
         */
         r = Machine::convertToMM(com->R);
         // Calculate the change in position along each selected axis
-        double x = target[X_AXIS] - position[X_AXIS];
-        double y = target[Y_AXIS] - position[Y_AXIS];
+        float x = target[X_AXIS] - position[X_AXIS];
+        float y = target[Y_AXIS] - position[Y_AXIS];
 
-        double h_x2_div_d = -sqrt(4 * r * r - x * x - y * y) / hypot(x, y); // == -(h * 2 / d)
+        float h_x2_div_d = -sqrtf(4 * r * r - x * x - y * y) / hypotf(x, y); // == -(h * 2 / d)
         // If r is smaller than d, the arc is now traversing the complex plane beyond the reach of any
         // real CNC, and thus - for practical reasons - we will terminate promptly:
-        if(isnan(h_x2_div_d)) {
+        if(isnanf(h_x2_div_d)) {
             Com::printErrorFLN(Com::tInvalidArc);
             return;
         }
@@ -244,7 +244,7 @@ void Commands::processArc(GCode *com) {
         offset[1] = 0.5 * (y + (x * h_x2_div_d));
 
     } else { // Offset mode specific computations
-        r = hypot(offset[0], offset[1]); // Compute arc radius for arc
+        r = hypotf(offset[0], offset[1]); // Compute arc radius for arc
     }
     // Set clockwise/counter-clockwise sign for arc computations
     uint8_t isclockwise = com->G == 2;
@@ -624,12 +624,14 @@ void Commands::processMCode(GCode *com) {
         }
 #endif // defined
         break;
+#if defined(SUPPORT_VACUUM) && SUPPORT_VACUUM
     case 10: // Vacuum
         VacuumDriver::turnOn();
         break;
     case 11: //Vacuum off
         VacuumDriver::turnOff();
         break;
+#endif
     case 17: //M17 is to enable named axis
     {
         Commands::waitUntilEndOfAllMoves();
@@ -818,7 +820,7 @@ void Commands::processMCode(GCode *com) {
             Machine::disableZStepper();
         wait += HAL::timeInMilliseconds();
 #ifdef DEBUG_MACHINE
-        debugWaitLoop = 2;
+        Machine::debugWaitLoop = 2;
 #endif
         while (wait - HAL::timeInMilliseconds() < 100000) {
             Machine::defaultLoopActions();
@@ -1198,17 +1200,17 @@ void Commands::executeGCode(GCode *com) {
     GCodeSource::activeSource = com->source;
     Com::writeToAll = true;
 #endif
-    if (INCLUDE_DEBUG_COMMUNICATION) {
-        if(Machine::debugCommunication()) {
-            if(com->hasG() || (com->hasM() && com->M != 111)) {
-                Machine::previousMillisCmd = HAL::timeInMilliseconds();
+#ifdef INCLUDE_DEBUG_COMMUNICATION
+    if(Machine::debugCommunication()) {
+        if(com->hasG() || (com->hasM() && com->M != 111)) {
+            Machine::previousMillisCmd = HAL::timeInMilliseconds();
 #if NEW_COMMUNICATION
-                GCodeSource::activeSource = actSource;
+            GCodeSource::activeSource = actSource;
 #endif
-                return;
-            }
+            return;
         }
     }
+#endif
     if(com->hasG()) processGCode(com);
     else if(com->hasM()) processMCode(com);
     else if(com->hasT()) {    // Process T code

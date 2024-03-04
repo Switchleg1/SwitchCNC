@@ -20,7 +20,6 @@
 #define FEATURE_CHECKSUM_FORCED					0
 #define CASE_LIGHTS_PIN							-1
 #define CASE_LIGHT_DEFAULT_ON					1
-#define VACUUM_PIN								9
 #define INTERRUPT_FREQUENCY_DIVISOR				8
 
 //Power settings
@@ -28,6 +27,10 @@
 #define ENABLE_POWER_ON_STARTUP					0
 #define POWER_INVERTING							1
 #define PS_ON_PIN								10
+
+//Vacuum settings
+#define SUPPORT_VACUUM							1
+#define VACUUM_PIN								9
 
 //Spindle settings
 #define SUPPORT_SPINDLE							1

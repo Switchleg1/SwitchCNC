@@ -322,7 +322,7 @@ void HAL::i2cInit(uint32_t clockSpeedHz) {
   Issues a start condition and sends address and transfer direction.
   return 0 = device accessible, 1= failed to access device
 *************************************************************************/
-unsigned char HAL::i2cStart(uint8_t address) {
+uint8_t HAL::i2cStart(uint8_t address) {
     uint8_t   twst;
 
     // send START condition
@@ -347,7 +347,6 @@ unsigned char HAL::i2cStart(uint8_t address) {
     if ( (twst != TW_MT_SLA_ACK) && (twst != TW_MR_SLA_ACK) ) return 1;
 
     return 0;
-
 }
 
 

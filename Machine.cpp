@@ -95,12 +95,12 @@ fast8_t Machine::multiYHomeFlags;  // 1 = move Y0, 2 = move Y1
 fast8_t Machine::multiZHomeFlags;  // 1 = move Z0, 2 = move Z1
 #endif
 #ifdef DEBUG_MACHINE
-int debugWaitLoop = 0;
+int Machine::debugWaitLoop = 0;
 #endif
 #if DISTORTION_CORRECTION
 Distortion Machine::distortion;
 #endif
-static PWM Machine::pwm;
+PWM Machine::pwm;
 
 //private variables
 uint16_t            Machine::counterPeriodical = 0;
@@ -338,22 +338,22 @@ void Machine::updateDerivedParameter() {
 
 	// For xy moves the minimum speed is multiplied with 1.41 to enforce the condition also for diagonals since the
 	// driving axis is the problematic speed.
-	float minimumSpeedX = 0.5 * maxAccelerationMMPerSquareSecond[X_AXIS] * sqrt(2.0f / (axisStepsPerMM[X_AXIS] * maxAccelerationMMPerSquareSecond[X_AXIS]));
+	float minimumSpeedX = 0.5 * maxAccelerationMMPerSquareSecond[X_AXIS] * sqrtf(2.0f / (axisStepsPerMM[X_AXIS] * maxAccelerationMMPerSquareSecond[X_AXIS]));
 	if(maxJerk[X_AXIS] < 2 * minimumSpeedX) {// Enforce minimum start speed if target is faster and jerk too low
 		maxJerk[X_AXIS] = 2 * minimumSpeedX;
 		Com::printFLN(PSTR("X jerk was too low, setting to "), maxJerk[X_AXIS]);
 	}
-	float minimumSpeedY = 0.5 * maxAccelerationMMPerSquareSecond[Y_AXIS] * sqrt(2.0f / (axisStepsPerMM[Y_AXIS] * maxAccelerationMMPerSquareSecond[Y_AXIS]));
+	float minimumSpeedY = 0.5 * maxAccelerationMMPerSquareSecond[Y_AXIS] * sqrtf(2.0f / (axisStepsPerMM[Y_AXIS] * maxAccelerationMMPerSquareSecond[Y_AXIS]));
 	if(maxJerk[Y_AXIS] < 2 * minimumSpeedY) {// Enforce minimum start speed if target is faster and jerk too low
 		maxJerk[Y_AXIS] = 2 * minimumSpeedY;
 		Com::printFLN(PSTR("Y jerk was too low, setting to "), maxJerk[Y_AXIS]);
 	}
-	float minimumSpeedZ = 0.5 * maxAccelerationMMPerSquareSecond[Z_AXIS] * sqrt(2.0f / (axisStepsPerMM[Z_AXIS] * maxAccelerationMMPerSquareSecond[Z_AXIS]));
+	float minimumSpeedZ = 0.5 * maxAccelerationMMPerSquareSecond[Z_AXIS] * sqrtf(2.0f / (axisStepsPerMM[Z_AXIS] * maxAccelerationMMPerSquareSecond[Z_AXIS]));
 	if(maxJerk[Z_AXIS] < 2 * minimumSpeedZ) {// Enforce minimum start speed if target is faster and jerk too low
 		maxJerk[Z_AXIS] = 2 * minimumSpeedZ;
 		Com::printFLN(PSTR("Z jerk was too low, setting to "), maxJerk[Z_AXIS]);
 	}
-	float minimumSpeedA = 0.5 * maxAccelerationMMPerSquareSecond[A_AXIS] * sqrt(2.0f / (axisStepsPerMM[A_AXIS] * maxAccelerationMMPerSquareSecond[A_AXIS]));
+	float minimumSpeedA = 0.5 * maxAccelerationMMPerSquareSecond[A_AXIS] * sqrtf(2.0f / (axisStepsPerMM[A_AXIS] * maxAccelerationMMPerSquareSecond[A_AXIS]));
 	if(maxJerk[A_AXIS] < 2 * minimumSpeedA) {// Enforce minimum start speed if target is faster and jerk too low
 		maxJerk[A_AXIS] = 2 * minimumSpeedA;
 		Com::printFLN(PSTR("A jerk was too low, setting to "), maxJerk[A_AXIS]);
@@ -713,7 +713,9 @@ void Machine::setup() {
 #if defined(SUPPORT_LASER) && SUPPORT_LASER
     LaserDriver::initialize();
 #endif
+#if defined(SUPPORT_VACUUM) && SUPPORT_VACUUM
     VacuumDriver::initialize();
+#endif
 
 #ifdef RED_BLUE_STATUS_LEDS
     SET_OUTPUT(RED_STATUS_LED);

@@ -8,7 +8,7 @@
 #define TEMPERATURE_RAW				0
 #define TEMERATURE_TEMP				1
 
-const uint16_t temperatureTables[TEMPERATURE_TABLE_ENTRIES][2][TEMPERATURE_TABLE_COUNT] PROGMEM = {
+const int16_t temperatureTables[TEMPERATURE_TABLE_ENTRIES][2][TEMPERATURE_TABLE_COUNT] PROGMEM = {
 	{1, 938},
 	{31, 314},
 	{41, 290},

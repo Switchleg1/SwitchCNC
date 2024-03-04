@@ -1,71 +1,18 @@
 #ifndef _GCODE_H
 #define _GCODE_H
 
-#define MAX_CMD_SIZE 96
-#define ARRAY_SIZE(_x)	(sizeof(_x)/sizeof(_x[0]))
+#define MAX_CMD_SIZE            96
+#define ARRAY_SIZE(_x)          (sizeof(_x)/sizeof(_x[0]))
 
-enum FirmwareState {NotBusy=0,Processing,Paused,Waiting};
+enum FirmwareState {
+    NotBusy=0,
+    Processing,
+    Paused,
+    Waiting
+};
 
 class SDCard;
 class Commands;
-
-class SerialGCodeSource: public GCodeSource {
-    Stream *stream;
-public:    
-    SerialGCodeSource(Stream *p);
-    virtual bool isOpen();
-    virtual bool supportsWrite(); ///< true if write is a non dummy function
-    virtual bool closeOnError(); // return true if the channel can not interactively correct errors.
-    virtual bool dataAvailable(); // would read return a new byte?
-    virtual int readByte();
-    virtual void writeByte(uint8_t byte);
-    virtual void close();
-};
-//#pragma message "Sd support: " XSTR(SDSUPPORT)  
-#if SDSUPPORT
-class SDCardGCodeSource: public GCodeSource {
-    public:
-    virtual bool isOpen();
-    virtual bool supportsWrite(); ///< true if write is a non dummy function
-    virtual bool closeOnError(); // return true if the channel can not interactively correct errors.
-    virtual bool dataAvailable(); // would read return a new byte?
-    virtual int readByte();
-    virtual void writeByte(uint8_t byte);
-    virtual void close();
-};
-#endif
-
-class FlashGCodeSource: public GCodeSource {
-    public:
-    FSTRINGPARAM(pointer);
-    volatile bool finished;
-    int actionOnFinish;
-    
-    FlashGCodeSource();
-    virtual bool isOpen();
-    virtual bool supportsWrite(); ///< true if write is a non dummy function
-    virtual bool closeOnError(); // return true if the channel can not interactively correct errors.
-    virtual bool dataAvailable(); // would read return a new byte?
-    virtual int readByte();
-    virtual void writeByte(uint8_t byte);
-    virtual void close();
-    
-    /** Execute the commands at the given memory. If already an other string is
-    running, the command will wait until that command finishes. If wait is true it
-    will also wait for given command to be enqueued completely. */
-    void executeCommands(FSTRINGPARAM(data),bool waitFinish,int action);
-};
-
-#if NEW_COMMUNICATION
-extern FlashGCodeSource flashSource;
-extern SerialGCodeSource serial0Source;
-#if BLUETOOTH_SERIAL > 0
-extern SerialGCodeSource serial1Source;
-#endif
-#if SDSUPPORT
-extern SDCardGCodeSource sdSource;
-#endif
-#endif
 
 class GCode   // 52 uint8_ts per command needed
 {

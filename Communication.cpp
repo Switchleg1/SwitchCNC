@@ -384,11 +384,11 @@ void Com::printArrayFLN(FSTRINGPARAM(text), int32_t *arr, uint8_t n) {
 }
 
 void Com::printFloat(float number, uint8_t digits) {
-    if (isnan(number)) {
+    if (isnanf(number)) {
         printF(tNAN);
         return;
     }
-    if (isinf(number)) {
+    if (isinff(number)) {
         printF(tINF);
         return;
     }

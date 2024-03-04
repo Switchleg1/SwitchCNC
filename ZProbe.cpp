@@ -329,7 +329,7 @@ void Machine::waitForZProbeStart() {
     Endstops::update(); // double test to get right signal. Needed for crosstalk protection.
 	if(Endstops::zProbe()) return;
 #ifdef DEBUG_MACHINE
-    debugWaitLoop = 3;
+    Machine::debugWaitLoop = 3;
 #endif
     while(!Endstops::zProbe()) {
         defaultLoopActions();
@@ -337,7 +337,7 @@ void Machine::waitForZProbeStart() {
         Endstops::update(); // double test to get right signal. Needed for crosstalk protection.
     }
 #ifdef DEBUG_MACHINE
-    debugWaitLoop = 4;
+    Machine::debugWaitLoop = 4;
 #endif
     HAL::delayMilliseconds(30);
     while(Endstops::zProbe()) {

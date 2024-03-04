@@ -200,7 +200,7 @@ void MachineLine::queueCartesianSegmentTo(uint8_t check_endstops, uint8_t pathOp
 		if(p->isAMove())
 			xydist2 += back_diff[A_AXIS] * back_diff[A_AXIS];
 
-		p->distance = sqrt(xydist2);
+		p->distance = sqrtf(xydist2);
 		Machine::backlashDir = (Machine::backlashDir & 56) | (p2->dir & XYZA_DIRPOS);
         p->calculateMove(back_diff, pathOptimize, p->primaryAxis);
         p = p2; // use saved instance for the real move
@@ -226,7 +226,7 @@ void MachineLine::queueCartesianSegmentTo(uint8_t check_endstops, uint8_t pathOp
 	if(p->isAMove())
 		xydist2 += axisDistanceMM[A_AXIS] * axisDistanceMM[A_AXIS];
 
-	p->distance = (float)sqrt(xydist2);
+	p->distance = sqrtf(xydist2);
 
     p->calculateMove(axisDistanceMM, pathOptimize, p->primaryAxis);
 }
@@ -270,7 +270,7 @@ void MachineLine::queueCartesianMove(uint8_t check_endstops, uint8_t pathOptimiz
 		return;
 	}
 	// we need to split longer lines to follow bed curvature
-	len = sqrt(len);
+	len = sqrtf(len);
 	int segments = (static_cast<int>(len) + SEGMENT_SIZE - 1) / SEGMENT_SIZE;
 #if DEBUG_DISTORTION
 	Com::printF(PSTR("Split line len:"), len);
@@ -303,7 +303,7 @@ void MachineLine::queueCartesianMove(uint8_t check_endstops, uint8_t pathOptimiz
 			return;
 		}
 		// we need to split longer lines to follow bed curvature
-		len = sqrt(len);
+		len = sqrtf(len);
 		int segments = (static_cast<int>(len) + SEGMENT_SIZE - 1) / SEGMENT_SIZE;
 #if DEBUG_DISTORTION
 		Com::printF(PSTR("Split line len:"), len);
@@ -393,7 +393,7 @@ void MachineLine::queueCartesianMove(uint8_t check_endstops, uint8_t pathOptimiz
 		if(p->isAMove())
 			xydist2 += back_diff[A_AXIS] * back_diff[A_AXIS];
 
-		p->distance = sqrt(xydist2);
+		p->distance = sqrtf(xydist2);
         // 56 seems to be xstep|ystep|e_posdir which just seems odd
         Machine::backlashDir = (Machine::backlashDir & 56) | (p2->dir & XYZA_DIRPOS);
         p->calculateMove(back_diff, pathOptimize, p->primaryAxis);
@@ -420,7 +420,7 @@ void MachineLine::queueCartesianMove(uint8_t check_endstops, uint8_t pathOptimiz
 	if(p->isAMove())
 		xydist2 += axisDistanceMM[A_AXIS] * axisDistanceMM[A_AXIS];
 
-	p->distance = (float)sqrt(xydist2);
+	p->distance = sqrtf(xydist2);
 
 	p->calculateMove(axisDistanceMM, pathOptimize, p->primaryAxis);
 #endif
@@ -744,7 +744,7 @@ inline void MachineLine::backwardPlanner(ufast8_t start, ufast8_t last) {
 		// Avoid speed calculation once cruising in split delta move
 
         // Avoid speed calculations if we know we can accelerate within the line
-        lastJunctionSpeed = (act->isNominalMove() ? act->fullSpeed : sqrt(lastJunctionSpeed * lastJunctionSpeed + act->accelerationDistance2)); // acceleration is acceleration*distance*2! What can be reached if we try?
+        lastJunctionSpeed = (act->isNominalMove() ? act->fullSpeed : sqrtf(lastJunctionSpeed * lastJunctionSpeed + act->accelerationDistance2)); // acceleration is acceleration*distance*2! What can be reached if we try?
         // If that speed is more that the maximum junction speed allowed then ...
         if(lastJunctionSpeed >= previous->maxJunctionSpeed) { // Limit is reached
             // If the previous line's end speed has not been updated to maximum speed then do it now
@@ -785,11 +785,11 @@ void MachineLine::forwardPlanner(ufast8_t first) {
          }*/
 		// Avoid speed calculate once cruising in split delta move
 		// Avoid speed calculates if we know we can accelerate within the line.
-		vmaxRight = (act->isNominalMove() ? act->fullSpeed : sqrt(leftSpeed * leftSpeed + act->accelerationDistance2));
+		vmaxRight = (act->isNominalMove() ? act->fullSpeed : sqrtf(leftSpeed * leftSpeed + act->accelerationDistance2));
         if(vmaxRight > act->endSpeed) { // Could be higher next run?
             if(leftSpeed < act->minSpeed) {
                 leftSpeed = act->minSpeed;
-                act->endSpeed = sqrt(leftSpeed * leftSpeed + act->accelerationDistance2);
+                act->endSpeed = sqrtf(leftSpeed * leftSpeed + act->accelerationDistance2);
             }
             act->startSpeed = leftSpeed;
             next->startSpeed = leftSpeed = RMath::max(RMath::min(act->endSpeed, act->maxJunctionSpeed), next->minSpeed);
@@ -803,7 +803,7 @@ void MachineLine::forwardPlanner(ufast8_t first) {
             act->invalidateParameter();
             if(act->minSpeed > leftSpeed) {
                 leftSpeed = act->minSpeed;
-                vmaxRight = sqrt(leftSpeed * leftSpeed + act->accelerationDistance2);
+                vmaxRight = sqrtf(leftSpeed * leftSpeed + act->accelerationDistance2);
             }
             act->startSpeed = leftSpeed;
             act->endSpeed = RMath::max(act->minSpeed, vmaxRight);
@@ -1059,7 +1059,7 @@ uint32_t MachineLine::bresenhamStep() {
         }
         HAL::allowInterrupts();
         lastblk = -1;
-#if INCLUDE_DEBUG_NO_MOVE
+#ifdef INCLUDE_DEBUG_NO_MOVE
         if(Machine::debugNoMoves()) { // simulate a move, but do nothing in reality
             removeCurrentLineForbidInterrupt();
             return 1000;

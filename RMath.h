@@ -152,7 +152,7 @@ public:
 
     inline float length() const
     {
-        return sqrt(x * x + y * y + z * z);
+        return sqrtf(x * x + y * y + z * z);
     }
 
     inline float lengthSquared() const
@@ -193,7 +193,7 @@ public:
     inline float distance(const RVector3& b) const
     {
         float dx = b.x - x, dy = b.y - y, dz = b.z - z;
-        return (sqrt(dx * dx + dy * dy + dz * dz));
+        return sqrtf(dx * dx + dy * dy + dz * dz);
     }
     inline float angle(RVector3& direction)
     {
@@ -226,7 +226,7 @@ public:
         RVector3 t(b);
         t -= scale(dot);
         float lengthSq = t.lengthSquared();
-        float dl = st * ((lengthSq < 0.0001f) ? 1.0f : 1.0f / sqrt(lengthSq));
+        float dl = st * ((lengthSq < 0.0001f) ? 1.0f : 1.0f / sqrtf(lengthSq));
         t.scaleIntern(dl);
         t += scale(cos(theta));
         return t.normalize();

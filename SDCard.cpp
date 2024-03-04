@@ -1,4 +1,5 @@
 #include "SwitchCNC.h"
+#include "Memory.h"
 
 #if SDSUPPORT
 

@@ -245,6 +245,9 @@ public:
 #if SPEED_DIAL && SPEED_DIAL_PIN > -1
     static uint8_t speed_dial;
 #endif
+#ifdef DEBUG_MACHINE
+    static int debugWaitLoop;
+#endif
 #if DISTORTION_CORRECTION
     static Distortion distortion;
 #endif

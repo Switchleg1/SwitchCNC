@@ -242,13 +242,13 @@ char* fmtFloat(float value, char* p, uint8_t prec) {
     value = -value;
   }
 
-  if (isnan(value)) {
+  if (isnanf(value)) {
     *--p = 'n';
     *--p = 'a';
     *--p = 'n';
     return p;
   }
-  if (isinf(value)) {
+  if (isinff(value)) {
     *--p = 'f';
     *--p = 'n';
     *--p = 'i';
@@ -296,13 +296,13 @@ char* fmtFloat(float value, char* ptr, uint8_t prec, char expChar) {
   }
 
   // check for nan inf ovf
-  if (isnan(value)) {
+  if (isnanf(value)) {
     *--ptr = 'n';
     *--ptr = 'a';
     *--ptr = 'n';
     return ptr;
   }
-  if (isinf(value)) {
+  if (isinff(value)) {
     *--ptr = 'f';
     *--ptr = 'n';
     *--ptr = 'i';

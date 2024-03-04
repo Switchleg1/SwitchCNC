@@ -63,6 +63,9 @@ private:
 };
 
 extern SDCard sd;
+#if NEW_COMMUNICATION
+extern SDCardGCodeSource sdSource;
+#endif
 #endif
 
 #endif

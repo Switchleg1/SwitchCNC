@@ -1,4 +1,4 @@
-#include "SwitchCNC.h"
+#include "../../SwitchCNC.h"
 
 #ifndef FEATURE_CHECKSUM_FORCED
 #define FEATURE_CHECKSUM_FORCED false
@@ -389,7 +389,7 @@ void GCode::executeFString(FSTRINGPARAM(cmd))
         if(code.parseAscii((char *)buf,false) && (code.params & 518))   // Success
         {
 #ifdef DEBUG_MACHINE
-            debugWaitLoop = 7;
+            Machine::debugWaitLoop = 7;
 #endif
 
             Commands::executeGCode(&code);
@@ -497,9 +497,9 @@ void GCode::readFromSerial()
             if(ch == 0 || ch == '\n' || ch == '\r' || !GCodeSource::activeSource->isOpen() /*|| (!commentDetected && ch == ':')*/)  // complete line read
             {
                 commandReceiving[commandsReceivingWritePosition - 1] = 0;
-                #ifdef DEBUG_ECHO_ASCII
+#ifdef DEBUG_ECHO_ASCII
                 Com::printF(PSTR("Got:"));Com::print((char*)commandReceiving);Com::println();
-                #endif
+#endif
                 commentDetected = false;
                 if(commandsReceivingWritePosition == 1)   // empty line ignore
                 {
@@ -1280,242 +1280,4 @@ void GCode::resetFatalError() {
 	fatalErrorMsg = NULL;
 	EVENT_CONTINUE_FROM_FATAL_ERROR
 	Com::printFLN(PSTR("info:Continue from fatal state"));
-}
-
-#if NEW_COMMUNICATION
-FlashGCodeSource flashSource;
-SerialGCodeSource serial0Source(&RFSERIAL);
-#if BLUETOOTH_SERIAL > 0
-SerialGCodeSource serial1Source(&RFSERIAL2);
-#endif
-#endif
-
-#if BLUETOOTH_SERIAL > 0
-fast8_t GCodeSource::numSources = 2; ///< Number of data sources available
-fast8_t GCodeSource::numWriteSources = 2;
-GCodeSource *GCodeSource::sources[MAX_DATA_SOURCES] = {&serial0Source,&serial1Source};
-GCodeSource *GCodeSource::writeableSources[MAX_DATA_SOURCES] = {&serial0Source,&serial1Source};
-#else
-fast8_t GCodeSource::numSources = 1; ///< Number of data sources available
-fast8_t GCodeSource::numWriteSources = 1;
-GCodeSource *GCodeSource::sources[MAX_DATA_SOURCES] = {&serial0Source};      
-GCodeSource *GCodeSource::writeableSources[MAX_DATA_SOURCES] = {&serial0Source};
-#endif    
-GCodeSource *GCodeSource::activeSource = &serial0Source;
-
-void GCodeSource::registerSource(GCodeSource *newSource) {
-  for(fast8_t i = 0; i < numSources; i++) { // skip register if already contained
-      if(sources[i] == newSource) {
-          return;
-      }
-  }      
-  //printAllFLN(PSTR("AddSource:"),numSources);
-  sources[numSources++] = newSource;
-  if(newSource->supportsWrite())
-     writeableSources[numWriteSources++] = newSource;  
-}
-
-void GCodeSource::removeSource(GCodeSource *delSource) {
-  fast8_t i;
-  for(i = 0; i < numSources; i++) {
-      if(sources[i] == delSource) {
-          //printAllFLN(PSTR("DelSource:"),i);
-          sources[i] = sources[--numSources];
-          break;
-      }
-  }  
-  for(i = 0; i < numWriteSources; i++) {
-      if(writeableSources[i] == delSource) {
-          writeableSources[i] = writeableSources[--numWriteSources];
-          break;
-      }
-  }
-  if(activeSource == delSource)
-    rotateSource();
-}
-
-void GCodeSource::rotateSource() { ///< Move active to next source
-    fast8_t bestIdx = 0; //,oldIdx = 0;
-    fast8_t i;
-    for(i = 0; i < numSources; i++) {
-        if(sources[i] == activeSource) {
-           //oldIdx = 
-           bestIdx = i;
-           break;
-       }
-    }    
-    for(i = 0; i < numSources; i++) {
-        if(++bestIdx >= numSources)
-            bestIdx = 0;
-        if(sources[bestIdx]->dataAvailable()) break;
-    }
-    //if(oldIdx != bestIdx)
-    //    printAllFLN(PSTR("Rotate:"),(int32_t)bestIdx);
-    activeSource = sources[bestIdx];
-    GCode::commandsReceivingWritePosition = 0;
-}   
- 
-void GCodeSource::writeToAll(uint8_t byte) { ///< Write to all listening sources 
-#if NEW_COMMUNICATION
-    if(Com::writeToAll) {
-        fast8_t i;
-        for(i = 0; i < numWriteSources; i++) {
-            writeableSources[i]->writeByte(byte);
-        }
-    } else {
-        activeSource->writeByte(byte);
-    }
-#else    
-    HAL::serialWriteByte(byte);
-#endif       
-}
-
-void GCodeSource::printAllFLN(FSTRINGPARAM(text) ) {
-    bool old = Com::writeToAll;
-    Com::writeToAll = true;
-    Com::printFLN(text);
-    Com::writeToAll = old;
-}
-void GCodeSource::printAllFLN(FSTRINGPARAM(text), int32_t v) {
-    bool old = Com::writeToAll;
-    Com::writeToAll = true;
-    Com::printFLN(text,v);
-    Com::writeToAll = old;    
-}
-
-
-GCodeSource::GCodeSource() {
-    lastLineNumber = 0;
-    wasLastCommandReceivedAsBinary = false;
-    waitingForResend = -1;
-}
-
-// ----- serial connection source -----
-
-SerialGCodeSource::SerialGCodeSource(Stream *p) {
-    stream = p;
-}
-bool SerialGCodeSource::isOpen() {
-    return true;    
-}
-bool SerialGCodeSource::supportsWrite() { ///< true if write is a non dummy function
-    return true;
-}    
-bool SerialGCodeSource::closeOnError() { // return true if the channel can not interactively correct errors.
-    return false;
-}    
-bool SerialGCodeSource::dataAvailable() { // would read return a new byte?
-    return stream->available();
-}    
-int SerialGCodeSource::readByte() {
-    return stream->read();
-}
-void SerialGCodeSource::writeByte(uint8_t byte) {
-    stream->write(byte);
-}
-void SerialGCodeSource::close() {
-}    
-// ----- SD card source -----
-
-#if SDSUPPORT
-bool SDCardGCodeSource::isOpen() {
-    return (sd.sdmode > 0 && sd.sdmode < 100);
-}
-bool SDCardGCodeSource::supportsWrite() { ///< true if write is a non dummy function
-    return false;
-}
-bool SDCardGCodeSource::closeOnError() { // return true if the channel can not interactively correct errors.
-    return true;
-}
-bool SDCardGCodeSource::dataAvailable() { // would read return a new byte?
-    if(sd.sdmode == 1) {
-        if(sd.sdpos == sd.filesize) {
-            close();
-            return false;
-        }
-        return true;         
-    }
-    return false;
-}
-int SDCardGCodeSource::readByte() {
-    int n = sd.file.read();
-    if(n == -1) {
-        Com::printFLN(Com::tSDReadError);
-
-        // Second try in case of recoverable errors
-        sd.file.seekSet(sd.sdpos);
-        n = sd.file.read();
-        if(n == -1) {
-            Com::printErrorFLN(PSTR("SD error did not recover!"));
-            close();
-            return 0;
-        }
-	}
-    sd.sdpos++; // = file.curPosition();
-    return n;
-}
-void SDCardGCodeSource::writeByte(uint8_t byte) {
-    // dummy
-}
-void SDCardGCodeSource::close() {
-    sd.sdmode = 0;    
-	GCodeSource::removeSource(this);
-	Com::printFLN(Com::tDoneMilling);
-}
-#endif
-
-FlashGCodeSource::FlashGCodeSource():GCodeSource() {
-    finished = true;    
-}
-bool FlashGCodeSource::isOpen() {
-    return !finished;
-}
-bool FlashGCodeSource::supportsWrite() { ///< true if write is a non dummy function
-    return false;
-}
-bool FlashGCodeSource::closeOnError() { // return true if the channel can not interactively correct errors.
-    return true;
-}
-bool FlashGCodeSource::dataAvailable() { // would read return a new byte?
-    return !finished;
-}
-int FlashGCodeSource::readByte() {
-    if(finished) {
-        return 0;
-    }        
-    uint8_t data = HAL::readFlashByte(pointer++);
-    //printAllFLN(PSTR("FR:"),(int32_t)data);
-    if(data == 0) {
-        close();
-    }
-    return data;
-}
-void FlashGCodeSource::close() {
-    if(!finished) {
-        finished = true;
-        //printAllFLN(PSTR("FlashFinished"));
-        GCodeSource::removeSource(this);
-    }    
-}
-
-void FlashGCodeSource::writeByte(uint8_t byte) {
-    // dummy
-}
-    
-/** Execute the commands at the given memory. If already an other string is
-running, the command will wait until that command finishes. If wait is true it
-will also wait for given command to be enqueued completely. */
-void FlashGCodeSource::executeCommands(FSTRINGPARAM(data),bool waitFinish,int action) {
-     while(!finished) {
-         Commands::commandLoop(); // might get trouble as we are called from command loop, but it's the only way to keep communication going
-     }
-     pointer = data;
-     finished = false;
-     actionOnFinish = action;
-     GCodeSource::registerSource(this);
-     if(waitFinish) {
-         while(!finished) {
-             Commands::commandLoop(); // might get trouble as we are called from command loop, but it's the only way to keep communication going
-        }         
-     }
 }
