@@ -14,11 +14,9 @@ public:
     virtual void close();
 };
 
-#if NEW_COMMUNICATION
 extern SerialGCodeSource serial0Source;
 #if BLUETOOTH_SERIAL > 0
 extern SerialGCodeSource serial1Source;
-#endif
 #endif
 
 #endif

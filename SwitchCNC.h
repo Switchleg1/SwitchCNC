@@ -32,9 +32,6 @@
 #error DEFAULT_MACHINE_MODE cannot be greater than 1
 #endif
 
-// Use new communication model for multiple channels - only until stable, then old version gets deleted
-#define NEW_COMMUNICATION 1
-
 /** Uncomment, to see detailed data for every move. Only for debugging purposes! */
 //#define DEBUG_QUEUE_MOVE
 /** write infos about path planner changes */
@@ -100,6 +97,7 @@ usage or for searching for memory induced errors. Switch it off for production, 
 #define Z_AXIS						2
 #define A_AXIS						3
 // How big an array to hold X_AXIS..<MAX_AXIS>
+#define XY_AXIS_ARRAY				2
 #define Z_AXIS_ARRAY				3
 #define A_AXIS_ARRAY				4
 

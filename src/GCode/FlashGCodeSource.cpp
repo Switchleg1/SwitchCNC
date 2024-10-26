@@ -1,8 +1,6 @@
 #include "../../SwitchCNC.h"
 
-#if NEW_COMMUNICATION
 FlashGCodeSource flashSource;
-#endif
 
 FlashGCodeSource::FlashGCodeSource() :GCodeSource() {
     finished = true;

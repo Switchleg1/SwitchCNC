@@ -26,6 +26,7 @@ public:
     volatile ufast8_t flags;
 	secondspeed_t secondSpeed; // fan control
 private:
+    static int32_t cur_errupd;
     fast8_t primaryAxis;
     ufast8_t dir;                       ///< Direction of movement. 1 = X+, 2 = Y+, 4= Z+, values can be combined.
     int32_t timeInTicks;
@@ -423,14 +424,12 @@ public:
     static inline void backwardPlanner(ufast8_t p, ufast8_t last);
     static void updateTrapezoids();
     static uint8_t insertWaitMovesIfNeeded(uint8_t pathOptimize, uint8_t waitExtraLines);
-	static void queueCartesianMove(uint8_t check_endstops, uint8_t pathOptimize);
-#if DISTORTION_CORRECTION
-    static void queueCartesianSegmentTo(uint8_t check_endstops, uint8_t pathOptimize);
-#endif
+	static void queueCartesianMove(uint8_t checkEndstops, uint8_t pathOptimize);
+    static void queueCartesianSegmentTo(uint8_t addDistortion, uint8_t checkEndstops, uint8_t pathOptimize);
 	static void moveRelativeDistanceInSteps(int32_t x, int32_t y, int32_t z, int32_t a, float feedrate, bool waitEnd, bool check_endstop, bool pathOptimize = true);
 	static void moveRelativeDistanceInStepsReal(int32_t x, int32_t y, int32_t z, int32_t a, float feedrate, bool waitEnd, bool pathOptimize = true);
 #if ARC_SUPPORT
-    static void arc(float *position, float *target, float *offset, float radius, uint8_t isclockwise);
+    static void queueArc(float *position, float *target, float *offset, float radius, uint8_t isclockwise);
 #endif
     static INLINE void previousPlannerIndex(ufast8_t &p) {
         p = (p ? p - 1 : MACHINELINE_CACHE_SIZE - 1);

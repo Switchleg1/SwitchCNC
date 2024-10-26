@@ -141,11 +141,11 @@ void Commands::setFan2Speed(int speed) {
 */
 #if ARC_SUPPORT
 void Commands::processArc(GCode *com) {
-	float position[A_AXIS_ARRAY];
+	float position[XY_AXIS_ARRAY];
 	Machine::realPosition(position[X_AXIS], position[Y_AXIS], position[Z_AXIS], position[A_AXIS]);
 	if(!Machine::setDestinationStepsFromGCode(com)) return; // For X Y Z A F
     float offset[2] = {Machine::convertToMM(com->hasI() ? com->I : 0), Machine::convertToMM(com->hasJ() ? com->J : 0)};
-	float target[A_AXIS_ARRAY] = {Machine::realXPosition(), Machine::realYPosition(), Machine::realZPosition(), Machine::realAPosition()};
+	float target[XY_AXIS_ARRAY] = {Machine::realXPosition(), Machine::realYPosition()};
     float r;
     if (com->hasR()) {
         /*
@@ -248,8 +248,9 @@ void Commands::processArc(GCode *com) {
     }
     // Set clockwise/counter-clockwise sign for arc computations
     uint8_t isclockwise = com->G == 2;
+
     // Trace the arc
-	MachineLine::arc(position, target, offset, r, isclockwise);
+	MachineLine::queueArc(position, target, offset, r, isclockwise);
 }
 #endif
 
@@ -290,7 +291,9 @@ void Commands::processGCode(GCode *com) {
             }
         }
 #else
-        if (com->hasS()) Machine::setNoDestinationCheck(com->S != 0);
+        if (com->hasS()) {
+            Machine::setNoDestinationCheck(com->S != 0);
+        }
 #endif
         if (Machine::setDestinationStepsFromGCode(com)) {// For X Y Z A F
             MachineLine::queueCartesianMove(ALWAYS_CHECK_ENDSTOPS, true);
@@ -480,7 +483,9 @@ void Commands::processGCode(GCode *com) {
 				Machine::coordinateOffset[Z_AXIS] = zp - Machine::currentPosition[Z_AXIS];
 				Com::printF(PSTR(" TOOL OFFSET:"), zp, 3);
 				Com::printFLN(PSTR(" Z_OFFSET:"), Machine::coordinateOffset[Z_AXIS], 3);
+#if DISTORTION_CORRECTION
 				Machine::distortion.SetStartEnd(Machine::distortion.start, Machine::distortion.end);
+#endif
 			}
 		}
 		printCurrentPosition();
@@ -1175,6 +1180,9 @@ void Commands::processMCode(GCode *com) {
         }
 #endif
 		break;
+    case 900: // Check if sending Binary
+        Com::printFLN(PSTR("Sending Binary:"), (int)com->isSendingBinary());
+        break;
     case 999: // Stop fatal error take down
         if(com->hasS())
             GCode::fatalError(PSTR("Testing fatal error"));

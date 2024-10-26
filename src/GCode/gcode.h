@@ -49,6 +49,8 @@ public:
     // True if origin did not come from serial console. That way we can send status messages to
     // a host only if he would normally not know about the mode switch.
     bool internalCommand;
+
+    GCodeSource* source;
     inline bool hasM()
     {
         return ((params & 2)!=0);
@@ -176,6 +178,9 @@ public:
     inline bool hasFormatError() {
         return ((params2 & 32768)!=0);
     }
+    inline uint8_t isSendingBinary() {
+        return sendAsBinary;
+    }
     void printCommand();
     bool parseBinary(uint8_t *buffer,bool fromSerial);
     bool parseAscii(char *line,bool fromSerial);
@@ -184,7 +189,7 @@ public:
     /** Get next command in command buffer. After the command is processed, call gcode_command_finished() */
     static GCode *peekCurrentCommand();
     /** Frees the cache used by the last command fetched. */
-    static void readFromSerial();
+    static void readFromSource();
     static void pushCommand();
     static void executeFString(FSTRINGPARAM(cmd));
     static uint8_t computeBinarySize(char *ptr);
@@ -233,15 +238,6 @@ protected:
     static volatile uint8_t bufferLength; ///< Number of commands stored in gcode_buffer
     static uint8_t formatErrors; ///< Number of sequential format errors
 	static millis_t lastBusySignal; ///< When was the last busy signal
-#if NEW_COMMUNICATION == 0
-    static int8_t waitingForResend; ///< Waiting for line to be resend. -1 = no wait.
-    static uint32_t lastLineNumber; ///< Last line number received.
-    static millis_t timeOfLastDataPacket; ///< Time, when we got the last data packet. Used to detect missing uint8_ts.
-    static uint8_t wasLastCommandReceivedAsBinary; ///< Was the last successful command in binary mode?
-#else
-public:
-    GCodeSource *source;    
-#endif    
 };
 
 #endif

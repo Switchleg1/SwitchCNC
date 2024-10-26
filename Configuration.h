@@ -205,7 +205,8 @@
 #define MAX_AJERK								2
 #define MACHINELINE_CACHE_SIZE					32
 #define ALWAYS_SPLIT_LINES						0
-#define SEGMENT_SIZE							5
+#define LINE_SEGMENT_SIZE						5
+#define LINE_N_SEGMENT_CORRECT					25
 #define MOVE_CACHE_LOW							8
 #define LOW_TICKS_PER_MOVE						250000
 

@@ -300,8 +300,9 @@ void Com::printFLN(FSTRINGPARAM(text), const char *msg) {
 
 void Com::printF(FSTRINGPARAM(ptr)) {
     char c;
-    while ((c = HAL::readFlashByte(ptr++)) != 0)
+    while ((c = HAL::readFlashByte(ptr++)) != 0) {
         GCodeSource::writeToAll(c);
+    }
 }
 void Com::printF(FSTRINGPARAM(text), const char *msg) {
     printF(text);

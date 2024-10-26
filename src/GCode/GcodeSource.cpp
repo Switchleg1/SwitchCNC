@@ -66,7 +66,6 @@ void GCodeSource::rotateSource() { ///< Move active to next source
 }
 
 void GCodeSource::writeToAll(uint8_t byte) { ///< Write to all listening sources 
-#if NEW_COMMUNICATION
     if (Com::writeToAll) {
         fast8_t i;
         for (i = 0; i < numWriteSources; i++) {
@@ -75,10 +74,7 @@ void GCodeSource::writeToAll(uint8_t byte) { ///< Write to all listening sources
     }
     else {
         activeSource->writeByte(byte);
-    }
-#else    
-    HAL::serialWriteByte(byte);
-#endif       
+    }     
 }
 
 void GCodeSource::printAllFLN(FSTRINGPARAM(text)) {

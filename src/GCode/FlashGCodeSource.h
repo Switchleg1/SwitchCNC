@@ -22,8 +22,6 @@ public:
     void executeCommands(FSTRINGPARAM(data), bool waitFinish, int action);
 };
 
-#if NEW_COMMUNICATION
 extern FlashGCodeSource flashSource;
-#endif
 
 #endif

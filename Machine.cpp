@@ -413,36 +413,36 @@ void Machine::kill(uint8_t onlySteppers) {
 uint8_t Machine::moveTo(float x, float y, float z, float a, float f) {
     if(x != IGNORE_COORDINATE)
 		destinationSteps[X_AXIS] = x * axisStepsPerMM[X_AXIS];
+
     if(y != IGNORE_COORDINATE)
 		destinationSteps[Y_AXIS] = y * axisStepsPerMM[Y_AXIS];
+
 	if(z != IGNORE_COORDINATE)
 		destinationSteps[Z_AXIS] = z * axisStepsPerMM[Z_AXIS];
+
 	if(a != IGNORE_COORDINATE)
 		destinationSteps[A_AXIS] = a * axisStepsPerMM[A_AXIS];
+
 	if(f != IGNORE_COORDINATE)
 		feedrate = f;
+
 	MachineLine::queueCartesianMove(ALWAYS_CHECK_ENDSTOPS, true);
     updateCurrentPosition(false);
     return 1;
 }
 
 uint8_t Machine::moveToReal(float x, float y, float z, float a, float f, bool pathOptimize) {
-    if(x == IGNORE_COORDINATE)
-        x = currentPosition[X_AXIS];
-    else
-        currentPosition[X_AXIS] = x;
-    if(y == IGNORE_COORDINATE)
-		y = currentPosition[Y_AXIS];
-    else
-        currentPosition[Y_AXIS] = y;
-	if(z == IGNORE_COORDINATE)
-		z = currentPosition[Z_AXIS];
-	else
-		currentPosition[Z_AXIS] = z;
-	if(a == IGNORE_COORDINATE)
-		a = currentPosition[A_AXIS];
-	else
-		currentPosition[A_AXIS] = a;
+    if(x == IGNORE_COORDINATE) x = currentPosition[X_AXIS];
+    else currentPosition[X_AXIS] = x;
+
+    if(y == IGNORE_COORDINATE) y = currentPosition[Y_AXIS];
+    else currentPosition[Y_AXIS] = y;
+
+	if(z == IGNORE_COORDINATE) z = currentPosition[Z_AXIS];
+	else currentPosition[Z_AXIS] = z;
+
+	if(a == IGNORE_COORDINATE) a = currentPosition[A_AXIS];
+	else currentPosition[A_AXIS] = a;
 
     // There was conflicting use of IGNOR_COORDINATE
     destinationSteps[X_AXIS] = static_cast<int32_t>(floor(x * axisStepsPerMM[X_AXIS] + 0.5f));

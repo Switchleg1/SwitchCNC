@@ -1,10 +1,8 @@
 #include "../../SwitchCNC.h"
 
-#if NEW_COMMUNICATION
 SerialGCodeSource serial0Source(&RFSERIAL);
 #if BLUETOOTH_SERIAL > 0
 SerialGCodeSource serial1Source(&RFSERIAL2);
-#endif
 #endif
 
 // ----- serial connection source -----
