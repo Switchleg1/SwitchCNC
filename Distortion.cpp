@@ -60,7 +60,7 @@ bool Distortion::measure(float maxDistance, int repetitions) {
 	int32_t zCorrection = 0;
 	Machine::startProbing(true);
 	Machine::moveToReal(IGNORE_COORDINATE, IGNORE_COORDINATE, z, IGNORE_COORDINATE, Machine::homingFeedrate[Z_AXIS]);
-	for (iy = points - 1; iy >= 0; iy--)
+	for (iy = points - 1; iy >= 0; iy--) {
 		for (ix = 0; ix < points; ix++) {
 
 			float mtx = Machine::invAxisStepsPerMM[X_AXIS] * (ix * xCorrectionSteps + xOffsetSteps);
@@ -82,7 +82,8 @@ bool Distortion::measure(float maxDistance, int repetitions) {
 			}
 			setMatrix(floor(0.5f + Machine::axisStepsPerMM[Z_AXIS] * (z - zp)) + zCorrection,
 				matrixIndex(ix, iy));
-			}
+		}
+	}
 	Machine::finishProbing();
 
 	// make average center
@@ -90,14 +91,18 @@ bool Distortion::measure(float maxDistance, int repetitions) {
 	// Shifting z with each measuring is a pain and can result in unexpected behavior.
 
 	float sum = 0;
-	for (iy = 0; iy < points; iy++)
-		for (ix = 0; ix < points; ix++)
+	for (iy = 0; iy < points; iy++) {
+		for (ix = 0; ix < points; ix++) {
 			sum += getMatrix(matrixIndex(ix, iy));
+		}
+	}
 
 	sum /= static_cast<float>(points == 0 ? 1 : (points * points));
-	for (iy = 0; iy < points; iy++)
-		for (ix = 0; ix < points; ix++)
+	for (iy = 0; iy < points; iy++) {
+		for (ix = 0; ix < points; ix++) {
 			setMatrix(getMatrix(matrixIndex(ix, iy)) - sum, matrixIndex(ix, iy));
+		}
+	}
 	//	Machine::zLength -= sum * Machine::invAxisStepsPerMM[Z_AXIS];
 
 #if EEPROM_MODE
@@ -113,7 +118,7 @@ bool Distortion::measure(float maxDistance, int repetitions) {
 	showMatrix();
 	enable(false);
 	return true;
-		}
+}
 
 void Distortion::reportStatus() {
     Com::printFLN(enabled ? Com::tZCorrectionEnabled : Com::tZCorrectionDisabled);

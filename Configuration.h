@@ -209,6 +209,10 @@
 #define LINE_N_SEGMENT_CORRECT					25
 #define MOVE_CACHE_LOW							8
 #define LOW_TICKS_PER_MOVE						250000
+#define ARC_MM_MIN_TRAVEL						0.1
+#define ARC_TOLERANCE							0.005
+#define ARC_N_SEGMENT_CORRECT					25
+#define ARC_ANGULAR_TRAVEL_EPSILON				5E-7
 
 //Backlash settings
 #define ENABLE_BACKLASH_COMPENSATION			0

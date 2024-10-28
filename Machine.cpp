@@ -533,15 +533,16 @@ uint8_t Machine::setDestinationStepsFromGCode(GCode *com) {
 #if DISTORTION_CORRECTION == 0
     }
 #endif
+
     if(com->hasF() && com->F > 0.1) {
-        if(unitIsInches)
-            feedrate = com->F * 0.0042333f * (float)feedrateMultiply;  // Factor is 25.5/60/100
-        else
-            feedrate = com->F * (float)feedrateMultiply * 0.00016666666f;
+        if(unitIsInches) feedrate = com->F * 0.0042333f * (float)feedrateMultiply;  // Factor is 25.5/60/100
+        else feedrate = com->F * (float)feedrateMultiply * 0.00016666666f;
     }
+
     if(!posAllowed) {
 		return false; // ignore move
     }
+
 	return !com->hasNoXYZA(); // ignore unproductive moves
 }
 

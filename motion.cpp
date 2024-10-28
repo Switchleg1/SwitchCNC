@@ -153,10 +153,8 @@ void MachineLine::queueCartesianSegmentTo(uint8_t addDistortion, uint8_t checkEn
     //Machine::zCorrectionStepsIncluded = 0;
 	for(uint8_t axis = 0; axis < A_AXIS_ARRAY; axis++) {
 		p->delta[axis] = Machine::destinationSteps[axis] - Machine::currentPositionSteps[axis];
-        if(p->delta[axis] >= 0)
-            p->setPositiveDirectionForAxis(axis);
-        else
-            p->delta[axis] = -p->delta[axis];
+        if(p->delta[axis] >= 0) p->setPositiveDirectionForAxis(axis);
+        else p->delta[axis] = -p->delta[axis];
         axisDistanceMM[axis] = p->delta[axis] * Machine::invAxisStepsPerMM[axis];
         if(p->delta[axis]) p->setMoveOfAxis(axis);
         Machine::currentPositionSteps[axis] = Machine::destinationSteps[axis];
@@ -210,7 +208,7 @@ void MachineLine::queueCartesianSegmentTo(uint8_t addDistortion, uint8_t checkEn
 
 		p->distance = sqrtf(xydist2);
 		Machine::backlashDir = (Machine::backlashDir & 56) | (p2->dir & XYZA_DIRPOS);
-        p->calculateMove(back_diff, pathOptimize, p->primaryAxis);
+        p->calculateMove(back_diff, p->primaryAxis);
         p = p2; // use saved instance for the real move
     }
 #endif
@@ -236,7 +234,7 @@ void MachineLine::queueCartesianSegmentTo(uint8_t addDistortion, uint8_t checkEn
 
 	p->distance = sqrtf(xydist2);
 
-    p->calculateMove(axisDistanceMM, pathOptimize, p->primaryAxis);
+    p->calculateMove(axisDistanceMM, p->primaryAxis);
 }
 
 /**
@@ -370,7 +368,7 @@ void MachineLine::queueCartesianMove(uint8_t checkEndstops, uint8_t pathOptimize
 #endif
 }
 
-void MachineLine::calculateMove(float axisDistanceMM[], uint8_t pathOptimize, fast8_t drivingAxis) {
+void MachineLine::calculateMove(float* axisDistanceMM, fast8_t drivingAxis) {
 	long axisInterval[A_AXIS_ARRAY];
     //float timeForMove = (float)(F_CPU)*distance / (isXOrYMove() ? RMath::max(Machine::minimumSpeed, Machine::feedrate) : Machine::feedrate); // time is in ticks
     float timeForMove = (float)(F_CPU) * distance / Machine::feedrate; // time is in ticks
@@ -866,7 +864,6 @@ void MachineLine::queueArc(float *position, float *target, float *offset, float 
 	//   plan_set_acceleration_manager_enabled(false); // disable acceleration management for the duration of the arc
     float center_axisX = position[X_AXIS] + offset[X_AXIS];
     float center_axisY = position[Y_AXIS] + offset[Y_AXIS];
-    //float linear_travel = 0; //target[axis_linear] - position[axis_linear];
 	float r_axisX = -offset[X_AXIS];  // Radius vector from center to current location
     float r_axisY = -offset[Y_AXIS];
     float rt_axisX = target[X_AXIS] - center_axisX;
@@ -874,102 +871,105 @@ void MachineLine::queueArc(float *position, float *target, float *offset, float 
    
     // CCW angle between position and target from circle center. Only one atan2() trig computation required.
     float angular_travel = atan2(r_axisX * rt_axisY - r_axisY * rt_axisX, r_axisX * rt_axisX + r_axisY * rt_axisY);
-    if ((!isclockwise && angular_travel <= 0.00001) || (isclockwise && angular_travel < -0.000001)) {
-        angular_travel += 2.0f * M_PI;
-    }
     if (isclockwise) {
-        angular_travel -= 2.0f * M_PI;
+        if (angular_travel >= static_cast<float>(-ARC_ANGULAR_TRAVEL_EPSILON)) {
+            angular_travel -= static_cast<float>(2.0 * M_PI);
+        }
+    } else {
+        if (angular_travel <= static_cast<float>(ARC_ANGULAR_TRAVEL_EPSILON)) {
+            angular_travel += static_cast<float>(2.0 * M_PI);
+        }
     }
 
-    float millimeters_of_travel = fabs(angular_travel) * radius; //hypot(angular_travel*radius, fabs(linear_travel));
-    if (millimeters_of_travel < 0.001f) {
-        return;// treat as succes because there is nothing to do;
+    //determine how many segments we will be making
+    uint16_t segments = 0;
+    float millimeters_of_travel = fabs(angular_travel) * radius;
+    if (millimeters_of_travel > static_cast<float>(ARC_MM_MIN_TRAVEL)) {
+        segments = floor(fabs(0.5f * angular_travel * radius) / sqrt(static_cast<float>(ARC_TOLERANCE) * (2.0f * radius - static_cast<float>(ARC_TOLERANCE))));
     }
-    //uint16_t segments = (radius>=BIG_ARC_RADIUS ? floor(millimeters_of_travel/MM_PER_ARC_SEGMENT_BIG) : floor(millimeters_of_travel/MM_PER_ARC_SEGMENT));
-    // Increase segment size if printing faster then computation speed allows
-    uint16_t segments = (Machine::feedrate > 60.0f ? floor(millimeters_of_travel / RMath::min(static_cast<float>(MM_PER_ARC_SEGMENT_BIG), Machine::feedrate * 0.01666f * static_cast<float>(MM_PER_ARC_SEGMENT))) : floor(millimeters_of_travel / static_cast<float>(MM_PER_ARC_SEGMENT)));
-    if(segments == 0) segments = 1;
-
-    //store destination and build deltas for remaining axes
-    int32_t destination_steps[A_AXIS_ARRAY] = { Machine::destinationSteps[X_AXIS], Machine::destinationSteps[Y_AXIS], Machine::destinationSteps[Z_AXIS], Machine::destinationSteps[A_AXIS] };
-    int32_t start_stepsZ = Machine::currentPositionSteps[Z_AXIS];
-    int32_t start_stepsA = Machine::currentPositionSteps[A_AXIS];
-    int32_t delta_axisZ = destination_steps[Z_AXIS] - start_stepsZ;
-    int32_t delta_axisA = destination_steps[A_AXIS] - start_stepsA;
-    int32_t deltaSeg_axisZ = (delta_axisZ + (segments / 2)) / segments;
-    int32_t deltaSeg_axisA = (delta_axisA + (segments / 2)) / segments;
-    Machine::destinationSteps[Z_AXIS] = start_stepsZ;
-    Machine::destinationSteps[A_AXIS] = start_stepsA;
-
-    /*
-      // Multiply inverse feed_rate to compensate for the fact that this movement is approximated
-      // by a number of discrete segments. The inverse feed_rate should be correct for the sum of
-      // all segments.
-      if (invert_feed_rate) { feed_rate *= segments; }
-    */
     float theta_per_segment = angular_travel / segments;
 
-    /* Vector rotation by transformation matrix: r is the original vector, r_T is the rotated vector,
-       and phi is the angle of rotation. Based on the solution approach by Jens Geisler.
-           r_T = [cos(phi) -sin(phi);
-                  sin(phi)  cos(phi] * r ;
+    //store destination and build deltas for remaining axes
+    int32_t destination_steps[A_AXIS_ARRAY] = { 
+        Machine::destinationSteps[X_AXIS], 
+        Machine::destinationSteps[Y_AXIS], 
+        Machine::destinationSteps[Z_AXIS], 
+        Machine::destinationSteps[A_AXIS] 
+    };
 
-       For arc generation, the center of the circle is the axis of rotation and the radius vector is
-       defined from the circle center to the initial position. Each line segment is formed by successive
-       vector rotations. This requires only two cos() and sin() computations to form the rotation
-       matrix for the duration of the entire arc. Error may accumulate from numerical round-off, since
-       all double numbers are single precision on the Arduino. (True double precision will not have
-       round off issues for CNC applications.) Single precision error can accumulate to be greater than
-       tool precision in some cases. Therefore, arc path correction is implemented.
+    if (segments) {
+        int32_t start_stepsZ = Machine::currentPositionSteps[Z_AXIS];
+        int32_t start_stepsA = Machine::currentPositionSteps[A_AXIS];
+        int32_t delta_axisZ = destination_steps[Z_AXIS] - start_stepsZ;
+        int32_t delta_axisA = destination_steps[A_AXIS] - start_stepsA;
+        int32_t deltaSeg_axisZ = (delta_axisZ + (segments / 2)) / segments;
+        int32_t deltaSeg_axisA = (delta_axisA + (segments / 2)) / segments;
+        Machine::destinationSteps[Z_AXIS] = start_stepsZ;
+        Machine::destinationSteps[A_AXIS] = start_stepsA;
 
-       Small angle approximation may be used to reduce computation overhead further. This approximation
-       holds for everything, but very small circles and large mm_per_arc_segment values. In other words,
-       theta_per_segment would need to be greater than 0.1 rad and N_ARC_CORRECTION would need to be large
-       to cause an appreciable drift error. N_ARC_CORRECTION~=25 is more than small enough to correct for
-       numerical drift error. N_ARC_CORRECTION may be on the order a hundred(s) before error becomes an
-       issue for CNC machines with the single precision Arduino calculations.
+        /* Vector rotation by transformation matrix: r is the original vector, r_T is the rotated vector,
+           and phi is the angle of rotation. Based on the solution approach by Jens Geisler.
+               r_T = [cos(phi) -sin(phi);
+                      sin(phi)  cos(phi] * r ;
 
-       This approximation also allows mc_arc to immediately insert a line segment into the planner
-       without the initial overhead of computing cos() or sin(). By the time the arc needs to be applied
-       a correction, the planner should have caught up to the lag caused by the initial mc_arc overhead.
-       This is important when there are successive arc motions.
-    */
+           For arc generation, the center of the circle is the axis of rotation and the radius vector is
+           defined from the circle center to the initial position. Each line segment is formed by successive
+           vector rotations. This requires only two cos() and sin() computations to form the rotation
+           matrix for the duration of the entire arc. Error may accumulate from numerical round-off, since
+           all double numbers are single precision on the Arduino. (True double precision will not have
+           round off issues for CNC applications.) Single precision error can accumulate to be greater than
+           tool precision in some cases. Therefore, arc path correction is implemented.
 
-    // Vector rotation matrix values
-    float cos_T = 1 - 0.5 * theta_per_segment * theta_per_segment; // Small angle approximation
-    float sin_T = theta_per_segment;
-    float sin_Ti;
-    float cos_Ti;
-    float r_axisi;
-    uint8_t segmentUpdate = N_ARC_CORRECTION;
-    for (uint16_t i = 1; i < segments; i++) {
-        if (!segmentUpdate--) { //25 pieces
-            // Arc correction to radius vector. Computed only every N_ARC_CORRECTION increments.
-            // Compute exact location by applying transformation matrix from initial radius vector(=-offset).
-            cos_Ti = cos(i * theta_per_segment);
-            sin_Ti = sin(i * theta_per_segment);
-            r_axisX = -offset[X_AXIS] * cos_Ti + offset[Y_AXIS] * sin_Ti;
-            r_axisY = -offset[X_AXIS] * sin_Ti - offset[Y_AXIS] * cos_Ti;
+           Small angle approximation may be used to reduce computation overhead further. This approximation
+           holds for everything, but very small circles and large mm_per_arc_segment values. In other words,
+           theta_per_segment would need to be greater than 0.1 rad and ARC_N_SEGMENT_CORRECT would need to be large
+           to cause an appreciable drift error. ARC_N_SEGMENT_CORRECT~=25 is more than small enough to correct for
+           numerical drift error. ARC_N_SEGMENT_CORRECT may be on the order a hundred(s) before error becomes an
+           issue for CNC machines with the single precision Arduino calculations.
 
-            Machine::destinationSteps[Z_AXIS] = start_stepsZ + (i * delta_axisZ) / segments;
-            Machine::destinationSteps[A_AXIS] = start_stepsA + (i * delta_axisA) / segments;
+           This approximation also allows mc_arc to immediately insert a line segment into the planner
+           without the initial overhead of computing cos() or sin(). By the time the arc needs to be applied
+           a correction, the planner should have caught up to the lag caused by the initial mc_arc overhead.
+           This is important when there are successive arc motions.
+        */
 
-            segmentUpdate = N_ARC_CORRECTION;
-        } else {
-            // Apply vector rotation matrix
-            r_axisi = r_axisX * sin_T + r_axisY * cos_T;
-            r_axisX = r_axisX * cos_T - r_axisY * sin_T;
-            r_axisY = r_axisi;
+        // Vector rotation matrix values
+        float cos_T = 2.0f - theta_per_segment * theta_per_segment;
+        float sin_T = theta_per_segment * 0.16666667f * (cos_T + 4.0f);
+        cos_T *= 0.5f;
 
-            Machine::destinationSteps[Z_AXIS] += deltaSeg_axisZ;
-            Machine::destinationSteps[A_AXIS] += deltaSeg_axisA;
+        uint8_t segmentUpdate = ARC_N_SEGMENT_CORRECT;
+        for (uint16_t i = 1; i < segments; i++) {
+            if (!segmentUpdate--) { //25 pieces
+                // Arc correction to radius vector. Computed only every N_ARC_CORRECTION increments.
+                // Compute exact location by applying transformation matrix from initial radius vector(=-offset).
+                float cos_Ti = cos(i * theta_per_segment);
+                float sin_Ti = sin(i * theta_per_segment);
+                r_axisX = -offset[X_AXIS] * cos_Ti + offset[Y_AXIS] * sin_Ti;
+                r_axisY = -offset[X_AXIS] * sin_Ti - offset[Y_AXIS] * cos_Ti;
+
+                Machine::destinationSteps[Z_AXIS] = start_stepsZ + (i * delta_axisZ) / segments;
+                Machine::destinationSteps[A_AXIS] = start_stepsA + (i * delta_axisA) / segments;
+
+                segmentUpdate = ARC_N_SEGMENT_CORRECT;
+            }
+            else {
+                // Apply vector rotation matrix
+                float r_axisi = r_axisX * sin_T + r_axisY * cos_T;
+                r_axisX = r_axisX * cos_T - r_axisY * sin_T;
+                r_axisY = r_axisi;
+
+                Machine::destinationSteps[Z_AXIS] += deltaSeg_axisZ;
+                Machine::destinationSteps[A_AXIS] += deltaSeg_axisA;
+            }
+
+            Machine::destinationSteps[X_AXIS] = static_cast<int32_t>(floor((center_axisX + r_axisX) * Machine::axisStepsPerMM[X_AXIS] + 0.5f));
+            Machine::destinationSteps[Y_AXIS] = static_cast<int32_t>(floor((center_axisY + r_axisY) * Machine::axisStepsPerMM[Y_AXIS] + 0.5f));
+
+            MachineLine::queueCartesianMove(ALWAYS_CHECK_ENDSTOPS, true);
         }
-
-        Machine::destinationSteps[X_AXIS] = static_cast<int32_t>(floor((center_axisX + r_axisX) * Machine::axisStepsPerMM[X_AXIS] + 0.5f));
-        Machine::destinationSteps[Y_AXIS] = static_cast<int32_t>(floor((center_axisY + r_axisY) * Machine::axisStepsPerMM[Y_AXIS] + 0.5f));
-        
-        MachineLine::queueCartesianMove(ALWAYS_CHECK_ENDSTOPS, true);
     }
+
     // Ensure last segment arrives at target location.
     Machine::destinationSteps[X_AXIS] = destination_steps[X_AXIS];
     Machine::destinationSteps[Y_AXIS] = destination_steps[Y_AXIS];
@@ -1012,12 +1012,25 @@ uint32_t MachineLine::bresenhamStep() {
             removeCurrentLineForbidInterrupt();
             return(wait); // waste some time for path optimization to fill up
         } // End if WARMUP
-        //Only enable axis that are moving. If the axis doesn't need to move then it can stay disabled depending on configuration.
 
-		if(cur->isXMove()) Machine::enableXStepper();
-		if(cur->isYMove()) Machine::enableYStepper();
-		if(cur->isZMove()) Machine::enableZStepper();
-		if(cur->isAMove()) Machine::enableAStepper();
+        //Only enable axis that are moving. If the axis doesn't need to move then it can stay disabled depending on configuration.
+        //Determine direction of movement,check if endstop was hit
+        if (cur->isXMove()) {
+            Machine::enableXStepper();
+            Machine::setXDirection(cur->isXPositiveMove());
+        }
+        if (cur->isYMove()) {
+            Machine::enableYStepper();
+            Machine::setYDirection(cur->isYPositiveMove());
+        }
+        if (cur->isZMove()) {
+            Machine::enableZStepper();
+            Machine::setZDirection(cur->isZPositiveMove());
+        }
+        if (cur->isAMove()) {
+            Machine::enableAStepper();
+            Machine::setADirection(cur->isAPositiveMove());
+        }
 
 		cur->fixStartAndEndSpeed();
 		HAL::allowInterrupts();
@@ -1029,12 +1042,6 @@ uint32_t MachineLine::bresenhamStep() {
 		Machine::stepNumber = 0;
 		Machine::timer = 0;
 		HAL::forbidInterrupts();
-
-		//Determine direction of movement,check if endstop was hit
-		Machine::setXDirection(cur->isXPositiveMove());
-		Machine::setYDirection(cur->isYPositiveMove());
-		Machine::setZDirection(cur->isZPositiveMove());
-		Machine::setADirection(cur->isAPositiveMove());
 
 #if defined(SUPPORT_LASER) && SUPPORT_LASER
         if (Machine::mode == MACHINE_MODE_LASER) {

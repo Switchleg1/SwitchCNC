@@ -383,7 +383,7 @@ public:
 	}
     void updateStepsParameter();
     float safeSpeed(fast8_t drivingAxis);
-    void calculateMove(float axis_diff[], uint8_t pathOptimize, fast8_t distanceBase);
+    void calculateMove(float* axisDistanceMM, fast8_t drivingAxis);
     void logLine();
     INLINE long getWaitTicks() {
         return timeInTicks;

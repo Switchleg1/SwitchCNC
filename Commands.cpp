@@ -8,7 +8,7 @@ void Commands::commandLoop() {
 #ifdef DEBUG_MACHINE
     Machine::debugWaitLoop = 1;
 #endif
-	GCode::readFromSerial();
+	GCode::readFromSource();
 	GCode *code = GCode::peekCurrentCommand();
 	if(code) {
 #if SDSUPPORT
@@ -39,7 +39,7 @@ void Commands::waitUntilEndOfAllMoves() {
     Machine::debugWaitLoop = 8;
 #endif
     while(MachineLine::hasLines()) {
-        //GCode::readFromSerial();
+        //GCode::readFromSource();
         Machine::checkForPeriodicalActions(false);
 		GCode::keepAlive(Processing);
     }
@@ -51,7 +51,7 @@ void Commands::waitUntilEndOfAllBuffers() {
     Machine::debugWaitLoop = 9;
 #endif
     while(MachineLine::hasLines() || (code != NULL)) {
-        //GCode::readFromSerial();
+        //GCode::readFromSource();
 		code = GCode::peekCurrentCommand();
         if(code) {
 #if SDSUPPORT
@@ -141,11 +141,11 @@ void Commands::setFan2Speed(int speed) {
 */
 #if ARC_SUPPORT
 void Commands::processArc(GCode *com) {
-	float position[XY_AXIS_ARRAY];
+	float position[A_AXIS_ARRAY];
 	Machine::realPosition(position[X_AXIS], position[Y_AXIS], position[Z_AXIS], position[A_AXIS]);
 	if(!Machine::setDestinationStepsFromGCode(com)) return; // For X Y Z A F
-    float offset[2] = {Machine::convertToMM(com->hasI() ? com->I : 0), Machine::convertToMM(com->hasJ() ? com->J : 0)};
-	float target[XY_AXIS_ARRAY] = {Machine::realXPosition(), Machine::realYPosition()};
+    float offset[XY_AXIS_ARRAY] = { Machine::convertToMM(com->hasI() ? com->I : 0), Machine::convertToMM(com->hasJ() ? com->J : 0) };
+	float target[XY_AXIS_ARRAY] = { Machine::realXPosition(), Machine::realYPosition() };
     float r;
     if (com->hasR()) {
         /*
@@ -244,7 +244,7 @@ void Commands::processArc(GCode *com) {
         offset[1] = 0.5 * (y + (x * h_x2_div_d));
 
     } else { // Offset mode specific computations
-        r = hypotf(offset[0], offset[1]); // Compute arc radius for arc
+        r = hypotf(offset[X_AXIS], offset[Y_AXIS]); // Compute arc radius for arc
     }
     // Set clockwise/counter-clockwise sign for arc computations
     uint8_t isclockwise = com->G == 2;

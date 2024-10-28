@@ -214,16 +214,6 @@ usage or for searching for memory induced errors. Switch it off for production, 
 #define MANUAL_CONTROL              1
 #endif
 
-//Step to split a circle in small Lines
-#ifndef MM_PER_ARC_SEGMENT
-#define MM_PER_ARC_SEGMENT          0.5
-#define MM_PER_ARC_SEGMENT_BIG      2
-#else
-#define MM_PER_ARC_SEGMENT_BIG      MM_PER_ARC_SEGMENT
-#endif
-//After this count of steps a new SIN / COS calculation is started to correct the circle interpolation
-#define N_ARC_CORRECTION            25
-
 #ifndef START_STEP_WITH_HIGH
 #define START_STEP_WITH_HIGH        1
 #endif
