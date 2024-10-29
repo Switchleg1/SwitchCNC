@@ -7,7 +7,6 @@
 #define FLAG_DECELERATING 4
 #define FLAG_ACCELERATING 8
 #define FLAG_CHECK_ENDSTOPS 16
-#define FLAG_SKIP_DEACCELERATING 64 // unused
 #define FLAG_BLOCKED 128
 
 /** Are the step parameter computed */
@@ -424,8 +423,8 @@ public:
     static inline void backwardPlanner(ufast8_t p, ufast8_t last);
     static void updateTrapezoids();
     static uint8_t insertWaitMovesIfNeeded(uint8_t pathOptimize, uint8_t waitExtraLines);
-	static void queueCartesianMove(uint8_t checkEndstops, uint8_t pathOptimize);
-    static void queueCartesianSegmentTo(uint8_t addDistortion, uint8_t checkEndstops, uint8_t pathOptimize);
+	static void queueCartesianMove(int32_t *destinationSteps, uint8_t checkEndstops, uint8_t pathOptimize);
+    static void queueCartesianSegmentTo(int32_t *segmentSteps, uint8_t addDistortion, uint8_t checkEndstops, uint8_t pathOptimize);
 	static void moveRelativeDistanceInSteps(int32_t x, int32_t y, int32_t z, int32_t a, float feedrate, bool waitEnd, bool check_endstop, bool pathOptimize = true);
 	static void moveRelativeDistanceInStepsReal(int32_t x, int32_t y, int32_t z, int32_t a, float feedrate, bool waitEnd, bool pathOptimize = true);
 #if ARC_SUPPORT

@@ -62,15 +62,17 @@ void MachineLine::moveRelativeDistanceInSteps(int32_t x, int32_t y, int32_t z, i
     }
 #endif //  MOVE_X_WHEN_HOMED == 1 || MOVE_Y_WHEN_HOMED == 1 || MOVE_Z_WHEN_HOMED == 1
     float savedFeedrate = Machine::feedrate;
-    Machine::destinationSteps[X_AXIS] = Machine::currentPositionSteps[X_AXIS] + x;
-	Machine::destinationSteps[Y_AXIS] = Machine::currentPositionSteps[Y_AXIS] + y;
-	Machine::destinationSteps[Z_AXIS] = Machine::currentPositionSteps[Z_AXIS] + z;
-	Machine::destinationSteps[A_AXIS] = Machine::currentPositionSteps[A_AXIS] + a;
+    int32_t destinationSteps[A_AXIS_ARRAY] = {
+        Machine::currentPositionSteps[X_AXIS] + x,
+        Machine::currentPositionSteps[Y_AXIS] + y,
+        Machine::currentPositionSteps[Z_AXIS] + z,
+        Machine::currentPositionSteps[A_AXIS] + a
+    };
 	Machine::feedrate = feedrate;
 #if DISTORTION_CORRECTION
-    Machine::destinationSteps[Z_AXIS] -= Machine::zCorrectionStepsIncluded; // correct as it will be added later in Cartesian move computation
+    destinationSteps[Z_AXIS] -= Machine::zCorrectionStepsIncluded; // correct as it will be added later in Cartesian move computation
 #endif
-	queueCartesianMove(checkEndstop, pathOptimize);
+	queueCartesianMove(destinationSteps, checkEndstop, pathOptimize);
     Machine::feedrate = savedFeedrate;
     Machine::updateCurrentPosition(false);
 
@@ -126,16 +128,16 @@ void MachineLine::moveRelativeDistanceInStepsReal(int32_t x, int32_t y, int32_t 
     }
 }
 
-void MachineLine::queueCartesianSegmentTo(uint8_t addDistortion, uint8_t checkEndstops, uint8_t pathOptimize) {
+void MachineLine::queueCartesianSegmentTo(int32_t *segmentSteps, uint8_t addDistortion, uint8_t checkEndstops, uint8_t pathOptimize) {
 #if DISTORTION_CORRECTION
     if (addDistortion) {
         // Correct the bumps
-        Machine::zCorrectionStepsIncluded = Machine::distortion.correct(Machine::destinationSteps[X_AXIS], Machine::destinationSteps[Y_AXIS], Machine::destinationSteps[Z_AXIS]);
-        Machine::destinationSteps[Z_AXIS] += Machine::zCorrectionStepsIncluded;
+        Machine::zCorrectionStepsIncluded = Distortion::correct(segmentSteps[X_AXIS], segmentSteps[Y_AXIS], segmentSteps[Z_AXIS]);
+        segmentSteps[Z_AXIS] += Machine::zCorrectionStepsIncluded;
 #if DEBUG_DISTORTION
         Com::printF(PSTR("zCorr:"), Machine::zCorrectionStepsIncluded * Machine::invAxisStepsPerMM[Z_AXIS], 3);
-        Com::printF(PSTR(" atX:"), Machine::destinationSteps[X_AXIS] * Machine::invAxisStepsPerMM[X_AXIS]);
-        Com::printFLN(PSTR(" atY:"), Machine::destinationSteps[Y_AXIS] * Machine::invAxisStepsPerMM[Y_AXIS]);
+        Com::printF(PSTR(" atX:"), segmentSteps[X_AXIS] * Machine::invAxisStepsPerMM[X_AXIS]);
+        Com::printFLN(PSTR(" atY:"), segmentSteps[Y_AXIS] * Machine::invAxisStepsPerMM[Y_AXIS]);
 #endif
     }
 #endif
@@ -152,12 +154,12 @@ void MachineLine::queueCartesianSegmentTo(uint8_t addDistortion, uint8_t checkEn
     //Find direction
     //Machine::zCorrectionStepsIncluded = 0;
 	for(uint8_t axis = 0; axis < A_AXIS_ARRAY; axis++) {
-		p->delta[axis] = Machine::destinationSteps[axis] - Machine::currentPositionSteps[axis];
+		p->delta[axis] = segmentSteps[axis] - Machine::currentPositionSteps[axis];
         if(p->delta[axis] >= 0) p->setPositiveDirectionForAxis(axis);
         else p->delta[axis] = -p->delta[axis];
         axisDistanceMM[axis] = p->delta[axis] * Machine::invAxisStepsPerMM[axis];
         if(p->delta[axis]) p->setMoveOfAxis(axis);
-        Machine::currentPositionSteps[axis] = Machine::destinationSteps[axis];
+        Machine::currentPositionSteps[axis] = segmentSteps[axis];
     }
     p->secondSpeed = Machine::fanSpeed;
     if(p->isNoMove()) {
@@ -246,9 +248,9 @@ void MachineLine::queueCartesianSegmentTo(uint8_t addDistortion, uint8_t checkEn
 
   @param checkEndstops Read end stop during move.
 */
-void MachineLine::queueCartesianMove(uint8_t checkEndstops, uint8_t pathOptimize) {
+void MachineLine::queueCartesianMove(int32_t *destinationSteps, uint8_t checkEndstops, uint8_t pathOptimize) {
 	ENSURE_POWER
-    Machine::constrainDestinationCoords();
+    Machine::constrainDestinationCoords(destinationSteps);
 	Machine::unsetAllSteppersDisabled();
 
 #if DISTORTION_CORRECTION || ALWAYS_SPLIT_LINES
@@ -256,10 +258,10 @@ void MachineLine::queueCartesianMove(uint8_t checkEndstops, uint8_t pathOptimize
     bool distortionCorrection = false;
 #if ALWAYS_SPLIT_LINES
     int32_t deltaSteps[A_AXIS_ARRAY] = {
-        Machine::destinationSteps[X_AXIS] - Machine::currentPositionSteps[X_AXIS],
-        Machine::destinationSteps[Y_AXIS] - Machine::currentPositionSteps[Y_AXIS],
-        Machine::destinationSteps[Z_AXIS] - Machine::currentPositionSteps[Z_AXIS],
-        Machine::destinationSteps[A_AXIS] - Machine::currentPositionSteps[A_AXIS]
+        destinationSteps[X_AXIS] - Machine::currentPositionSteps[X_AXIS],
+        destinationSteps[Y_AXIS] - Machine::currentPositionSteps[Y_AXIS],
+        destinationSteps[Z_AXIS] - Machine::currentPositionSteps[Z_AXIS],
+        destinationSteps[A_AXIS] - Machine::currentPositionSteps[A_AXIS]
     };
 #else
     int32_t deltaSteps[A_AXIS_ARRAY];
@@ -276,14 +278,14 @@ void MachineLine::queueCartesianMove(uint8_t checkEndstops, uint8_t pathOptimize
 #endif
 
 #if DISTORTION_CORRECTION
-	if(Machine::distortion.isEnabled() && (Machine::destinationSteps[Z_AXIS] < Machine::distortion.zMaxSteps()) && !Machine::isZProbingActive() && !Machine::isHoming()) {
+	if(Distortion::isEnabled() && (destinationSteps[Z_AXIS] < Distortion::zMaxSteps()) && !Machine::isZProbingActive() && !Machine::isHoming()) {
         Machine::currentPositionSteps[Z_AXIS] -= Machine::zCorrectionStepsIncluded;
 
 #if ALWAYS_SPLIT_LINES == 0
-        deltaSteps[X_AXIS] = Machine::destinationSteps[X_AXIS] - Machine::currentPositionSteps[X_AXIS];
-        deltaSteps[Y_AXIS] = Machine::destinationSteps[Y_AXIS] - Machine::currentPositionSteps[Y_AXIS];
-        deltaSteps[Z_AXIS] = Machine::destinationSteps[Z_AXIS] - Machine::currentPositionSteps[Z_AXIS];
-        deltaSteps[A_AXIS] = Machine::destinationSteps[A_AXIS] - Machine::currentPositionSteps[A_AXIS];
+        deltaSteps[X_AXIS] = destinationSteps[X_AXIS] - Machine::currentPositionSteps[X_AXIS];
+        deltaSteps[Y_AXIS] = destinationSteps[Y_AXIS] - Machine::currentPositionSteps[Y_AXIS];
+        deltaSteps[Z_AXIS] = destinationSteps[Z_AXIS] - Machine::currentPositionSteps[Z_AXIS];
+        deltaSteps[A_AXIS] = destinationSteps[A_AXIS] - Machine::currentPositionSteps[A_AXIS];
 
         for (fast8_t i = 0; i < XY_AXIS_ARRAY; i++) {
             float lenAxis = Machine::invAxisStepsPerMM[i] * deltaSteps[i];
@@ -310,13 +312,6 @@ void MachineLine::queueCartesianMove(uint8_t checkEndstops, uint8_t pathOptimize
             (deltaSteps[A_AXIS] + (segments / 2)) / segments,
         };
 
-        int32_t destinationSteps[A_AXIS_ARRAY] = { 
-            Machine::destinationSteps[X_AXIS], 
-            Machine::destinationSteps[Y_AXIS], 
-            Machine::destinationSteps[Z_AXIS], 
-            Machine::destinationSteps[A_AXIS] 
-        };
-
         int32_t startSteps[A_AXIS_ARRAY] = {
             Machine::currentPositionSteps[X_AXIS],
             Machine::currentPositionSteps[Y_AXIS],
@@ -324,10 +319,12 @@ void MachineLine::queueCartesianMove(uint8_t checkEndstops, uint8_t pathOptimize
             Machine::currentPositionSteps[A_AXIS]
         };
 
-        Machine::destinationSteps[X_AXIS] = Machine::currentPositionSteps[X_AXIS];
-        Machine::destinationSteps[Y_AXIS] = Machine::currentPositionSteps[Y_AXIS];
-        Machine::destinationSteps[Z_AXIS] = Machine::currentPositionSteps[Z_AXIS];
-        Machine::destinationSteps[A_AXIS] = Machine::currentPositionSteps[A_AXIS];
+        int32_t segmentSteps[A_AXIS_ARRAY] = {
+            startSteps[X_AXIS],
+            startSteps[Y_AXIS],
+            startSteps[Z_AXIS],
+            startSteps[A_AXIS]
+        };
 
 #if DEBUG_DISTORTION
         Com::printF(PSTR("Split line len:"), moveLen);
@@ -336,32 +333,27 @@ void MachineLine::queueCartesianMove(uint8_t checkEndstops, uint8_t pathOptimize
         uint8_t segmentUpdate = LINE_N_SEGMENT_CORRECT;
         for (uint16_t i = 1; i < segments; i++) {
             if (!segmentUpdate--) {
-                Machine::destinationSteps[X_AXIS] = startSteps[X_AXIS] + (i * deltaSteps[X_AXIS]) / segments;
-                Machine::destinationSteps[Y_AXIS] = startSteps[Y_AXIS] + (i * deltaSteps[Y_AXIS]) / segments;
-                Machine::destinationSteps[Z_AXIS] = startSteps[Z_AXIS] + (i * deltaSteps[Z_AXIS]) / segments;
-                Machine::destinationSteps[A_AXIS] = startSteps[A_AXIS] + (i * deltaSteps[A_AXIS]) / segments;
+                segmentSteps[X_AXIS] = startSteps[X_AXIS] + (i * deltaSteps[X_AXIS]) / segments;
+                segmentSteps[Y_AXIS] = startSteps[Y_AXIS] + (i * deltaSteps[Y_AXIS]) / segments;
+                segmentSteps[Z_AXIS] = startSteps[Z_AXIS] + (i * deltaSteps[Z_AXIS]) / segments;
+                segmentSteps[A_AXIS] = startSteps[A_AXIS] + (i * deltaSteps[A_AXIS]) / segments;
 
                 segmentUpdate = LINE_N_SEGMENT_CORRECT;
             }
             else {
-                Machine::destinationSteps[X_AXIS] += deltaStepSegment[X_AXIS];
-                Machine::destinationSteps[Y_AXIS] += deltaStepSegment[Y_AXIS];
-                Machine::destinationSteps[Z_AXIS] += deltaStepSegment[Z_AXIS];
-                Machine::destinationSteps[A_AXIS] += deltaStepSegment[A_AXIS];
+                segmentSteps[X_AXIS] += deltaStepSegment[X_AXIS];
+                segmentSteps[Y_AXIS] += deltaStepSegment[Y_AXIS];
+                segmentSteps[Z_AXIS] += deltaStepSegment[Z_AXIS];
+                segmentSteps[A_AXIS] += deltaStepSegment[A_AXIS];
             }
 
-            queueCartesianSegmentTo(distortionCorrection, checkEndstops, pathOptimize);
+            queueCartesianSegmentTo(segmentSteps, distortionCorrection, checkEndstops, pathOptimize);
         }
 
-        Machine::destinationSteps[X_AXIS] = destinationSteps[X_AXIS];
-        Machine::destinationSteps[Y_AXIS] = destinationSteps[Y_AXIS];
-        Machine::destinationSteps[Z_AXIS] = destinationSteps[Z_AXIS];
-        Machine::destinationSteps[A_AXIS] = destinationSteps[A_AXIS];
-
-        queueCartesianSegmentTo(distortionCorrection, checkEndstops, pathOptimize);
+        queueCartesianSegmentTo(destinationSteps, distortionCorrection, checkEndstops, pathOptimize);
     }
     else {
-        queueCartesianSegmentTo(distortionCorrection, checkEndstops, pathOptimize);
+        queueCartesianSegmentTo(destinationSteps, distortionCorrection, checkEndstops, pathOptimize);
     }
 #else
     queueCartesianSegmentTo(false, checkEndstops, pathOptimize);
@@ -389,18 +381,22 @@ void MachineLine::calculateMove(float* axisDistanceMM, fast8_t drivingAxis) {
 		axisInterval[X_AXIS] = axisDistanceMM[X_AXIS] * toTicks / (Machine::maxFeedrate[X_AXIS]); // mm*ticks/s/(mm/s*steps) = ticks/step
 		limitInterval = RMath::max(axisInterval[X_AXIS], limitInterval);
     } else axisInterval[X_AXIS] = 0;
+
     if(isYMove()) {
 		axisInterval[Y_AXIS] = axisDistanceMM[Y_AXIS] * toTicks / Machine::maxFeedrate[Y_AXIS];
 		limitInterval = RMath::max(axisInterval[Y_AXIS], limitInterval);
     } else axisInterval[Y_AXIS] = 0;
+
 	if(isZMove()) { // normally no move in z direction
 		axisInterval[Z_AXIS] = axisDistanceMM[Z_AXIS] * toTicks / Machine::maxFeedrate[Z_AXIS]; // must prevent overflow!
 		limitInterval = RMath::max(axisInterval[Z_AXIS], limitInterval);
 	} else axisInterval[Z_AXIS] = 0;
+
 	if(isAMove()) { // normally no move in a direction
 		axisInterval[A_AXIS] = axisDistanceMM[A_AXIS] * toTicks / Machine::maxFeedrate[A_AXIS]; // must prevent overflow!
 		limitInterval = RMath::max(axisInterval[A_AXIS], limitInterval);
 	} else axisInterval[A_AXIS] = 0;
+
 	fullInterval = limitInterval = limitInterval > LIMIT_INTERVAL ? limitInterval : LIMIT_INTERVAL; // This is our target speed
 
 	if(limitInterval != limitInterval0) {
@@ -414,21 +410,25 @@ void MachineLine::calculateMove(float* axisDistanceMM, fast8_t drivingAxis) {
 		speed[X_AXIS] = axisDistanceMM[X_AXIS] * inverseTimeS;
 		if(isXNegativeMove()) speed[X_AXIS] = -speed[X_AXIS];
 	} else speed[X_AXIS] = 0;
+
     if(isYMove()) {
         axisInterval[Y_AXIS] = timeForMove / delta[Y_AXIS];
 		speed[Y_AXIS] = axisDistanceMM[Y_AXIS] * inverseTimeS;
 		if(isYNegativeMove()) speed[Y_AXIS] = -speed[Y_AXIS];
 	} else speed[Y_AXIS] = 0;
+
 	if(isZMove()) {
 		axisInterval[Z_AXIS] = timeForMove / delta[Z_AXIS];
 		speed[Z_AXIS] = axisDistanceMM[Z_AXIS] * inverseTimeS;
 		if(isZNegativeMove()) speed[Z_AXIS] = -speed[Z_AXIS];
 	} else speed[Z_AXIS] = 0;
+
 	if(isAMove()) {
 		axisInterval[A_AXIS] = timeForMove / delta[A_AXIS];
 		speed[A_AXIS] = axisDistanceMM[A_AXIS] * inverseTimeS;
 		if(isANegativeMove()) speed[A_AXIS] = -speed[A_AXIS];
 	} else speed[A_AXIS] = 0;
+
     fullSpeed = distance * inverseTimeS;
 
     //long interval = axis_interval[primary_axis]; // time for every step in ticks with full speed
@@ -450,8 +450,8 @@ void MachineLine::calculateMove(float* axisDistanceMM, fast8_t drivingAxis) {
     invFullSpeed = 1.0 / fullSpeed;
 	accelerationPrim = slowestAxisPlateauTimeRepro / axisInterval[primaryAxis]; // a = v/t = F_CPU/(c*t): Steps/s^2
 	//Now we can calculate the new primary axis acceleration, so that the slowest axis max acceleration is not violated
-	fAcceleration = 262144.0 * (float)accelerationPrim / F_CPU; // will overflow without float!
-	accelerationDistance2 = 2.0 * distance * slowestAxisPlateauTimeRepro * fullSpeed / ((float)F_CPU); // mm^2/s^2
+	fAcceleration = 262144.0f * (float)accelerationPrim / F_CPU; // will overflow without float!
+	accelerationDistance2 = 2.0f * distance * slowestAxisPlateauTimeRepro * fullSpeed / ((float)F_CPU); // mm^2/s^2
     startSpeed = endSpeed = minSpeed = safeSpeed(drivingAxis);
     if(startSpeed > Machine::feedrate)
         startSpeed = endSpeed = minSpeed = Machine::feedrate;
@@ -505,7 +505,6 @@ void MachineLine::updateTrapezoids() {
     InterruptProtectedBlock noInts;
 
     // First we find out how far back we could go with optimization.
-
     ufast8_t maxfirst = linesPos; // first non fixed segment we might change
     if(maxfirst != linesWritePos)
         nextPlannerIndex(maxfirst); // don't touch the line printing
@@ -521,14 +520,15 @@ void MachineLine::updateTrapezoids() {
         timeleft += lines[maxfirst].timeInTicks;
         nextPlannerIndex(maxfirst);
     }
+
     // Search last fixed element
     while(first != maxfirst && !lines[first].isEndSpeedFixed())
         previousPlannerIndex(first);
     if(first != linesWritePos && lines[first].isEndSpeedFixed())
         nextPlannerIndex(first);
+
     // now first points to last segment before the end speed is fixed
     // so start speed is also fixed.
-
     if(first == linesWritePos) { // Nothing to plan, only new element present
         act->block(); // Prevent stepper interrupt from using this
         noInts.unprotect();
@@ -890,12 +890,8 @@ void MachineLine::queueArc(float *position, float *target, float *offset, float 
     float theta_per_segment = angular_travel / segments;
 
     //store destination and build deltas for remaining axes
-    int32_t destination_steps[A_AXIS_ARRAY] = { 
-        Machine::destinationSteps[X_AXIS], 
-        Machine::destinationSteps[Y_AXIS], 
-        Machine::destinationSteps[Z_AXIS], 
-        Machine::destinationSteps[A_AXIS] 
-    };
+    int32_t destination_steps[A_AXIS_ARRAY];
+    Machine::lastCmdPosSteps(destination_steps);
 
     if (segments) {
         int32_t start_stepsZ = Machine::currentPositionSteps[Z_AXIS];
@@ -904,8 +900,9 @@ void MachineLine::queueArc(float *position, float *target, float *offset, float 
         int32_t delta_axisA = destination_steps[A_AXIS] - start_stepsA;
         int32_t deltaSeg_axisZ = (delta_axisZ + (segments / 2)) / segments;
         int32_t deltaSeg_axisA = (delta_axisA + (segments / 2)) / segments;
-        Machine::destinationSteps[Z_AXIS] = start_stepsZ;
-        Machine::destinationSteps[A_AXIS] = start_stepsA;
+        int32_t segment_steps[A_AXIS_ARRAY];
+        segment_steps[Z_AXIS] = start_stepsZ;
+        segment_steps[A_AXIS] = start_stepsA;
 
         /* Vector rotation by transformation matrix: r is the original vector, r_T is the rotated vector,
            and phi is the angle of rotation. Based on the solution approach by Jens Geisler.
@@ -948,8 +945,8 @@ void MachineLine::queueArc(float *position, float *target, float *offset, float 
                 r_axisX = -offset[X_AXIS] * cos_Ti + offset[Y_AXIS] * sin_Ti;
                 r_axisY = -offset[X_AXIS] * sin_Ti - offset[Y_AXIS] * cos_Ti;
 
-                Machine::destinationSteps[Z_AXIS] = start_stepsZ + (i * delta_axisZ) / segments;
-                Machine::destinationSteps[A_AXIS] = start_stepsA + (i * delta_axisA) / segments;
+                segment_steps[Z_AXIS] = start_stepsZ + (i * delta_axisZ) / segments;
+                segment_steps[A_AXIS] = start_stepsA + (i * delta_axisA) / segments;
 
                 segmentUpdate = ARC_N_SEGMENT_CORRECT;
             }
@@ -959,24 +956,19 @@ void MachineLine::queueArc(float *position, float *target, float *offset, float 
                 r_axisX = r_axisX * cos_T - r_axisY * sin_T;
                 r_axisY = r_axisi;
 
-                Machine::destinationSteps[Z_AXIS] += deltaSeg_axisZ;
-                Machine::destinationSteps[A_AXIS] += deltaSeg_axisA;
+                segment_steps[Z_AXIS] += deltaSeg_axisZ;
+                segment_steps[A_AXIS] += deltaSeg_axisA;
             }
 
-            Machine::destinationSteps[X_AXIS] = static_cast<int32_t>(floor((center_axisX + r_axisX) * Machine::axisStepsPerMM[X_AXIS] + 0.5f));
-            Machine::destinationSteps[Y_AXIS] = static_cast<int32_t>(floor((center_axisY + r_axisY) * Machine::axisStepsPerMM[Y_AXIS] + 0.5f));
+            segment_steps[X_AXIS] = static_cast<int32_t>(floor((center_axisX + r_axisX) * Machine::axisStepsPerMM[X_AXIS] + 0.5f));
+            segment_steps[Y_AXIS] = static_cast<int32_t>(floor((center_axisY + r_axisY) * Machine::axisStepsPerMM[Y_AXIS] + 0.5f));
 
-            MachineLine::queueCartesianMove(ALWAYS_CHECK_ENDSTOPS, true);
+            MachineLine::queueCartesianMove(segment_steps, ALWAYS_CHECK_ENDSTOPS, true);
         }
     }
 
     // Ensure last segment arrives at target location.
-    Machine::destinationSteps[X_AXIS] = destination_steps[X_AXIS];
-    Machine::destinationSteps[Y_AXIS] = destination_steps[Y_AXIS];
-    Machine::destinationSteps[Z_AXIS] = destination_steps[Z_AXIS];
-    Machine::destinationSteps[A_AXIS] = destination_steps[A_AXIS];
-
-    MachineLine::queueCartesianMove(ALWAYS_CHECK_ENDSTOPS, true);
+    MachineLine::queueCartesianMove(destination_steps, ALWAYS_CHECK_ENDSTOPS, true);
 }
 #endif
 
@@ -1048,7 +1040,7 @@ uint32_t MachineLine::bresenhamStep() {
             LaserDriver::changeIntensity(cur->secondSpeed);
         } else
 #endif
-        Machine::pwm.set(FAN_PWM_INDEX, cur->secondSpeed);
+        PWM::set(FAN_PWM_INDEX, cur->secondSpeed);
 
 #if MULTI_XENDSTOP_HOMING
 		Machine::multiXHomeFlags = MULTI_XENDSTOP_ALL;  // move all x motors until endstop says differently
@@ -1211,7 +1203,7 @@ uint32_t MachineLine::bresenhamStep() {
             }
             else
 #endif
-            Machine::pwm.set(FAN_PWM_INDEX, Machine::fanSpeed);
+            PWM::set(FAN_PWM_INDEX, Machine::fanSpeed);
         }
 
         interval = interval >> 1; // 50% of time to next call to do cur=0

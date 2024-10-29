@@ -24,7 +24,6 @@ uint8_t Machine::relativeCoordinateMode     = false;///< Determines absolute (fa
 long Machine::currentPositionSteps[A_AXIS_ARRAY];
 float Machine::currentPosition[A_AXIS_ARRAY];
 float Machine::lastCmdPos[A_AXIS_ARRAY];
-long Machine::destinationSteps[A_AXIS_ARRAY];
 float Machine::coordinateOffset[Z_AXIS_ARRAY]   = {0, 0, 0};
 uint8_t Machine::flag0  = 0;
 uint8_t Machine::flag1  = 0;
@@ -33,7 +32,7 @@ uint8_t Machine::debugLevel = 6;                    ///< Bitfield defining debug
 fast8_t Machine::stepsTillNextCalc = 1;
 fast8_t Machine::stepsSinceLastCalc = 1;
 uint8_t Machine::fanSpeed = 0;                      // Last fan speed set with M106/M107
-float Machine::extrudeMultiply = 0;
+uint8_t Machine::intensityMultiply = 0;
 uint32_t Machine::interval = 30000;                 ///< Last step duration in ticks.
 uint32_t Machine::timer;                            ///< used for acceleration/deceleration timing
 uint32_t Machine::stepNumber;                       ///< Step number in current move.
@@ -97,10 +96,6 @@ fast8_t Machine::multiZHomeFlags;  // 1 = move Z0, 2 = move Z1
 #ifdef DEBUG_MACHINE
 int Machine::debugWaitLoop = 0;
 #endif
-#if DISTORTION_CORRECTION
-Distortion Machine::distortion;
-#endif
-PWM Machine::pwm;
 
 //private variables
 uint16_t            Machine::counterPeriodical = 0;
@@ -110,7 +105,7 @@ uint8_t             Machine::counter500ms = 5;
 Analog Machine::analog;
 #endif
 
-void Machine::constrainDestinationCoords() {
+void Machine::constrainDestinationCoords(int32_t* destinationSteps) {
     if(isNoDestinationCheck() || isHoming()) return;
 #if min_software_endstop_x
 	if (destinationSteps[X_AXIS] < axisMinSteps[X_AXIS]) destinationSteps[X_AXIS] = axisMinSteps[X_AXIS];
@@ -267,6 +262,19 @@ void Machine::checkForPeriodicalActions(bool allowNewMoves)
     LaserDriver::tempCount = 0;
 #endif //LASER_TEMP_PIN
 
+    //print machine current position when it comes to a complete stop
+    if (MachineLine::hasLines()) {
+        if (!Machine::lastHasLines()) {
+            Machine::setHasLines(true);
+        }
+    }
+    else {
+        if (Machine::lastHasLines()) {
+            Commands::printCurrentPosition();
+            Machine::setHasLines(false);
+        }
+    }
+
     EVENT_TIMER_100MS;
     if (--counter500ms == 0) {
         counter500ms = 5;
@@ -292,7 +300,7 @@ void Machine::timerInterrupt()
     }
 
     //PWM
-    Machine::pwm.doPWM(deincrementKickStart);
+    PWM::doPWM(deincrementKickStart);
 
     // read analog values
 #if ANALOG_INPUTS > 0
@@ -359,7 +367,7 @@ void Machine::updateDerivedParameter() {
 		Com::printFLN(PSTR("A jerk was too low, setting to "), maxJerk[A_AXIS]);
 	}
 #if DISTORTION_CORRECTION
-    distortion.updateDerived();
+    Distortion::updateDerived();
 #endif // DISTORTION_CORRECTION
     EVENT_UPDATE_DERIVED;
 }
@@ -405,33 +413,11 @@ void Machine::kill(uint8_t onlySteppers) {
         Machine::setAllKilled(true);
 	}
 #if FAN_BOARD_PIN > -1
-    Machine::pwm.set(FAN_BOARD_PWM_INDEX, BOARD_FAN_MIN_SPEED);
+    PWM::set(FAN_BOARD_PWM_INDEX, BOARD_FAN_MIN_SPEED);
 #endif // FAN_BOARD_PIN
 }
 
-// This is for untransformed move to coordinates in printers absolute Cartesian space
-uint8_t Machine::moveTo(float x, float y, float z, float a, float f) {
-    if(x != IGNORE_COORDINATE)
-		destinationSteps[X_AXIS] = x * axisStepsPerMM[X_AXIS];
-
-    if(y != IGNORE_COORDINATE)
-		destinationSteps[Y_AXIS] = y * axisStepsPerMM[Y_AXIS];
-
-	if(z != IGNORE_COORDINATE)
-		destinationSteps[Z_AXIS] = z * axisStepsPerMM[Z_AXIS];
-
-	if(a != IGNORE_COORDINATE)
-		destinationSteps[A_AXIS] = a * axisStepsPerMM[A_AXIS];
-
-	if(f != IGNORE_COORDINATE)
-		feedrate = f;
-
-	MachineLine::queueCartesianMove(ALWAYS_CHECK_ENDSTOPS, true);
-    updateCurrentPosition(false);
-    return 1;
-}
-
-uint8_t Machine::moveToReal(float x, float y, float z, float a, float f, bool pathOptimize) {
+void Machine::moveToReal(float x, float y, float z, float a, float f, bool pathOptimize) {
     if(x == IGNORE_COORDINATE) x = currentPosition[X_AXIS];
     else currentPosition[X_AXIS] = x;
 
@@ -445,15 +431,18 @@ uint8_t Machine::moveToReal(float x, float y, float z, float a, float f, bool pa
 	else currentPosition[A_AXIS] = a;
 
     // There was conflicting use of IGNOR_COORDINATE
-    destinationSteps[X_AXIS] = static_cast<int32_t>(floor(x * axisStepsPerMM[X_AXIS] + 0.5f));
-    destinationSteps[Y_AXIS] = static_cast<int32_t>(floor(y * axisStepsPerMM[Y_AXIS] + 0.5f));
-	destinationSteps[Z_AXIS] = static_cast<int32_t>(floor(z * axisStepsPerMM[Z_AXIS] + 0.5f));
-	destinationSteps[A_AXIS] = static_cast<int32_t>(floor(a * axisStepsPerMM[A_AXIS] + 0.5f));
-	if(f != IGNORE_COORDINATE)
+    int32_t destinationSteps[A_AXIS_ARRAY] = {
+        static_cast<int32_t>(floor(x * axisStepsPerMM[X_AXIS] + 0.5f)),
+        static_cast<int32_t>(floor(y * axisStepsPerMM[Y_AXIS] + 0.5f)),
+        static_cast<int32_t>(floor(z * axisStepsPerMM[Z_AXIS] + 0.5f)),
+        static_cast<int32_t>(floor(a * axisStepsPerMM[A_AXIS] + 0.5f))
+    };
+    
+    if (f != IGNORE_COORDINATE) {
         feedrate = f;
+    }
 
-	MachineLine::queueCartesianMove(ALWAYS_CHECK_ENDSTOPS, pathOptimize);
-    return 1;
+	MachineLine::queueCartesianMove(destinationSteps, ALWAYS_CHECK_ENDSTOPS, pathOptimize);
 }
 
 void Machine::setOrigin(float xOff, float yOff, float zOff) {
@@ -525,10 +514,6 @@ uint8_t Machine::setDestinationStepsFromGCode(GCode *com) {
 			if(com->hasZ()) currentPosition[Z_AXIS] = (lastCmdPos[Z_AXIS] += convertToMM(com->Z));
 			if(com->hasA()) currentPosition[A_AXIS] = (lastCmdPos[A_AXIS] += convertToMM(com->A));
 		}
-		destinationSteps[X_AXIS] = static_cast<int32_t>(floor(lastCmdPos[X_AXIS] * axisStepsPerMM[X_AXIS] + 0.5f));
-		destinationSteps[Y_AXIS] = static_cast<int32_t>(floor(lastCmdPos[Y_AXIS] * axisStepsPerMM[Y_AXIS] + 0.5f));
-		destinationSteps[Z_AXIS] = static_cast<int32_t>(floor(lastCmdPos[Z_AXIS] * axisStepsPerMM[Z_AXIS] + 0.5f));
-		destinationSteps[A_AXIS] = static_cast<int32_t>(floor(lastCmdPos[A_AXIS] * axisStepsPerMM[A_AXIS] + 0.5f));
 		posAllowed = com->hasNoXYZ() || Machine::isPositionAllowed(lastCmdPos[X_AXIS], lastCmdPos[Y_AXIS], lastCmdPos[Z_AXIS]);
 #if DISTORTION_CORRECTION == 0
     }
@@ -555,7 +540,7 @@ void Machine::setup() {
 	digitalWrite(SS, LOW);
 
     HAL::stopWatchdog();
-    Machine::pwm.clear();
+    PWM::clear();
 #if defined(MB_SETUP)
     MB_SETUP;
 #endif
@@ -700,7 +685,7 @@ void Machine::setup() {
 #if FAN_BOARD_PIN>-1
     SET_OUTPUT(FAN_BOARD_PIN);
     WRITE(FAN_BOARD_PIN, LOW);
-    Machine::pwm.set(FAN_BOARD_PWM_INDEX, BOARD_FAN_MIN_SPEED);
+    PWM::set(FAN_BOARD_PWM_INDEX, BOARD_FAN_MIN_SPEED);
 #endif
     HAL::delayMilliseconds(1);
 #if CASE_LIGHTS_PIN >= 0
@@ -761,9 +746,9 @@ void Machine::setup() {
 		currentPositionSteps[i] = 0;
 		currentPosition[i] = 0;
     }
-    //Commands::printCurrentPosition();
+
 #if DISTORTION_CORRECTION
-	distortion.init();
+    Distortion::init();
 #endif // DISTORTION_CORRECTION
 
     updateDerivedParameter();
@@ -842,7 +827,7 @@ void Machine::defaultLoopActions() {
 void Machine::SetMemoryPosition() {
     Commands::waitUntilEndOfAllMoves();
     updateCurrentPosition(false);
-	realPosition(memoryPosition[X_AXIS], memoryPosition[Y_AXIS], memoryPosition[Z_AXIS], memoryPosition[A_AXIS]);
+	realPosition(memoryPosition);
 	memoryF = feedrate;
 }
 
@@ -966,7 +951,7 @@ void Machine::homeZAxis() { // Cartesian homing
     long steps;
     if ((MIN_HARDWARE_ENDSTOP_Z && Z_MIN_PIN > -1 && Z_HOME_DIR == -1) || (MAX_HARDWARE_ENDSTOP_Z && Z_MAX_PIN > -1 && Z_HOME_DIR == 1)) {
 #if Z_HOME_DIR < 0 && Z_PROBE_PIN == Z_MIN_PIN && FEATURE_Z_PROBE
-        Machine::startProbing(true);
+        ZProbe::start();
 #endif
         coordinateOffset[Z_AXIS] = 0; // G92 Z offset
 		steps = (axisMaxSteps[Z_AXIS] - axisMinSteps[Z_AXIS]) * Z_HOME_DIR;
@@ -991,7 +976,7 @@ GCode::executeFString(PSTR(Z_PROBE_RUN_AFTER_EVERY_PROBE));
 #endif
         MachineLine::moveRelativeDistanceInSteps(0, 0, axisStepsPerMM[Z_AXIS] * 2 * ENDSTOP_Z_BACK_MOVE * Z_HOME_DIR, 0, homingFeedrate[Z_AXIS] / ENDSTOP_Z_RETEST_REDUCTION_FACTOR, true, true);
 #if Z_HOME_DIR < 0 && Z_PROBE_PIN == Z_MIN_PIN && FEATURE_Z_PROBE
-        Machine::finishProbing();
+        ZProbe::finish();
 #endif
         setHoming(false);
         int32_t zCorrection = 0;
@@ -1014,9 +999,9 @@ GCode::executeFString(PSTR(Z_PROBE_RUN_AFTER_EVERY_PROBE));
 		currentPositionSteps[Z_AXIS] = ((Z_HOME_DIR == -1) ? axisMinSteps[Z_AXIS] : axisMaxSteps[Z_AXIS]);
 #if DISTORTION_CORRECTION && Z_HOME_DIR < 0 && Z_PROBE_PIN == Z_MIN_PIN && FEATURE_Z_PROBE
 // Special case where z probe is z min end stop and distortion correction is enabled
-        if(Machine::distortion.isEnabled()) {
-            Machine::zCorrectionStepsIncluded = Machine::distortion.correct(Machine::currentPositionSteps[X_AXIS], currentPositionSteps[Y_AXIS], currentPositionSteps[Z_AXIS]);
-            currentPositionSteps[Z_AXIS] += Machine::zCorrectionStepsIncluded;
+        if(Distortion::isEnabled()) {
+            zCorrectionStepsIncluded = Distortion::correct(currentPositionSteps[X_AXIS], currentPositionSteps[Y_AXIS], currentPositionSteps[Z_AXIS]);
+            currentPositionSteps[Z_AXIS] += zCorrectionStepsIncluded;
         }
 #endif
         updateCurrentPosition(true);
@@ -1048,8 +1033,8 @@ void Machine::homeAxis(bool xaxis, bool yaxis, bool zaxis) { // home non-delta p
     LaserDriver::laserOn = false;
 #endif
 
-    float startX, startY, startZ, startA;
-	realPosition(startX, startY, startZ, startA);
+    float startPosition[A_AXIS_ARRAY];
+	realPosition(startPosition);
 #if !defined(HOMING_ORDER)
 #define HOMING_ORDER HOME_ORDER_XYZ
 #endif
@@ -1102,16 +1087,16 @@ void Machine::homeAxis(bool xaxis, bool yaxis, bool zaxis) { // home non-delta p
 	if(xaxis) homeXAxis();
 #endif
 	if(xaxis) {
-		if(X_HOME_DIR < 0) startX = Machine::axisMin[X_AXIS];
-		else startX = Machine::axisMin[X_AXIS] + Machine::axisLength[X_AXIS];
+		if(X_HOME_DIR < 0) startPosition[X_AXIS] = Machine::axisMin[X_AXIS];
+		else startPosition[X_AXIS] = Machine::axisMin[X_AXIS] + Machine::axisLength[X_AXIS];
     }
     if(yaxis) {
-		if(Y_HOME_DIR < 0) startY = Machine::axisMin[Y_AXIS];
-		else startY = Machine::axisMin[Y_AXIS] + Machine::axisLength[Y_AXIS];
+		if(Y_HOME_DIR < 0) startPosition[Y_AXIS] = Machine::axisMin[Y_AXIS];
+		else startPosition[Y_AXIS] = Machine::axisMin[Y_AXIS] + Machine::axisLength[Y_AXIS];
 	}
     if(zaxis) {
-		if(Z_HOME_DIR < 0) startZ = Machine::axisMin[Z_AXIS];
-		else startZ = Machine::axisMin[Z_AXIS] + Machine::axisLength[Z_AXIS];
+		if(Z_HOME_DIR < 0) startPosition[Z_AXIS] = Machine::axisMin[Z_AXIS];
+		else startPosition[Z_AXIS] = Machine::axisMin[Z_AXIS] + Machine::axisLength[Z_AXIS];
 	}
     updateCurrentPosition(true);
 #if defined(Z_UP_AFTER_HOME) && Z_HOME_DIR < 0
@@ -1121,7 +1106,7 @@ void Machine::homeAxis(bool xaxis, bool yaxis, bool zaxis) { // home non-delta p
     if(zaxis)
         startZ = Z_UP_AFTER_HOME;
 #endif
-	moveToReal(startX, startY, startZ, IGNORE_COORDINATE, homingFeedrate[X_AXIS]);
+	moveToReal(startPosition[X_AXIS], startPosition[Y_AXIS], startPosition[Z_AXIS], IGNORE_COORDINATE, homingFeedrate[X_AXIS]);
 	updateCurrentPosition(true);
     updateHomedAll();
 	Commands::printCurrentPosition();
@@ -1271,7 +1256,7 @@ void Machine::measureDistortion(float maxDistance, int repetitions) {
 
     coordinateOffset[X_AXIS] = coordinateOffset[Y_AXIS] = coordinateOffset[Z_AXIS] = 0;
 
-    if (!distortion.measure(maxDistance, repetitions)) {
+    if (!Distortion::measure(maxDistance, repetitions)) {
         Com::printErrorFLN(PSTR("G33 failed!"));
         //GCode::fatalError(PSTR("G33 failed!"));
         //return;

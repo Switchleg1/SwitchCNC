@@ -76,14 +76,14 @@ void EEPROM::restoreEEPROMSettingsFromConfiguration()
 	Machine::backlash[A_AXIS] = A_BACKLASH;
 #endif
 #if DISTORTION_CORRECTION
-	Machine::distortion.XMIN		= DISTORTION_XMIN;					//SL
-	Machine::distortion.XMAX		= DISTORTION_XMAX;					//SL
-	Machine::distortion.YMIN		= DISTORTION_YMIN;					//SL
-	Machine::distortion.YMAX		= DISTORTION_YMAX;					//SL
-	Machine::distortion.setPoints(DISTORTION_CORRECTION_POINTS);		//SL
-	Machine::distortion.start		= DISTORTION_START;					//SL
-	Machine::distortion.end			= DISTORTION_END;					//SL
-	Machine::distortion.useOffset	= DISTORTION_USE_OFFSET;			//SL
+	Distortion::XMIN		= DISTORTION_XMIN;					//SL
+	Distortion::XMAX		= DISTORTION_XMAX;					//SL
+	Distortion::YMIN		= DISTORTION_YMIN;					//SL
+	Distortion::YMAX		= DISTORTION_YMAX;					//SL
+	Distortion::setPoints(DISTORTION_CORRECTION_POINTS);		//SL
+	Distortion::start		= DISTORTION_START;					//SL
+	Distortion::end			= DISTORTION_END;					//SL
+	Distortion::useOffset	= DISTORTION_USE_OFFSET;			//SL
 #endif
     initalizeUncached();
 	Machine::updateDerivedParameter();
@@ -133,14 +133,14 @@ void EEPROM::storeDataIntoEEPROM(uint8_t corrupted)
 	HAL::eprSetFloat(EPR_BACKLASH_Z,Machine::backlash[A_AXIS]);
 #endif
 #if DISTORTION_CORRECTION
-	HAL::eprSetInt16(EPR_DISTORTION_XMIN, Machine::distortion.XMIN); //SL
-	HAL::eprSetInt16(EPR_DISTORTION_XMAX, Machine::distortion.XMAX); //SL
-	HAL::eprSetInt16(EPR_DISTORTION_YMIN, Machine::distortion.YMIN); //SL
-	HAL::eprSetInt16(EPR_DISTORTION_YMAX, Machine::distortion.YMAX); //SL
-	HAL::eprSetByte(EPR_DISTORTION_POINTS, Machine::distortion.getPoints()); //SL
-	HAL::eprSetFloat(EPR_DISTORTION_START, Machine::distortion.start); //SL
-	HAL::eprSetFloat(EPR_DISTORTION_END, Machine::distortion.end); //SL
-	HAL::eprSetByte(EPR_DISTORTION_USE_OFFSET, Machine::distortion.useOffset); //SL
+	HAL::eprSetInt16(EPR_DISTORTION_XMIN, Distortion::XMIN); //SL
+	HAL::eprSetInt16(EPR_DISTORTION_XMAX, Distortion::XMAX); //SL
+	HAL::eprSetInt16(EPR_DISTORTION_YMIN, Distortion::YMIN); //SL
+	HAL::eprSetInt16(EPR_DISTORTION_YMAX, Distortion::YMAX); //SL
+	HAL::eprSetByte(EPR_DISTORTION_POINTS, Distortion::getPoints()); //SL
+	HAL::eprSetFloat(EPR_DISTORTION_START, Distortion::start); //SL
+	HAL::eprSetFloat(EPR_DISTORTION_END, Distortion::end); //SL
+	HAL::eprSetByte(EPR_DISTORTION_USE_OFFSET, Distortion::useOffset); //SL
 #endif
     if(corrupted)
     {
@@ -202,15 +202,15 @@ void EEPROM::readDataFromEEPROM()
 	Machine::backlash[A_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_A);
 #endif
 #if DISTORTION_CORRECTION
-	Machine::distortion.XMIN		= HAL::eprGetInt16(EPR_DISTORTION_XMIN); //SL
-	Machine::distortion.XMAX		= HAL::eprGetInt16(EPR_DISTORTION_XMAX); //SL
-	Machine::distortion.YMIN		= HAL::eprGetInt16(EPR_DISTORTION_YMIN); //SL
-	Machine::distortion.YMAX		= HAL::eprGetInt16(EPR_DISTORTION_YMAX); //SL
-	Machine::distortion.setPoints(HAL::eprGetByte(EPR_DISTORTION_POINTS)); //SL
-	Machine::distortion.start		= HAL::eprGetFloat(EPR_DISTORTION_START); //SL
-	Machine::distortion.end			= HAL::eprGetFloat(EPR_DISTORTION_END); //SL
-	Machine::distortion.useOffset	= HAL::eprGetByte(EPR_DISTORTION_USE_OFFSET); //SL
-	Machine::distortion.SetStartEnd(Machine::distortion.start, Machine::distortion.end);
+	Distortion::XMIN		= HAL::eprGetInt16(EPR_DISTORTION_XMIN); //SL
+	Distortion::XMAX		= HAL::eprGetInt16(EPR_DISTORTION_XMAX); //SL
+	Distortion::YMIN		= HAL::eprGetInt16(EPR_DISTORTION_YMIN); //SL
+	Distortion::YMAX		= HAL::eprGetInt16(EPR_DISTORTION_YMAX); //SL
+	Distortion::setPoints(HAL::eprGetByte(EPR_DISTORTION_POINTS)); //SL
+	Distortion::start		= HAL::eprGetFloat(EPR_DISTORTION_START); //SL
+	Distortion::end			= HAL::eprGetFloat(EPR_DISTORTION_END); //SL
+	Distortion::useOffset	= HAL::eprGetByte(EPR_DISTORTION_USE_OFFSET); //SL
+	Distortion::SetStartEnd(Distortion::start, Distortion::end);
 #endif
 	if(version != EEPROM_PROTOCOL_VERSION)
     {

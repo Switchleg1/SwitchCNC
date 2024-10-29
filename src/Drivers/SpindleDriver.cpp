@@ -38,7 +38,7 @@ void SpindleDriver::turnOff()
         WRITE(SPINDLE_ON_PIN, !SPINDLE_ON_HIGH);
 #endif
 #if SPINDLE_PWM_PIN > -1
-        Machine::pwm.set(SPINDLE_PWM_INDEX, 0);
+        PWM::set(SPINDLE_PWM_INDEX, 0);
 #endif
     }
     HAL::delayMilliseconds(SPINDLE_WAIT_ON_STOP);
@@ -68,7 +68,7 @@ void SpindleDriver::turnOnCW(int32_t rpm)
         WRITE(SPINDLE_ON_PIN, SPINDLE_ON_HIGH);
 #endif
 #if SPINDLE_PWM_PIN > -1
-        Machine::pwm.set(SPINDLE_PWM_INDEX, spindleSpeed);
+        PWM::set(SPINDLE_PWM_INDEX, spindleSpeed);
 #endif
     }
     HAL::delaySeconds(SPINDLE_WAIT_ON_START);
@@ -97,7 +97,7 @@ void SpindleDriver::turnOnCCW(int32_t rpm)
         WRITE(SPINDLE_ON_PIN, SPINDLE_ON_HIGH);
 #endif
 #if SPINDLE_PWM_PIN > -1
-        Machine::pwm.set(SPINDLE_PWM_INDEX, spindleSpeed);
+        PWM::set(SPINDLE_PWM_INDEX, spindleSpeed);
 #endif
     }
     HAL::delayMilliseconds(SPINDLE_WAIT_ON_START);

@@ -68,7 +68,7 @@ public:
     FSTRINGVAR(tSpaceBAtColon)
     FSTRINGVAR(tColon)
     FSTRINGVAR(tSpeedMultiply)
-    FSTRINGVAR(tFlowMultiply)
+    FSTRINGVAR(tIntensityMultiply)
     FSTRINGVAR(tFanspeed)
     FSTRINGVAR(tFan2speed)
     FSTRINGVAR(tInvalidArc)

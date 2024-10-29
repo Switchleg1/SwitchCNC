@@ -1,9 +1,5 @@
 #include "../../SwitchCNC.h"
 
-#ifndef FEATURE_CHECKSUM_FORCED
-#define FEATURE_CHECKSUM_FORCED false
-#endif
-
 GCode    GCode::commandsBuffered[GCODE_BUFFER_SIZE]; ///< Buffer for received commands.
 uint8_t  GCode::bufferReadIndex = 0; ///< Read position in gcode_buffer.
 uint8_t  GCode::bufferWriteIndex = 0; ///< Write position in gcode_buffer.
@@ -874,13 +870,8 @@ bool GCode::parseAscii(char *line,bool fromSerial)
             uint8_t checksum_given = parseLongValue(pos);
             uint8_t checksum = 0;
             while(line != (pos - 1)) checksum ^= *line++;
-#if FEATURE_CHECKSUM_FORCED
-            Machine::flag0 |= MACHINE_FLAG0_FORCE_CHECKSUM;
-#endif
-            if(checksum != checksum_given)
-            {
-                if(Machine::debugErrors())
-                {
+            if(checksum != checksum_given)  {
+                if(Machine::debugErrors()) {
                     Com::printErrorFLN(Com::tWrongChecksum);
                 }
                 return false; // mismatch

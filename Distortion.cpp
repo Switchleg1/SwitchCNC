@@ -2,8 +2,24 @@
 
 #if DISTORTION_CORRECTION
 
-Distortion::Distortion() {
-}
+int16_t Distortion::XMIN;
+int16_t Distortion::XMAX;
+int16_t Distortion::YMIN;
+int16_t Distortion::YMAX;
+float   Distortion::start;
+float   Distortion::end;
+uint8_t Distortion::useOffset;
+int32_t Distortion::xCorrectionSteps;
+int32_t Distortion::xOffsetSteps;
+int32_t Distortion::yCorrectionSteps;
+int32_t Distortion::yOffsetSteps;
+int32_t Distortion::zStart;
+int32_t Distortion::zEnd;
+#if !DISTORTION_PERMANENT
+int32_t Distortion::matrix[DISTORTION_CORRECTION_POINTS * DISTORTION_CORRECTION_POINTS];
+#endif
+uint8_t Distortion::points;
+bool    Distortion::enabled;
 
 void Distortion::init() {
     updateDerived();
@@ -51,14 +67,13 @@ bool Distortion::measure(float maxDistance, int repetitions) {
 
 	resetCorrection();
 	disable(true);
-	//Machine::prepareForProbing();
 	float z = Machine::currentPosition[Z_AXIS];
 	Com::printFLN(PSTR("Reference Z for measurement:"), z, 3);
 	updateDerived();
 	Machine::updateCurrentPosition(true);
 
 	int32_t zCorrection = 0;
-	Machine::startProbing(true);
+	if(!ZProbe::start()) return false;
 	Machine::moveToReal(IGNORE_COORDINATE, IGNORE_COORDINATE, z, IGNORE_COORDINATE, Machine::homingFeedrate[Z_AXIS]);
 	for (iy = points - 1; iy >= 0; iy--) {
 		for (ix = 0; ix < points; ix++) {
@@ -70,21 +85,21 @@ bool Distortion::measure(float maxDistance, int repetitions) {
 			//Com::printF(PSTR("ix "),(int)ix);
 			//Com::printFLN(PSTR("iy "),(int)iy);
 			Machine::moveToReal(mtx, mty, z, IGNORE_COORDINATE, EEPROM::zProbeXYSpeed());
-			float zp = Machine::runProbe(Z_AXIS, maxDistance, repetitions);
+			float zp = ZProbe::run(Z_AXIS, maxDistance, repetitions);
 #if defined(DISTORTION_LIMIT_TO) && DISTORTION_LIMIT_TO != 0
 			if (zp == ILLEGAL_Z_PROBE || fabs(z - zp + zCorrection * Machine::invAxisStepsPerMM[Z_AXIS]) > DISTORTION_LIMIT_TO) {
 #else
 			if (zp == ILLEGAL_Z_PROBE) {
 #endif
 				Com::printErrorFLN(PSTR("Stopping distortion measurement due to errors."));
-				Machine::finishProbing();
+				ZProbe::finish();
 				return false;
 			}
 			setMatrix(floor(0.5f + Machine::axisStepsPerMM[Z_AXIS] * (z - zp)) + zCorrection,
 				matrixIndex(ix, iy));
 		}
 	}
-	Machine::finishProbing();
+	ZProbe::finish();
 
 	// make average center
 	// Disabled since we can use grid measurement to get average plane if that is what we want.
@@ -255,11 +270,11 @@ uint8_t Distortion::getPoints()
 	return points;
 }
 
-int Distortion::matrixIndex(fast8_t x, fast8_t y) const {
+int Distortion::matrixIndex(fast8_t x, fast8_t y) {
 	return static_cast<int>(y) * DISTORTION_CORRECTION_POINTS + x;
 }
 
-int32_t Distortion::getMatrix(int index) const {
+int32_t Distortion::getMatrix(int index) {
 #if DISTORTION_PERMANENT
     return EEPROM::getZCorrection(index);
 #else
@@ -276,7 +291,7 @@ void Distortion::setMatrix(int32_t val, int index) {
 #endif
 }
 
-bool Distortion::isCorner(fast8_t i, fast8_t j) const {
+bool Distortion::isCorner(fast8_t i, fast8_t j) {
 	return (i == 0 || i == points - 1)
 		   && (j == 0 || j == points - 1);
 }
@@ -284,7 +299,7 @@ bool Distortion::isCorner(fast8_t i, fast8_t j) const {
 /**
  Extrapolates the changes from p1 to p2 to p3 which has the same distance as p1-p2.
 */
-inline int32_t Distortion::extrapolatePoint(fast8_t x1, fast8_t y1, fast8_t x2, fast8_t y2) const {
+inline int32_t Distortion::extrapolatePoint(fast8_t x1, fast8_t y1, fast8_t x2, fast8_t y2) {
     return 2 * getMatrix(matrixIndex(x2, y2)) - getMatrix(matrixIndex(x1, y1));
 }
 
@@ -294,14 +309,14 @@ void Distortion::extrapolateCorner(fast8_t x, fast8_t y, fast8_t dx, fast8_t dy)
 }
 
 void Distortion::extrapolateCorners() {
-	const fast8_t m = points - 1;
+	fast8_t m = points - 1;
     extrapolateCorner(0, 0, 1, 1);
     extrapolateCorner(0, m, 1, -1);
     extrapolateCorner(m, 0, -1, 1);
     extrapolateCorner(m, m, -1, -1);
 }
 
-int32_t Distortion::correct(int32_t x, int32_t y, int32_t z) const {
+int32_t Distortion::correct(int32_t x, int32_t y, int32_t z) {
 	if (!enabled || Machine::isZProbingActive()) {
 		return 0;
 	}
@@ -315,9 +330,9 @@ int32_t Distortion::correct(int32_t x, int32_t y, int32_t z) const {
     y -= yOffsetSteps;
 	int32_t fxFloor = (x - (x < 0 ? xCorrectionSteps - 1 : 0)) / xCorrectionSteps; // special case floor for negative integers!
 	int32_t fyFloor = (y - (y < 0 ? yCorrectionSteps - 1 : 0)) / yCorrectionSteps;
-// indexes to the matrix
+	// indexes to the matrix
 
-// position between cells of matrix, range=0 to 1 - outside of the matrix the value will be outside this range and the value will be extrapolated
+	// position between cells of matrix, range=0 to 1 - outside of the matrix the value will be outside this range and the value will be extrapolated
     int32_t fx = x - fxFloor * xCorrectionSteps; // Grid normalized coordinates
     int32_t fy = y - fyFloor * yCorrectionSteps;
     if (fxFloor < 0) {

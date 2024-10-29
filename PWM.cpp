@@ -1,10 +1,9 @@
 #include "SwitchCNC.h"
 
+uint8_t PWM::softwarePosition = 0;
+uint8_t PWM::softwareValues[NUM_PWM];
+uint8_t PWM::softwareKickstartValue[NUM_PWM];
 const uint8_t PWM::softwareKickstart[NUM_PWM] PROGMEM = { SPINDLE_KICKSTART_TIME, BOARD_FAN_KICKSTART_TIME, FAN_KICKSTART_TIME, FAN2_KICKSTART_TIME };
-
-PWM::PWM() {
-	softwarePosition = 0;
-}
 
 void PWM::doPWM(bool deincrementKickStart)
 {

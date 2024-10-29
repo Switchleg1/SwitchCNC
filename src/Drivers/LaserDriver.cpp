@@ -30,7 +30,7 @@ void LaserDriver::changeIntensity(secondspeed_t newIntensity)
 #if defined(SUPPORT_LASER) && SUPPORT_LASER
     uint16_t addFlow = newIntensity;
     if (addFlow) {
-        addFlow *= Machine::extrudeMultiply;
+        addFlow *= Machine::intensityMultiply;
         addFlow /= 100;
         if (addFlow > 0xFF) {
             addFlow = 0xFF;

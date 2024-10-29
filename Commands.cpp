@@ -73,29 +73,29 @@ void Commands::waitUntilEndOfAllBuffers() {
 }
 
 void Commands::printCurrentPosition() {
-	float x, y, z, a;
-	Machine::realPosition(x, y, z, a);
+    float currentPos[A_AXIS_ARRAY];
+    Machine::realPosition(currentPos);
 #ifdef DEBUG_POS
-	Com::printF(PSTR("RX:"), x, 3); // to debug offset handling
-	Com::printF(PSTR(" RY:"), y, 3);
-	Com::printFLN(PSTR(" RZ:"), z, 3);
-	Com::printFLN(PSTR(" RA:"), a, 3);
-	Com::printF(PSTR("CX:"), Machine::coordinateOffset[X_AXIS], 3); // to debug offset handling
-	Com::printF(PSTR(" CY:"), Machine::coordinateOffset[Y_AXIS], 3);
-	Com::printFLN(PSTR(" CZ:"), Machine::coordinateOffset[Z_AXIS], 3);
+    Com::printF(PSTR("RX:"), currentPos[X_AXIS], 3); // to debug offset handling
+    Com::printF(PSTR(" RY:"), currentPos[Y_AXIS], 3);
+    Com::printFLN(PSTR(" RZ:"), currentPos[Z_AXIS], 3);
+    Com::printFLN(PSTR(" RA:"), currentPos[A_AXIS], 3);
+    Com::printF(PSTR("CX:"), Machine::coordinateOffset[X_AXIS], 3); // to debug offset handling
+    Com::printF(PSTR(" CY:"), Machine::coordinateOffset[Y_AXIS], 3);
+    Com::printFLN(PSTR(" CZ:"), Machine::coordinateOffset[Z_AXIS], 3);
 #endif
-	x += Machine::coordinateOffset[X_AXIS];
-    y += Machine::coordinateOffset[Y_AXIS];
-	z += Machine::coordinateOffset[Z_AXIS];
-	Com::printF(Com::tXColon, x * (Machine::unitIsInches ? 0.03937 : 1), 2);
-    Com::printF(Com::tSpaceYColon, y * (Machine::unitIsInches ? 0.03937 : 1), 2);
-	Com::printF(Com::tSpaceZColon, z * (Machine::unitIsInches ? 0.03937 : 1), 3);
-	Com::printFLN(Com::tSpaceAColon, a * (Machine::unitIsInches ? 0.03937 : 1), 3);
+    currentPos[X_AXIS] += Machine::coordinateOffset[X_AXIS];
+    currentPos[Y_AXIS] += Machine::coordinateOffset[Y_AXIS];
+    currentPos[Z_AXIS] += Machine::coordinateOffset[Z_AXIS];
+    Com::printF(Com::tXColon, currentPos[X_AXIS] * (Machine::unitIsInches ? 0.03937 : 1), 2);
+    Com::printF(Com::tSpaceYColon, currentPos[Y_AXIS] * (Machine::unitIsInches ? 0.03937 : 1), 2);
+    Com::printF(Com::tSpaceZColon, currentPos[Z_AXIS] * (Machine::unitIsInches ? 0.03937 : 1), 3);
+    Com::printFLN(Com::tSpaceAColon, currentPos[A_AXIS] * (Machine::unitIsInches ? 0.03937 : 1), 3);
 #ifdef DEBUG_POS
-	Com::printF(PSTR(" XS:"), Machine::currentPositionSteps[X_AXIS], 3);
-	Com::printF(PSTR(" YS:"), Machine::currentPositionSteps[Y_AXIS], 3);
-	Com::printF(PSTR(" ZS:"), Machine::currentPositionSteps[Z_AXIS], 3);
-	Com::printFLN(PSTR(" AS:"), Machine::currentPositionSteps[A_AXIS], 3);
+    Com::printF(PSTR(" XS:"), Machine::currentPositionSteps[X_AXIS], 3);
+    Com::printF(PSTR(" YS:"), Machine::currentPositionSteps[Y_AXIS], 3);
+    Com::printF(PSTR(" ZS:"), Machine::currentPositionSteps[Z_AXIS], 3);
+    Com::printFLN(PSTR(" AS:"), Machine::currentPositionSteps[A_AXIS], 3);
 #endif
 }
 
@@ -107,11 +107,11 @@ void Commands::changeFeedrateMultiply(int factor) {
     Com::printFLN(Com::tSpeedMultiply, factor);
 }
 
-void Commands::changeFlowrateMultiply(int factor) {
+void Commands::changeIntensityMultiply(int factor) {
     if (factor < 25) factor = 25;
     if (factor > 200) factor = 200;
-    Machine::extrudeMultiply = factor;
-    Com::printFLN(Com::tFlowMultiply, factor);
+    Machine::intensityMultiply = factor;
+    Com::printFLN(Com::tIntensityMultiply, factor);
 }
 
 void Commands::setFanSpeed(int speed, bool immediately) {
@@ -123,7 +123,7 @@ void Commands::setFanSpeed(int speed, bool immediately) {
 	if(MachineLine::linesCount == 0 || immediately) {
 		for(fast8_t i = 0; i < MACHINELINE_CACHE_SIZE; i++)
 			MachineLine::lines[i].secondSpeed = speed;         // fill all machineline buffers with new fan speed value
-        Machine::pwm.set(FAN_PWM_INDEX, speed);
+        PWM::set(FAN_PWM_INDEX, speed);
     }
     Com::printFLN(Com::tFanspeed, speed); // send only new values to break update loops!
 #endif
@@ -131,7 +131,7 @@ void Commands::setFanSpeed(int speed, bool immediately) {
 void Commands::setFan2Speed(int speed) {
 #if FAN2_PIN >- 1 && FEATURE_FAN2_CONTROL
     speed = constrain(speed, 0, 255);
-    Machine::pwm.set(FAN2_PWM_INDEX, speed);
+    PWM::set(FAN2_PWM_INDEX, speed);
     Com::printFLN(Com::tFan2speed, speed); // send only new values to break update loops!
 #endif
 }
@@ -142,10 +142,12 @@ void Commands::setFan2Speed(int speed) {
 #if ARC_SUPPORT
 void Commands::processArc(GCode *com) {
 	float position[A_AXIS_ARRAY];
-	Machine::realPosition(position[X_AXIS], position[Y_AXIS], position[Z_AXIS], position[A_AXIS]);
+	Machine::realPosition(position);
 	if(!Machine::setDestinationStepsFromGCode(com)) return; // For X Y Z A F
     float offset[XY_AXIS_ARRAY] = { Machine::convertToMM(com->hasI() ? com->I : 0), Machine::convertToMM(com->hasJ() ? com->J : 0) };
-	float target[XY_AXIS_ARRAY] = { Machine::realXPosition(), Machine::realYPosition() };
+    float target[A_AXIS_ARRAY];
+    Machine::realPosition(target);
+    
     float r;
     if (com->hasR()) {
         /*
@@ -296,7 +298,9 @@ void Commands::processGCode(GCode *com) {
         }
 #endif
         if (Machine::setDestinationStepsFromGCode(com)) {// For X Y Z A F
-            MachineLine::queueCartesianMove(ALWAYS_CHECK_ENDSTOPS, true);
+            int32_t destinationSteps[A_AXIS_ARRAY];
+            Machine::lastCmdPosSteps(destinationSteps);
+            MachineLine::queueCartesianMove(destinationSteps, ALWAYS_CHECK_ENDSTOPS, true);
         }
 
 #ifdef DEBUG_QUEUE_MOVE
@@ -381,29 +385,29 @@ void Commands::processGCode(GCode *com) {
 	case 33:
 		if(com->hasE())
 		{	// G33 E(x) enable
-			if(com->E > 0) Machine::distortion.enable(com->hasP() && com->P == 1);
-				else Machine::distortion.disable(com->hasP() && com->P == 1);
+			if(com->E > 0) Distortion::enable(com->hasP() && com->P == 1);
+			else Distortion::disable(com->hasP() && com->P == 1);
 		} else if(com->hasL())
 		{ // G33 L0 - List distortion matrix
-			Machine::distortion.showMatrix();
+            Distortion::showMatrix();
 		} else if(com->hasR())
 		{ // G33 R0 - Reset distortion matrix
-			Machine::distortion.resetCorrection();
+            Distortion::resetCorrection();
 		} else if(com->hasX() || com->hasY() || com->hasZ())
 		{ // G33 X<xpos> Y<ypos> Z<zCorrection> - Set correction for nearest point
 			if(com->hasX() && com->hasY() && com->hasZ())
 			{
-				Machine::distortion.set(com->X, com->Y, com->Z);
+                Distortion::set(com->X, com->Y, com->Z);
 			} else
 			{
 				Com::printErrorFLN(PSTR("You need to define X, Y and Z to set a point!"));
 			}
 		} else if(com->hasF() && com->F > 0)
 		{ //G33 F<x> - Filter amount
-			Machine::distortion.filter(com->F);
+            Distortion::filter(com->F);
 		} else if(com->hasO() && com->O > 0 && com->O < 1)
 		{ //G33 O<x> - Smooth amount
-       		Machine::distortion.smooth(com->O);
+            Distortion::smooth(com->O);
 		} else if(com->hasP())
 		{ //G33 P<x> - Do distortion measurements
 			Endstops::update();
@@ -414,20 +418,20 @@ void Commands::processGCode(GCode *com) {
 			} else {
 				if(com->hasT() && com->T > 0) {
 					Machine::updateCurrentPosition(true);
-					Machine::distortion.resetCorrection();
-					Machine::distortion.disable(true);
+                    Distortion::resetCorrection();
+                    Distortion::disable(true);
 					if(com->T > 1) {
 						HAL::eprSetInt16(EPR_DISTORTION_POINTS, com->T);
-						Machine::distortion.setPoints(com->T);
+                        Distortion::setPoints(com->T);
 					}
 					HAL::eprSetInt16(EPR_DISTORTION_XMIN, -Machine::coordinateOffset[X_AXIS]);
 					HAL::eprSetInt16(EPR_DISTORTION_XMAX, Machine::currentPosition[X_AXIS]);
 					HAL::eprSetInt16(EPR_DISTORTION_YMIN, -Machine::coordinateOffset[Y_AXIS]);
 					HAL::eprSetInt16(EPR_DISTORTION_YMAX, Machine::currentPosition[Y_AXIS]);
-					Machine::distortion.XMIN    = -Machine::coordinateOffset[X_AXIS];
-					Machine::distortion.XMAX    = Machine::currentPosition[X_AXIS]; //SL
-					Machine::distortion.YMIN    = -Machine::coordinateOffset[Y_AXIS];
-					Machine::distortion.YMAX    = Machine::currentPosition[Y_AXIS]; //SL
+                    Distortion::XMIN = -Machine::coordinateOffset[X_AXIS];
+                    Distortion::XMAX = Machine::currentPosition[X_AXIS]; //SL
+                    Distortion::YMIN = -Machine::coordinateOffset[Y_AXIS];
+                    Distortion::YMAX = Machine::currentPosition[Y_AXIS]; //SL
 				}
 
 				float md = -10;
@@ -440,55 +444,55 @@ void Commands::processGCode(GCode *com) {
 
 				Machine::measureDistortion(md, reps);
 			}
-		} else Machine::distortion.reportStatus();
+		} else Distortion::reportStatus();
 		break;
 #endif
 	case 34: { // Tool Height
-		if(com->hasX())
-		{
-			float xp = Machine::runProbe(X_AXIS, com->X, Z_PROBE_REPETITIONS);
-			if(xp != ILLEGAL_Z_PROBE)
-			{
-				if(com->hasA())
-					if(com->X > 0) xp -= Machine::convertToMM(com->A/2);
-						else xp += Machine::convertToMM(com->A/2);
+        if (ZProbe::start()) {
+            if (com->hasX()) {
+                float xp = ZProbe::run(X_AXIS, com->X, Z_PROBE_REPETITIONS);
+                if (xp != ILLEGAL_Z_PROBE) {
+                    if (com->hasA())
+                        if (com->X > 0) xp -= Machine::convertToMM(com->A / 2);
+                        else xp += Machine::convertToMM(com->A / 2);
 
-				Machine::coordinateOffset[X_AXIS] = xp - Machine::currentPosition[X_AXIS];
-				Com::printF(PSTR(" TOOL OFFSET:"), xp, 3);
-				Com::printFLN(PSTR(" X_OFFSET:"), Machine::coordinateOffset[X_AXIS], 3);
-			}
-		} else if(com->hasY())
-		{
-			float yp = Machine::runProbe(Y_AXIS, com->Y, Z_PROBE_REPETITIONS);
-			if(yp != ILLEGAL_Z_PROBE)
-			{
-				if(com->hasA())
-					if(com->Y > 0) yp -= Machine::convertToMM(com->A/2);
-						else yp += Machine::convertToMM(com->A/2);
+                    Machine::coordinateOffset[X_AXIS] = xp - Machine::currentPosition[X_AXIS];
+                    Com::printF(PSTR(" TOOL OFFSET:"), xp, 3);
+                    Com::printFLN(PSTR(" X_OFFSET:"), Machine::coordinateOffset[X_AXIS], 3);
+                }
+            }
+            else if (com->hasY()) {
+                float yp = ZProbe::run(Y_AXIS, com->Y, Z_PROBE_REPETITIONS);
+                if (yp != ILLEGAL_Z_PROBE) {
+                    if (com->hasA())
+                        if (com->Y > 0) yp -= Machine::convertToMM(com->A / 2);
+                        else yp += Machine::convertToMM(com->A / 2);
 
-				Machine::coordinateOffset[Y_AXIS] = yp - Machine::currentPosition[Y_AXIS];
-				Com::printF(PSTR(" TOOL OFFSET:"), yp, 3);
-				Com::printFLN(PSTR(" Y_OFFSET:"), Machine::coordinateOffset[Y_AXIS], 3);
-			}
-		} else
-		{
-			if(com->Z >= 0)
-				com->Z = -10;
+                    Machine::coordinateOffset[Y_AXIS] = yp - Machine::currentPosition[Y_AXIS];
+                    Com::printF(PSTR(" TOOL OFFSET:"), yp, 3);
+                    Com::printFLN(PSTR(" Y_OFFSET:"), Machine::coordinateOffset[Y_AXIS], 3);
+                }
+            }
+            else {
+                if (com->Z >= 0)
+                    com->Z = -10;
 
-			float zp = Machine::runProbe(Z_AXIS, com->Z, Z_PROBE_REPETITIONS);
-			if(zp != ILLEGAL_Z_PROBE)
-			{
-				if(com->hasA()) zp += Machine::convertToMM(com->A);
-					else zp += EEPROM::zProbeHeight();
-				Machine::coordinateOffset[Z_AXIS] = zp - Machine::currentPosition[Z_AXIS];
-				Com::printF(PSTR(" TOOL OFFSET:"), zp, 3);
-				Com::printFLN(PSTR(" Z_OFFSET:"), Machine::coordinateOffset[Z_AXIS], 3);
+                float zp = ZProbe::run(Z_AXIS, com->Z, Z_PROBE_REPETITIONS);
+                if (zp != ILLEGAL_Z_PROBE) {
+                    if (com->hasA()) zp += Machine::convertToMM(com->A);
+                    else zp += EEPROM::zProbeHeight();
+                    Machine::coordinateOffset[Z_AXIS] = zp - Machine::currentPosition[Z_AXIS];
+                    Com::printF(PSTR(" TOOL OFFSET:"), zp, 3);
+                    Com::printFLN(PSTR(" Z_OFFSET:"), Machine::coordinateOffset[Z_AXIS], 3);
 #if DISTORTION_CORRECTION
-				Machine::distortion.SetStartEnd(Machine::distortion.start, Machine::distortion.end);
+                    Distortion::SetStartEnd(Distortion::start, Distortion::end);
 #endif
-			}
-		}
-		printCurrentPosition();
+                }
+            }
+            ZProbe::finish();
+
+            printCurrentPosition();
+        }
 	}
 	break;
 #endif
@@ -524,7 +528,7 @@ void Commands::processGCode(GCode *com) {
 		Machine::setOrigin(xOff, yOff, zOff);
 		if(com->hasA()) {
 			Machine::lastCmdPos[A_AXIS] = Machine::currentPosition[A_AXIS] = Machine::convertToMM(com->A);
-			Machine::destinationSteps[A_AXIS] = Machine::currentPositionSteps[A_AXIS] = static_cast<int32_t>(floor(Machine::lastCmdPos[A_AXIS] * Machine::axisStepsPerMM[A_AXIS] + 0.5f));
+			Machine::currentPositionSteps[A_AXIS] = static_cast<int32_t>(floor(Machine::lastCmdPos[A_AXIS] * Machine::axisStepsPerMM[A_AXIS] + 0.5f));
 		}
 		if(com->hasX() || com->hasY() || com->hasZ()) {
 			Com::printF(PSTR("X_OFFSET:"), Machine::coordinateOffset[X_AXIS], 3);
@@ -532,7 +536,7 @@ void Commands::processGCode(GCode *com) {
 			Com::printFLN(PSTR(" Z_OFFSET:"), Machine::coordinateOffset[Z_AXIS], 3);
 		}
 #if DISTORTION_CORRECTION
-        Machine::distortion.SetStartEnd(Machine::distortion.start, Machine::distortion.end);
+        Distortion::SetStartEnd(Distortion::start, Distortion::end);
 #endif
 	}
 	break;
@@ -865,12 +869,10 @@ void Commands::processMCode(GCode *com) {
 #if FAN_PIN > -1 && FEATURE_FAN_CONTROL
     case 106: // M106 Fan On
         if(com->hasI()) {
-            if(com->I != 0)
-				Machine::flag1 |= MACHINE_FLAG1_IGNORE_M106_COMMAND;
-            else
-				Machine::flag1 &= ~MACHINE_FLAG1_IGNORE_M106_COMMAND;
+            if (com->I != 0) Machine::isIgnoreFanCommand(true);
+            else Machine::isIgnoreFanCommand(false);
         }
-		if(!(Machine::flag1 & MACHINE_FLAG1_IGNORE_M106_COMMAND)) {
+		if(!Machine::isIgnoreFanCommand()) {
             if(com->hasP() && com->P == 1)
                 setFan2Speed(com->hasS() ? com->S : 255);
             else
@@ -878,7 +880,7 @@ void Commands::processMCode(GCode *com) {
         }
         break;
     case 107: // M107 Fan Off
-		if(!(Machine::flag1 & MACHINE_FLAG1_IGNORE_M106_COMMAND)) {
+		if(!Machine::isIgnoreFanCommand()) {
             if(com->hasP() && com->P == 1)
                 setFan2Speed(0);
             else
@@ -984,7 +986,7 @@ void Commands::processMCode(GCode *com) {
         changeFeedrateMultiply(com->getS(100));
         break;
     case 221: // M221 S<Extrusion flow multiplier in percent>
-        changeFlowrateMultiply(com->getS(100));
+        changeIntensityMultiply(com->getS(100));
         break;
     case 226: // M226 P<pin> S<state 0/1> - Wait for pin getting state S
         if(!com->hasS() || !com->hasP())
@@ -1240,7 +1242,7 @@ void Commands::emergencyStop() {
 #else
     //HAL::forbidInterrupts(); // Don't allow interrupts to do their work
     Machine::kill(false);
-    Machine::pwm.clear();
+    PWM::clear();
 	HAL::delayMilliseconds(200);
     InterruptProtectedBlock noInts;
     while(1) {}
