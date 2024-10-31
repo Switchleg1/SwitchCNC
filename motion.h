@@ -2,12 +2,14 @@
 #define MOTION_H_INCLUDED
 
 /** Marks the first step of a new move */
-#define FLAG_WARMUP 1
-#define FLAG_NOMINAL 2
-#define FLAG_DECELERATING 4
-#define FLAG_ACCELERATING 8
-#define FLAG_CHECK_ENDSTOPS 16
-#define FLAG_BLOCKED 128
+#define FLAG_WARMUP             1
+#define FLAG_NOMINAL            2
+#define FLAG_DECELERATING       4
+#define FLAG_ACCELERATING       8
+#define FLAG_CHECK_ENDSTOPS     16
+#define FLAG_BLOCKED            128
+
+#define FLAG_TOOL_VACUUM_ON     1
 
 /** Are the step parameter computed */
 #define FLAG_JOIN_STEPPARAMS_COMPUTED 1
@@ -23,7 +25,14 @@ public:
     static ufast8_t linesWritePos; // Position where we write the next cached line move
     ufast8_t joinFlags;
     volatile ufast8_t flags;
-	secondspeed_t secondSpeed; // fan control
+    
+    uint8_t toolFlags;
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+    uint8_t laserIntensity;
+#endif
+#if FAN_PIN >- 1 && FEATURE_FAN_CONTROL
+    uint8_t fanSpeed;
+#endif
 private:
     static int32_t cur_errupd;
     fast8_t primaryAxis;
@@ -356,30 +365,7 @@ public:
 
         return false;
     }
-	INLINE void startXStep() {
-		Machine::startXStep();
-#ifdef DEBUG_STEPCOUNT
-        totalStepsRemaining--;
-#endif
-    }
-	INLINE void startYStep() {
-		Machine::startYStep();
-#ifdef DEBUG_STEPCOUNT
-        totalStepsRemaining--;
-#endif
-    }
-	INLINE void startZStep() {
-		Machine::startZStep();
-#ifdef DEBUG_STEPCOUNT
-        totalStepsRemaining--;
-#endif
-	}
-	INLINE void startAStep() {
-		Machine::startAStep();
-#ifdef DEBUG_STEPCOUNT
-        totalStepsRemaining--;
-#endif
-	}
+
     void updateStepsParameter();
     float safeSpeed(fast8_t drivingAxis);
     void calculateMove(float* axisDistanceMM, fast8_t drivingAxis);

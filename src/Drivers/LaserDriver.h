@@ -11,17 +11,19 @@ EVENT_INITIALIZE_LASER should return false to prevent default initialization.
 */
 class LaserDriver {
 public:
-	static secondspeed_t intensity; // Intensity to use for next move queued. This is NOT the current value!
-	static secondspeed_t minIntensity;
 	static bool laserOn; // Enabled by M3?
 	static bool firstMove;
+
+	static uint8_t intensity; // Intensity to use for next move queued. This is NOT the current value!
+	static uint8_t minIntensity;
+
+	static float temperature;
+	
 	static void initialize();
-	static void changeIntensity(secondspeed_t newIntensity);
+	static void changeIntensity(uint8_t newIntensity);
 	static void turnOn();
 	static void turnOff(bool instantOff = false);
-	static float temperature;
-	static uint8_t tempCount;
-	static uint16_t tempRaw;
+	static void updateTemperature();
 };
 #endif
 

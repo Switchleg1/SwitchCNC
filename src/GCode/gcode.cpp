@@ -401,23 +401,24 @@ void GCode::readFromSource()
             }
             sendAsBinary = (commandReceiving[0] & 128) != 0;
         } // first byte detection
-        if(sendAsBinary)
-        {
-            if(commandsReceivingWritePosition < 2 ) continue;
-            if(commandsReceivingWritePosition == 5 || commandsReceivingWritePosition == 4)
-            binaryCommandSize = computeBinarySize((char*)commandReceiving);
-            if(commandsReceivingWritePosition == binaryCommandSize)
-            {
+        if(sendAsBinary) {
+            if(commandsReceivingWritePosition < 2 )
+                continue;
+
+            if(commandsReceivingWritePosition == 5 || commandsReceivingWritePosition == 4) 
+                binaryCommandSize = computeBinarySize((char*)commandReceiving);
+
+            if(commandsReceivingWritePosition == binaryCommandSize) {
                 GCode *act = &commandsBuffered[bufferWriteIndex];
                 act->source = GCodeSource::activeSource; // we need to know where to write answers to
                 if(act->parseBinary(commandReceiving, true)) {  // Success
-                  act->checkAndPushCommand();
+                    act->checkAndPushCommand();
                 } else {
-                  if(GCodeSource::activeSource->closeOnError()) { // this device does not support resends so all errors are final!
-                    GCodeSource::activeSource->close();
-                  } else {
-                    requestResend();
-                  }                    
+                    if(GCodeSource::activeSource->closeOnError()) { // this device does not support resends so all errors are final!
+                        GCodeSource::activeSource->close();
+                    } else {
+                        requestResend();
+                    }                    
                 }
                 GCodeSource::rotateSource();
                 Com::writeToAll = lastWTA;
@@ -478,33 +479,29 @@ void GCode::readFromSource()
   Converts a binary uint8_tfield containing one GCode line into a GCode structure.
   Returns true if checksum was correct.
 */
-bool GCode::parseBinary(uint8_t *buffer,bool fromSerial)
+bool GCode::parseBinary(uint8_t *buffer, bool fromSerial)
 {
     internalCommand = !fromSerial;
-    unsigned int sum1 = 0, sum2 = 0; // for fletcher-16 checksum
+    uint16_t sum1 = 0, sum2 = 0; // for fletcher-16 checksum
     // first do fletcher-16 checksum tests see
     // http://en.wikipedia.org/wiki/Fletcher's_checksum
     uint8_t *p = buffer;
     uint8_t len = binaryCommandSize - 2;
-    while (len)
-    {
+    while (len) {
         uint8_t tlen = len > 21 ? 21 : len;
         len -= tlen;
-        do
-        {
+        do {
             sum1 += *p++;
-            if(sum1 >= 255) sum1 -= 255;
+            if (sum1 >= 255) sum1 -= 255;
             sum2 += sum1;
-            if(sum2 >= 255) sum2 -= 255;
+            if (sum2 >= 255) sum2 -= 255;
         }
         while (--tlen);
     }
     sum1 -= *p++;
     sum2 -= *p;
-    if(sum1 | sum2)
-    {
-        if(Machine::debugErrors())
-        {
+    if(sum1 | sum2) {
+        if(Machine::debugErrors()) {
             Com::printErrorFLN(Com::tWrongChecksum);
         }
         return false;
@@ -513,140 +510,112 @@ bool GCode::parseBinary(uint8_t *buffer,bool fromSerial)
     params = *(uint16_t *)p;
     p += 2;
     uint8_t textlen = 16;
-    if(isV2())
-    {
+    if(isV2()) {
         params2 = *(uint16_t *)p;
         p += 2;
-        if(hasString())
+        if (hasString()) {
             textlen = *p++;
+        }
     }
     else params2 = 0;
-    if(params & 1)
-    {
+    if(params & 1) {
         actLineNumber = N = *(uint16_t *)p;
         p += 2;
     }
-    if(isV2())   // Read G,M as 16 bit value
-    {
-        if(hasM())
-        {
+    if(isV2()) {   // Read G,M as 16 bit value
+        if(hasM()) {
             M = *(uint16_t *)p;
             p += 2;
         }
-        if(hasG())
-        {
+        if(hasG()) {
             G = *(uint16_t *)p;
             p += 2;
         }
-    }
-    else
-    {
-        if(hasM())
-        {
+    } else {
+        if(hasM()) {
             M = *p++;
         }
-        if(hasG())
-        {
+        if(hasG()) {
             G = *p++;
         }
     }
     //if(code->params & 8) {memcpy(&code->X,p,4);p+=4;}
-    if(hasX())
-    {
+    if(hasX()) {
         X = *(float *)p;
         p += 4;
     }
-    if(hasY())
-    {
+    if(hasY()) {
         Y = *(float *)p;
         p += 4;
     }
-    if(hasZ())
-    {
+    if(hasZ()) {
         Z = *(float *)p;
         p += 4;
     }
-    if(hasE())
-    {
+    if(hasE()) {
         E = *(float *)p;
         p += 4;
     }
-    if(hasF())
-    {
+    if(hasF()) {
         F = *(float *)p;
         p += 4;
     }
-    if(hasT())
-    {
+    if(hasT()) {
         T = *p++;
     }
-    if(hasS())
-    {
+    if(hasS()) {
         S = *(int32_t*)p;
         p += 4;
     }
-    if(hasP())
-    {
+    if(hasP()) {
         P = *(int32_t*)p;
         p += 4;
     }
-    if(hasI())
-    {
+    if(hasI()) {
         I = *(float *)p;
         p += 4;
     }
-    if(hasJ())
-    {
+    if(hasJ()) {
         J = *(float *)p;
         p += 4;
     }
-    if(hasR())
-    {
+    if(hasR()) {
         R = *(float *)p;
         p += 4;
     }
-    if(hasD())
-    {
+    if(hasD()) {
         D = *(float *)p;
         p += 4;
     }
-    if(hasC())
-    {
+    if(hasC()) {
         C = *(float *)p;
         p += 4;
     }
-    if(hasH())
-    {
+    if(hasH()) {
         H = *(float *)p;
         p += 4;
     }
-    if(hasA())
-    {
+    if(hasA()) {
         A = *(float *)p;
         p += 4;
     }
-    if(hasB())
-    {
+    if(hasB()) {
         B = *(float *)p;
         p += 4;
     }
-    if(hasK())
-    {
+    if(hasK()) {
         K = *(float *)p;
         p += 4;
     }
-    if(hasL())
-    {
+    if(hasL()) {
         L = *(float *)p;
         p += 4;
     }
-    if(hasO())
-    {
+    if(hasO()) {
         O = *(float *)p;
         p += 4;
     }
-    if(hasString())   // set text pointer to string
-    {
+    if(hasString()) {  // set text pointer to string
         text = (char*)p;
         text[textlen] = 0; // Terminate string overwriting checksum
         waitUntilAllCommandsAreParsed = true; // Don't destroy string until executed

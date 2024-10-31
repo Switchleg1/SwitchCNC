@@ -51,7 +51,7 @@
 #define LASER_WARMUP_TIME						0
 #define LASER_PWM_MAX							255
 #define LASER_WATT								0
-#define LASER_TEMP_PIN							-1
+#define LASER_TEMP_PIN							 -1
 #define LASER_TEMP_SENSOR_TYPE					0
 
 //Fan settings

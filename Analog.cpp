@@ -1,9 +1,10 @@
 #include "SwitchCNC.h"
 #include <compat/twi.h>
 
+#if ANALOG_INPUTS > 0
+
 const uint8_t Analog::inputChannels[ANALOG_INPUTS] PROGMEM = ANALOG_INPUT_CHANNELS;
 
-#if ANALOG_INPUTS > 0
 Analog::Analog() {
     inputPosition = 0; // Current sampling position
 }

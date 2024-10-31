@@ -23,7 +23,7 @@
 All known Arduino boards use 64. This value is needed for the extruder timing. */
 #define TIMER0_PRESCALE 64
 
-#if NEW_COMMUNICATION && defined(BLUETOOTH_SERIAL) && BLUETOOTH_SERIAL > 0
+#if defined(BLUETOOTH_SERIAL) && BLUETOOTH_SERIAL > 0
 #undef EXTERNALSERIAL
 #define EXTERNALSERIAL
 #endif

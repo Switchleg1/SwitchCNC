@@ -5,9 +5,7 @@
 
 char tempLongFilename[LONG_FILENAME_LENGTH + 1];
 char fullName[LONG_FILENAME_LENGTH * SD_MAX_FOLDER_DEPTH + SD_MAX_FOLDER_DEPTH + 1];
-#if NEW_COMMUNICATION
 SDCardGCodeSource sdSource;
-#endif
 SDCard sd;
 
 SDCard::SDCard() {
@@ -107,17 +105,13 @@ void SDCard::unmount() {
 void SDCard::startPrint() {
     if(!sdactive) return;
 	sdmode = 1;
-#if NEW_COMMUNICATION
     GCodeSource::registerSource(&sdSource);
-#endif
 }
 
 void SDCard::pausePrint(bool intern) {
     if(!sdactive) return;
 	sdmode = 2; // finish running line
-#if NEW_COMMUNICATION
     GCodeSource::removeSource(&sdSource);
-#endif
     if(EVENT_SD_PAUSE_START(intern)) {
         if(intern) {
             Commands::waitUntilEndOfAllBuffers();
@@ -143,9 +137,7 @@ void SDCard::continuePrint(bool intern) {
         }
     }
     EVENT_SD_CONTINUE_END(intern);
-#if NEW_COMMUNICATION
     GCodeSource::registerSource(&sdSource);
-#endif
 	sdmode = 1;
 }
 
@@ -154,9 +146,7 @@ void SDCard::stopPrint() {
     if(sdmode)
         Com::printFLN(PSTR("SD print stopped by user."));
     sdmode = 0;
-#if NEW_COMMUNICATION
     GCodeSource::removeSource(&sdSource);
-#endif
     if(EVENT_SD_STOP_START) {
         GCode::executeFString(PSTR(SD_RUN_ON_STOP));
         if(SD_STOP_MOTORS_ON_STOP) {

@@ -29,6 +29,7 @@ ufast8_t MachineLine::linesWritePos = 0;            ///< Position where we write
 volatile ufast8_t MachineLine::linesCount = 0;      ///< Number of lines cached 0 = nothing to do.
 ufast8_t MachineLine::linesPos = 0;                 ///< Position for executing line movement.
 int32_t MachineLine::cur_errupd = 0;
+uint8_t toolFlags;
 
 /**
 Move printer the given number of steps. Puts the move into the queue. Used by e.g. homing commands.
@@ -161,12 +162,27 @@ void MachineLine::queueCartesianSegmentTo(int32_t *segmentSteps, uint8_t addDist
         if(p->delta[axis]) p->setMoveOfAxis(axis);
         Machine::currentPositionSteps[axis] = segmentSteps[axis];
     }
-    p->secondSpeed = Machine::fanSpeed;
+
+#if defined(SUPPORT_LASER) && SUPPORT_LASER
+    p->laserIntensity = LaserDriver::intensity;
+#endif
+#if FAN_PIN >- 1 && FEATURE_FAN_CONTROL
+    p->fanSpeed = FanDriver::next();
+#endif
+
+    p->toolFlags = 0;
+#if defined(SUPPORT_VACUUM) && SUPPORT_VACUUM
+    if (VacuumDriver::next()) {
+        p->toolFlags |= FLAG_TOOL_VACUUM_ON;
+    }
+#endif
+
     if(p->isNoMove()) {
         if(newPath)   // need to delete dummy elements, otherwise commands can get locked.
             MachineLine::resetPathPlanner();
         return; // No steps included
     }
+
 	float xydist2 = 0;
 #if ENABLE_BACKLASH_COMPENSATION
     if((p->isXYZAMove()) && ((p->dir & XYZA_DIRPOS) ^ (Machine::backlashDir & XYZA_DIRPOS)) & (Machine::backlashDir >> 3)) { // We need to compensate backlash, add a move
@@ -1037,10 +1053,16 @@ uint32_t MachineLine::bresenhamStep() {
 
 #if defined(SUPPORT_LASER) && SUPPORT_LASER
         if (Machine::mode == MACHINE_MODE_LASER) {
-            LaserDriver::changeIntensity(cur->secondSpeed);
-        } else
+            LaserDriver::changeIntensity(cur->laserIntensity);
+        }
 #endif
-        PWM::set(FAN_PWM_INDEX, cur->secondSpeed);
+#if FAN_PIN >- 1 && FEATURE_FAN_CONTROL
+        FanDriver::setSpeed(cur->fanSpeed);
+#endif
+#if defined(SUPPORT_VACUUM) && SUPPORT_VACUUM
+        VacuumDriver::setState(cur->toolFlags & FLAG_TOOL_VACUUM_ON);
+#endif
+
 
 #if MULTI_XENDSTOP_HOMING
 		Machine::multiXHomeFlags = MULTI_XENDSTOP_ALL;  // move all x motors until endstop says differently
@@ -1060,7 +1082,7 @@ uint32_t MachineLine::bresenhamStep() {
     /////////////// Step //////////////////////////
 
 #if defined(PAUSE_PIN) && PAUSE_PIN > -1
-	if(!Machine::isPaused || Machine::pauseSteps < PAUSE_STEPS) {
+	if(!Machine::isPaused() || Machine::pauseSteps < PAUSE_STEPS) {
 #endif // PAUSE
 #if QUICK_STEP
         for (fast8_t loop = 0; loop < Machine::stepsSinceLastCalc; loop++) {
@@ -1074,7 +1096,7 @@ uint32_t MachineLine::bresenhamStep() {
 #endif
             if (cur->isXMove())
                 if ((cur->error[X_AXIS] -= cur->delta[X_AXIS]) < 0) {
-                    cur->startXStep();
+                    Machine::startXStep();
                     cur->error[X_AXIS] += MachineLine::cur_errupd;
 #ifdef DEBUG_STEPCOUNT
                     cur->totalStepsRemaining--;
@@ -1082,7 +1104,7 @@ uint32_t MachineLine::bresenhamStep() {
                 }
             if (cur->isYMove())
                 if ((cur->error[Y_AXIS] -= cur->delta[Y_AXIS]) < 0) {
-                    cur->startYStep();
+                    Machine::startYStep();
                     cur->error[Y_AXIS] += MachineLine::cur_errupd;
 #ifdef DEBUG_STEPCOUNT
                     cur->totalStepsRemaining--;
@@ -1090,7 +1112,7 @@ uint32_t MachineLine::bresenhamStep() {
                 }
             if (cur->isZMove())
                 if ((cur->error[Z_AXIS] -= cur->delta[Z_AXIS]) < 0) {
-                    cur->startZStep();
+                    Machine::startZStep();
                     cur->error[Z_AXIS] += MachineLine::cur_errupd;
 #ifdef DEBUG_STEPCOUNT
                     cur->totalStepsRemaining--;
@@ -1098,7 +1120,7 @@ uint32_t MachineLine::bresenhamStep() {
                 }
             if (cur->isAMove())
                 if ((cur->error[A_AXIS] -= cur->delta[A_AXIS]) < 0) {
-                    cur->startAStep();
+                    Machine::startAStep();
                     cur->error[A_AXIS] += MachineLine::cur_errupd;
 #ifdef DEBUG_STEPCOUNT
                     cur->totalStepsRemaining--;
@@ -1130,7 +1152,7 @@ uint32_t MachineLine::bresenhamStep() {
     cur->checkEndstops();
 
 #if defined(PAUSE_PIN) && PAUSE_PIN > -1
-	if(Machine::isPaused) {
+	if(Machine::isPaused()) {
 		Machine::pauseSteps += Machine::stepsSinceLastCalc;
 	} else {
 		Machine::pauseSteps -= Machine::stepsSinceLastCalc;
@@ -1201,9 +1223,10 @@ uint32_t MachineLine::bresenhamStep() {
             if (Machine::mode == MACHINE_MODE_LASER) { // Last move disables laser for safety!
                 LaserDriver::changeIntensity(0);
             }
-            else
 #endif
-            PWM::set(FAN_PWM_INDEX, Machine::fanSpeed);
+#if FAN_PIN >- 1 && FEATURE_FAN_CONTROL
+            FanDriver::setSpeed(FanDriver::next());
+#endif
         }
 
         interval = interval >> 1; // 50% of time to next call to do cur=0

@@ -1,12 +1,12 @@
 #include "SwitchCNC.h"
 
-uint8_t PWM::softwarePosition = 0;
-uint8_t PWM::softwareValues[NUM_PWM];
-uint8_t PWM::softwareKickstartValue[NUM_PWM];
 const uint8_t PWM::softwareKickstart[NUM_PWM] PROGMEM = { SPINDLE_KICKSTART_TIME, BOARD_FAN_KICKSTART_TIME, FAN_KICKSTART_TIME, FAN2_KICKSTART_TIME };
 
-void PWM::doPWM(bool deincrementKickStart)
-{
+PWM::PWM() {
+	softwarePosition = 0;
+}
+
+void PWM::doPWM(bool deincrementKickStart) {
 #if FAN_PIN > -1 && FEATURE_FAN_CONTROL
 	if (softwareKickstartValue[FAN_PWM_INDEX]) softwareKickstartValue[FAN_PWM_INDEX]--;
 #endif
@@ -47,8 +47,7 @@ void PWM::doPWM(bool deincrementKickStart)
 	}
 }
 
-void PWM::clear()
-{
+void PWM::clear() {
 	for (uint8_t i = 0; i < NUM_PWM; i++) {
 		softwareValues[i]			= 0;
 		softwareKickstartValue[i]	= 0;

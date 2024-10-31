@@ -277,6 +277,7 @@ usage or for searching for memory induced errors. Switch it off for production, 
 #include "src/Drivers/LaserDriver.h"
 #include "src/Drivers/SpindleDriver.h"
 #include "src/Drivers/VacuumDriver.h"
+#include "src/Drivers/FanDriver.h"
 #include "Events.h"
 
 #if SDSUPPORT

@@ -10,10 +10,6 @@ the motor. It then waits SPINDLE_WAIT_ON_START milliseconds for the spindle to r
 */
 class SpindleDriver {
 public:
-    static int8_t direction;
-    static secondspeed_t spindleSpeed;
-    static uint16_t spindleRpm;
-
     /** Initialize cnc pins. EVENT_INITIALIZE_SPINDLE should return false to prevent default initialization.*/
     static void initialize();
     /** Turns off spindle. For event override implement
@@ -26,13 +22,30 @@ public:
     To override with event system, return false for the event
     EVENT_SPINDLE_CW(rpm)
     */
-    static void turnOnCW(int32_t rpm);
+    static void turnOnCW(uint16_t rpm);
     /** Turns spindle on. Default implementation uses a enable pin SPINDLE_ON_PIN. If
     SPINDLE_DIRECTION_PIN is not -1 it sets direction to !SPINDLE_DIRECTION_CW. rpm is ignored.
     To override with event system, return false for the event
     EVENT_SPINDLE_CCW(rpm)
     */
-    static void turnOnCCW(int32_t rpm);
+    static void turnOnCCW(uint16_t rpm);
+
+    static inline int8_t direction() {
+        return currentDirection;
+    }
+
+    static inline uint8_t spindleSpeed() {
+        return currentSpindleSpeed;
+    }
+
+    static inline uint16_t spindleRpm() {
+        return currentSpindleRpm;
+    }
+
+private:
+    static int8_t currentDirection;
+    static uint8_t currentSpindleSpeed;
+    static uint16_t currentSpindleRpm;
 };
 
 #endif

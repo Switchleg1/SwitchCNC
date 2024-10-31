@@ -71,6 +71,7 @@ public:
     FSTRINGVAR(tIntensityMultiply)
     FSTRINGVAR(tFanspeed)
     FSTRINGVAR(tFan2speed)
+    FSTRINGVAR(tVacuumState)
     FSTRINGVAR(tInvalidArc)
     FSTRINGVAR(tComma)
     FSTRINGVAR(tSpace)

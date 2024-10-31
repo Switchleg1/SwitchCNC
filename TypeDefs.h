@@ -13,7 +13,6 @@ typedef uint32_t    millis_t;
 typedef uint8_t     flag8_t;
 typedef int8_t      fast8_t;
 typedef uint8_t     ufast8_t;
-typedef uint8_t		secondspeed_t;
 
 // ##########################################################################################
 // ##                                  Debug configuration                                 ##

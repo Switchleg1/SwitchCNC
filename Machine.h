@@ -26,11 +26,12 @@ Level 5: Nonlinear motor step position, only for nonlinear drive systems
 #endif
 
 //TMC Driver modes
-#define TMC_STEALTH	1
-#define TMC_SPREAD	2
+#define TMC_STEALTH	    1
+#define TMC_SPREAD	    2
 
 //TMC Driver types
-#define TMC_5160	1
+#define TMC_5160	    1
+#define TMC_DRV_STATUS  0b00011010000000000011000000000000
 
 
 #if defined(AUTOMATIC_POWERUP) && AUTOMATIC_POWERUP && PS_ON_PIN > -1
@@ -54,6 +55,8 @@ union floatLong {
 #define MACHINE_FLAG0_ZPROBEING             4
 #define MACHINE_FLAG0_PAUSED         		8
 #define MACHINE_FLAG0_ALLKILLED             16
+#define MACHINE_FLAG0_RELATIVE_COORD        32
+#define MACHINE_FLAG0_UNIT_IS_INCH          64
 
 #define MACHINE_FLAG1_HOMED_ALL             1
 #define MACHINE_FLAG1_X_HOMED               2
@@ -156,7 +159,6 @@ Step 2: Convert to RWC
     z_rwc -= Machine::offsetZ;
 */
 class Machine {
-    static uint8_t debugLevel;
 public:
     static long baudrate;                                       ///< Communication speed rate.
     static millis_t previousMillisCmd;
@@ -169,14 +171,10 @@ public:
     static float homingFeedrate[];                              // Feedrate in mm/s for homing.
 	static float maxAccelerationMMPerSquareSecond[];
 	static unsigned long maxAccelerationStepsPerSquareSecond[];
-	static uint8_t relativeCoordinateMode;                      ///< Determines absolute (false) or relative Coordinates (true).
 
-	static uint8_t unitIsInches;
-    static uint8_t fanSpeed;                                    // Last fan speed set with M106/M107
     static uint8_t intensityMultiply;
     static fast8_t stepsTillNextCalc;
     static fast8_t stepsSinceLastCalc;
-	static uint8_t flag0, flag1;
     static uint8_t mode;
     static uint32_t interval;                                   ///< Last step duration in ticks.
     static uint32_t timer;                                      ///< used for acceleration/deceleration timing
@@ -233,7 +231,6 @@ public:
 #endif
 #endif
 #if defined(PAUSE_PIN) && PAUSE_PIN>-1
-	static uint8_t isPaused;
 #if PAUSE_STEPS > 120
 	static int16_t pauseSteps;
 #else
@@ -246,6 +243,10 @@ public:
 #ifdef DEBUG_MACHINE
     static int debugWaitLoop;
 #endif
+#if ANALOG_INPUTS > 0
+    static Analog analog;
+#endif
+    static PWM pwm;
 
     static void checkForPeriodicalActions(bool allowNewMoves);
     static void timerInterrupt();
@@ -257,6 +258,7 @@ public:
     static void toggleCommunication();
     static void toggleNoMoves();
     static void toggleEndStop();
+
     static INLINE uint8_t getDebugLevel() {
         return debugLevel;
     }
@@ -295,6 +297,7 @@ public:
     static INLINE void debugReset(uint8_t flags) {
         setDebugLevel(debugLevel & ~flags);
     }
+
 #if AUTOMATIC_POWERUP
     static void enablePowerIfNeeded();
 #endif
@@ -432,6 +435,72 @@ public:
 		return ((READ(A_DIR_PIN) != 0) ^ INVERT_A_DIR);
 	}
 
+    static INLINE bool areAllSteppersDisabled() {
+        return flag0 & MACHINE_FLAG0_STEPPER_DISABLED;
+    }
+
+    static INLINE void setAllSteppersDiabled() {
+        flag0 |= MACHINE_FLAG0_STEPPER_DISABLED;
+#if FAN_BOARD_PIN > -1
+        pwm.set(FAN_BOARD_PWM_INDEX, BOARD_FAN_MIN_SPEED);
+#endif // FAN_BOARD_PIN
+    }
+
+    static INLINE void unsetAllSteppersDisabled() {
+        flag0 &= ~MACHINE_FLAG0_STEPPER_DISABLED;
+#if FAN_BOARD_PIN > -1
+        pwm.set(FAN_BOARD_PWM_INDEX, BOARD_FAN_SPEED);
+#endif // FAN_BOARD_PIN
+    }
+
+    static INLINE void setHasLines(bool lines) {
+        flag0 = (lines ? flag0 | MACHINE_FLAG0_HAS_LINES : flag0 & ~MACHINE_FLAG0_HAS_LINES);
+    }
+
+    static INLINE bool lastHasLines() {
+        return (flag0 & MACHINE_FLAG0_HAS_LINES);
+    }
+
+    static INLINE void setZProbingActive(bool on) {
+        flag0 = (on ? flag0 | MACHINE_FLAG0_ZPROBEING : flag0 & ~MACHINE_FLAG0_ZPROBEING);
+    }
+
+    static INLINE bool isZProbingActive() {
+        return (flag0 & MACHINE_FLAG0_ZPROBEING);
+    }
+
+    static INLINE uint8_t isPaused() {
+        return flag0 & MACHINE_FLAG0_PAUSED;
+    }
+
+    static INLINE void setPaused(uint8_t pause) {
+        flag0 = (pause ? flag0 | MACHINE_FLAG0_PAUSED : flag0 & ~MACHINE_FLAG0_PAUSED);
+    }
+
+    static INLINE uint8_t isAllKilled() {
+        return flag0 & MACHINE_FLAG0_ALLKILLED;
+    }
+
+    static INLINE void setAllKilled(uint8_t b) {
+        flag0 = (b ? flag0 | MACHINE_FLAG0_ALLKILLED : flag0 & ~MACHINE_FLAG0_ALLKILLED);
+    }
+
+    static INLINE uint8_t isRelativeCoordinateMode() {
+        return flag0 & MACHINE_FLAG0_RELATIVE_COORD;
+    }
+
+    static INLINE void setRelativeCoorinateMode(uint8_t coord) {
+        flag0 = (coord ? flag0 | MACHINE_FLAG0_RELATIVE_COORD : flag0 & ~MACHINE_FLAG0_RELATIVE_COORD);
+    }
+
+    static INLINE uint8_t isUnitInches() {
+        return flag0 & MACHINE_FLAG0_UNIT_IS_INCH;
+    }
+
+    static INLINE void setUnitInches(uint8_t inch) {
+        flag0 = (inch ? flag0 | MACHINE_FLAG0_UNIT_IS_INCH : flag0 & ~MACHINE_FLAG0_UNIT_IS_INCH);
+    }
+
     static INLINE uint8_t isHomedAll() {
         return flag1 & MACHINE_FLAG1_HOMED_ALL;
     }
@@ -473,14 +542,6 @@ public:
         updateHomedAll();
     }
 
-    static INLINE uint8_t isAllKilled() {
-		return flag0 & MACHINE_FLAG0_ALLKILLED;
-    }
-
-	static INLINE void setAllKilled(uint8_t b) {
-		flag0 = (b ? flag0 | MACHINE_FLAG0_ALLKILLED : flag0 & ~MACHINE_FLAG0_ALLKILLED);
-    }
-
     static INLINE uint8_t isNoDestinationCheck() {
 		return flag1 & MACHINE_FLAG1_NO_DESTINATION_CHECK;
     }
@@ -506,42 +567,8 @@ public:
 	}
 
     static INLINE float convertToMM(float x) {
-        return (unitIsInches ? x * 25.4 : x);
+        return (isUnitInches() ? x * 25.4f : x);
     }
-
-	static INLINE bool areAllSteppersDisabled() {
-		return flag0 & MACHINE_FLAG0_STEPPER_DISABLED;
-    }
-
-	static INLINE void setAllSteppersDiabled() {
-		flag0 |= MACHINE_FLAG0_STEPPER_DISABLED;
-#if FAN_BOARD_PIN > -1
-        PWM::set(FAN_BOARD_PWM_INDEX, BOARD_FAN_MIN_SPEED);
-#endif // FAN_BOARD_PIN
-    }
-
-	static INLINE void unsetAllSteppersDisabled() {
-        flag0 &= ~MACHINE_FLAG0_STEPPER_DISABLED;
-#if FAN_BOARD_PIN > -1
-        PWM::set(FAN_BOARD_PWM_INDEX, BOARD_FAN_SPEED);
-#endif // FAN_BOARD_PIN
-	}
-
-    static INLINE void setHasLines(bool lines) {
-        flag0 = (lines ? flag0 | MACHINE_FLAG0_HAS_LINES : flag0 & ~MACHINE_FLAG0_HAS_LINES);
-    }
-
-    static INLINE bool lastHasLines() {
-        return (flag0 & MACHINE_FLAG0_HAS_LINES);
-    }
-
-    static INLINE void setZProbingActive(bool on) {
-        flag0 = (on ? flag0 | MACHINE_FLAG0_ZPROBEING : flag0 & ~MACHINE_FLAG0_ZPROBEING);
-    }
-
-    static INLINE bool isZProbingActive() {
-        return (flag0 & MACHINE_FLAG0_ZPROBEING);
-	}
 
     static INLINE void setIgnoreFanCommand(bool enable) {
         flag1 = (enable ? flag1 | MACHINE_FLAG1_IGNORE_FAN_COMMAND : flag1 & ~MACHINE_FLAG1_IGNORE_FAN_COMMAND);
@@ -755,7 +782,6 @@ public:
     static void setup();
     static void defaultLoopActions();
     static void homeAxis(bool xaxis, bool yaxis, bool zaxis); /// Home axis
-    static void setOrigin(float xOff, float yOff, float zOff);
     /** \brief Tests if the target position is allowed.
 
     Tests if the test position lies inside the defined geometry. For Cartesian
@@ -785,12 +811,12 @@ public:
 #endif
 
 private:
+    static uint8_t          debugLevel;
+    static uint8_t          flag0, flag1;
+
     static uint16_t         counterPeriodical;
     static volatile uint8_t executePeriodical;
     static uint8_t          counter500ms;
-#if ANALOG_INPUTS > 0
-    static Analog           analog;
-#endif
 };
 
 #endif // MACHINE_H_INCLUDED
