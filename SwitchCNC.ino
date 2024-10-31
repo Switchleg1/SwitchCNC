@@ -1,20 +1,11 @@
-/**
-\mainpage Repetier-Firmware for Arduino based RepRaps
-<CENTER>Copyright &copy; 2011-2013 by repetier
-</CENTER>
+/*
 
-\section Intro Introduction
-
-
-\section GCodes Implemented GCodes
-
- look here for descriptions of gcodes: http://linuxcnc.org/handbook/gcode/g-code.html
- and http://objects.reprap.org/wiki/Mendel_User_Manual:_RepRapGCodes
+Modified version of Repetier Firmware for 4axis CNC and high resolution laser PWM applications
 
 Implemented Codes
 
 - G0  -> G1
-- G1  - Coordinated Movement X Y Z E, S1 disables boundary check, S0 enables it
+- G1  - Coordinated Movement X Y Z A, S1 disables boundary check, S0 enables it
 - G2 - Clockwise arc  X,Y,E = end position, R = Radius or I,J = center
 - G3 - Counterclockwise arc   X,Y,E = end position, R = Radius or I,J = center
 - G4  - Dwell S<seconds> or P<milliseconds>
@@ -29,6 +20,8 @@ Implemented Codes
 - G33 R0 - delete distortion map
 - G33 L0 - List distortion map
 - G33 X<xpos> Y<ypos> Z<newdistortioncorrection> - Set new distortion for nearest distortion point.
+- G38 <axis><distance/direction> (A)<tool diameter/height offset> - Set tool height or work piece offset
+- G41 - TMC driver read outs
 - G90 - Use absolute coordinates
 - G91 - Use relative coordinates
 - G92 - Set current position to coordinates given
@@ -52,6 +45,8 @@ Custom M Codes
 - M3 Sx - Spindle on, Clockwise or Laser on during G1 moves. Sx = laser intensity 0-255 if driver supports this (default ignores it)
 - M4 - Spindle on, Counterclockwise.
 - M5 - Spindle off, Laser off.
+- M10  - Vacuum on
+- M11  - Vacuum off
 - M20  - List SD card
 - M21  - Initialize SD card
 - M22  - Release SD card

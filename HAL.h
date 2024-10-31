@@ -192,7 +192,7 @@ public:
     of a 24 bit and 16 bit dividend, which often, but not always occur in updating the
     interval.
     */
-    static inline int32_t Div4U2U(uint32_t a,uint16_t b)
+    static inline int32_t Div4U2U(uint32_t a, uint16_t b)
     {
 		// r14/r15 remainder
         // r16 counter
