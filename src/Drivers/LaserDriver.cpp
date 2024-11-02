@@ -1,61 +1,132 @@
 #include "../../SwitchCNC.h"
 
-#if defined(SUPPORT_LASER) && SUPPORT_LASER
+#if SUPPORT_LASER
 
-uint8_t LaserDriver::intensity = LASER_PWM_MAX; // Intensity to use for next move queued if we want lasers. This is NOT the current value!
-uint8_t LaserDriver::minIntensity = 0; // Intensity to use for next move queued if we want lasers. This is NOT the current value!
-bool LaserDriver::laserOn = false;
-bool LaserDriver::firstMove = true;
-float LaserDriver::temperature = 0;
+uint8_t LaserDriver::laserOn;
+uint8_t LaserDriver::intensityMultiplier;
+uint8_t LaserDriver::currentIntensity;
+uint8_t LaserDriver::minimumIntensity;
+uint8_t LaserDriver::nextIntensity;
+float LaserDriver::currentTemperature;
 
 void LaserDriver::initialize() {
+    laserOn = false;
+    intensityMultiplier = 100;
+    currentIntensity = 0;
+    minimumIntensity = 0;
+    nextIntensity = 0;
+    currentTemperature = 0;
+
     if (EVENT_INITIALIZE_LASER) {
-#if defined(SUPPORT_LASER) && SUPPORT_LASER
         // Set up Timer5 in 8-bit Fast PWM mode, with a TOP value of 255
         TCCR5A |= (1 << COM5B1) | (1 << WGM50); // set up Fast PWM
         TCCR5B = (TCCR5B & 0xF0) | (1 << WGM52) | (1 << CS51);
         OCR5A = 0xFF;
         OCR5B = 0;  // Set PWM value to zero value
         SET_OUTPUT(45);
-#endif
     }
 }
 
-void LaserDriver::changeIntensity(uint8_t newIntensity) {
-#if defined(SUPPORT_LASER) && SUPPORT_LASER
-    uint16_t addFlow = newIntensity;
-    if (addFlow) {
-        addFlow *= Machine::intensityMultiply;
-        addFlow /= 100;
-        if (addFlow > 0xFF) {
-            addFlow = 0xFF;
-        }
-    }
-
-    if (addFlow < minIntensity) {
-        addFlow = minIntensity;
-    }
-    OCR5B = addFlow;
-#endif
-}
-
-void LaserDriver::turnOn() {
+void LaserDriver::turnOn(uint8_t minIntensity, uint8_t quiet) {
     if (laserOn) {
+        setMinimumIntensity(minIntensity, true);
         return;
     }
+    Commands::waitUntilEndOfAllMoves();
 
     laserOn = true;
-    Com::printFLN(Com::tLaserOn, (int)intensity);
+
+    setMinimumIntensity(minIntensity, true);
+
+#if LASER_WARMUP_TIME > 0
+    if (minIntensity) {
+        Commands::waitUntilEndOfAllMoves();
+        HAL::delaySeconds(LASER_WARMUP_TIME);
+    }
+#endif
+
+    if (!quiet) {
+        printState();
+    }
 }
 
-void LaserDriver::turnOff(bool instantOff) {
+void LaserDriver::turnOff(uint8_t quiet) {
     if (!laserOn) {
         return;
     }
 
+    Commands::waitUntilEndOfAllMoves();
+
     laserOn = false;
-    if (instantOff) OCR5B = 0;
-    Com::printFLN(Com::tLaserOff);
+
+    currentIntensity = 0;
+    OCR5B = 0;
+
+    if (!quiet) {
+        printState();
+    }
+}
+
+void LaserDriver::setIntensity(uint16_t intensity) {
+    if (laserOn) {
+        if (intensity) {
+            intensity *= intensityMultiplier;
+            intensity /= 100;
+            if (intensity > LASER_PWM_MAX) {
+                intensity = LASER_PWM_MAX;
+            }
+        }
+
+        if (intensity < minimumIntensity) {
+            intensity = minimumIntensity;
+        }
+
+        currentIntensity = intensity;
+
+        OCR5B = currentIntensity;
+    }
+}
+
+void LaserDriver::setNextIntensity(uint8_t intensity, uint8_t immediately) {
+    if (intensity > LASER_PWM_MAX) {
+        intensity = LASER_PWM_MAX;
+    }
+
+    if (intensity < minimumIntensity) {
+        intensity = minimumIntensity;
+    }
+
+    nextIntensity = intensity;
+
+    if (MachineLine::linesCount == 0 || immediately) {
+        for (fast8_t i = 0; i < MACHINELINE_CACHE_SIZE; i++) {
+            MachineLine::lines[i].laserIntensity = intensity;
+        }
+
+        setIntensity(nextIntensity);
+    }
+}
+
+void LaserDriver::setIntensityMultiplier(uint8_t multiplier) {
+    if (multiplier < 25) multiplier = 25;
+    if (multiplier > 200) multiplier = 200;
+    intensityMultiplier = multiplier;
+
+    setIntensity(currentIntensity);
+
+    Com::printFLN(Com::tIntensityMultiply, multiplier);
+}
+
+void LaserDriver::setMinimumIntensity(uint8_t intensity, uint8_t quiet) {
+    minimumIntensity = intensity;
+
+    if (currentIntensity < minimumIntensity) {
+        setIntensity(0);
+    }
+
+    if (!quiet) {
+        printState();
+    }
 }
 
 void LaserDriver::updateTemperature() {
@@ -75,7 +146,7 @@ void LaserDriver::updateTemperature() {
         newRaw = pgm_read_word(&temperatureTables[i][TEMPERATURE_RAW][LASER_TEMP_SENSOR_TYPE]);
         newTemp = pgm_read_word(&temperatureTables[i][TEMERATURE_TEMP][LASER_TEMP_SENSOR_TYPE]);
         if (newRaw > tempRaw) {
-            temperature = oldTemp + ((float)(tempRaw - oldRaw) * (float)(newTemp - oldTemp) / (float)(newRaw - oldRaw));
+            currentTemperature = oldTemp + ((float)(tempRaw - oldRaw) * (float)(newTemp - oldTemp) / (float)(newRaw - oldRaw));
             return;
         }
         oldTemp = newTemp;
@@ -83,7 +154,14 @@ void LaserDriver::updateTemperature() {
         i++;
     }
 
-    temperature = newTemp;
+    currentTemperature = newTemp;
+}
+
+void LaserDriver::printState() {
+    Com::printF(Com::tLaserState, laserOn);
+    if (laserOn && minimumIntensity) {
+        Com::printFLN(Com::tSpaceMinimumIntensity, minimumIntensity);
+    }
 }
 
 #endif // SUPPORT_LASER

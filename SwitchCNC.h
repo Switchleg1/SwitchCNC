@@ -54,8 +54,6 @@ usage or for searching for memory induced errors. Switch it off for production, 
 //#define DEBUG_COM_ERRORS
 /** Adds a menu point in quick settings to write debug informations to the host in case of hangs where the ui still works. */
 //#define DEBUG_MACHINE
-// Find the longest segment length during a print
-//#define DEBUG_SEGMENT_LENGTH
 // Find the maximum real jerk during a print
 //#define DEBUG_REAL_JERK
 // Uncomment the following line to enable debugging. You can better control debugging below the following line
@@ -278,6 +276,8 @@ usage or for searching for memory induced errors. Switch it off for production, 
 #include "src/Drivers/SpindleDriver.h"
 #include "src/Drivers/VacuumDriver.h"
 #include "src/Drivers/FanDriver.h"
+#include "src/Drivers/CoolantMistDriver.h"
+#include "src/Drivers/CoolantFloodDriver.h"
 #include "Events.h"
 
 #if SDSUPPORT

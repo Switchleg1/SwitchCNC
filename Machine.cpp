@@ -29,7 +29,6 @@ uint8_t Machine::mode   = DEFAULT_MACHINE_MODE;
 uint8_t Machine::debugLevel = 6;                    ///< Bitfield defining debug output. 1 = echo, 2 = info, 4 = error, 8 = dry run., 16 = Only communication, 32 = No moves
 fast8_t Machine::stepsTillNextCalc = 1;
 fast8_t Machine::stepsSinceLastCalc = 1;
-uint8_t Machine::intensityMultiply = 0;
 uint32_t Machine::interval = 30000;                 ///< Last step duration in ticks.
 uint32_t Machine::timer;                            ///< used for acceleration/deceleration timing
 uint32_t Machine::stepNumber;                       ///< Step number in current move.
@@ -50,9 +49,6 @@ uint8_t Machine::backlashDir;
 #endif
 float Machine::memoryPosition[A_AXIS_ARRAY] = {IGNORE_COORDINATE, IGNORE_COORDINATE, IGNORE_COORDINATE, IGNORE_COORDINATE};
 float Machine::memoryF = -1;
-#ifdef DEBUG_SEGMENT_LENGTH
-float Machine::maxRealSegmentLength = 0;
-#endif
 #ifdef DEBUG_REAL_JERK
 float Machine::maxRealJerk = 0;
 #endif
@@ -199,12 +195,6 @@ void Machine::checkForPeriodicalActions(bool allowNewMoves)
 
         setPaused(getPaused);
     }
-
-#if defined(SUPPORT_LASER) && SUPPORT_LASER
-    if (isPaused() && mode == MACHINE_MODE_LASER) {
-        LaserDriver::changeIntensity(0);
-    }
-#endif
 #endif //PAUSE_PIN
 
 #if SPEED_DIAL && SPEED_DIAL_PIN > -1
@@ -376,9 +366,9 @@ void Machine::kill(uint8_t onlySteppers) {
 #endif
         setAllKilled(true);
 	}
-#if FAN_BOARD_PIN > -1
-    pwm.set(FAN_BOARD_PWM_INDEX, BOARD_FAN_MIN_SPEED);
-#endif // FAN_BOARD_PIN
+#if FEATURE_FAN_CONTROL
+    FanDriver::setSpeed(0, FAN_BOARD_INDEX);
+#endif
 }
 
 void Machine::moveToReal(float x, float y, float z, float a, float f, bool pathOptimize) {
@@ -490,20 +480,11 @@ uint8_t Machine::setDestinationStepsFromGCode(GCode *com) {
 }
 
 void Machine::setup() {
-	//SPI fix
-	pinMode(SS, OUTPUT);
-	pinMode(SCK, OUTPUT);
-	pinMode(MOSI, OUTPUT);
-
-	digitalWrite(SS, LOW);
+    HAL::spiBegin();
 
     HAL::stopWatchdog();
-    pwm.clear();
 #if defined(MB_SETUP)
     MB_SETUP;
-#endif
-#if defined(EEPROM_AVAILABLE) && defined(EEPROM_SPI_ALLIGATOR) && EEPROM_AVAILABLE == EEPROM_SPI_ALLIGATOR
-    HAL::spiBegin();
 #endif
     HAL::hwSetup();
     EVENT_INITIALIZE_EARLY
@@ -559,7 +540,6 @@ void Machine::setup() {
     PULLUP(SDCARDDETECT, HIGH);
 #endif
 #endif
-
 
     //Initialize Step Pins
     SET_OUTPUT(X_STEP_PIN);
@@ -632,33 +612,23 @@ void Machine::setup() {
     PULLUP(PAUSE_PIN, HIGH);
 #endif
 #endif
-#if FAN_PIN > -1 && FEATURE_FAN_CONTROL
-    SET_OUTPUT(FAN_PIN);
-    WRITE(FAN_PIN, LOW);
-#endif
-#if FAN2_PIN > -1 && FEATURE_FAN2_CONTROL
-    SET_OUTPUT(FAN2_PIN);
-    WRITE(FAN2_PIN, LOW);
-#endif
-#if FAN_BOARD_PIN>-1
-    SET_OUTPUT(FAN_BOARD_PIN);
-    WRITE(FAN_BOARD_PIN, LOW);
-    pwm.set(FAN_BOARD_PWM_INDEX, BOARD_FAN_MIN_SPEED);
-#endif
     HAL::delayMilliseconds(1);
 #if CASE_LIGHTS_PIN >= 0
     SET_OUTPUT(CASE_LIGHTS_PIN);
     WRITE(CASE_LIGHTS_PIN, CASE_LIGHT_DEFAULT_ON);
 #endif // CASE_LIGHTS_PIN
 
-#if defined(SUPPORT_SPINDLE) && SUPPORT_SPINDLE
+#if SUPPORT_SPINDLE
 	SpindleDriver::initialize();
 #endif
-#if defined(SUPPORT_LASER) && SUPPORT_LASER
+#if SUPPORT_LASER
     LaserDriver::initialize();
 #endif
-#if defined(SUPPORT_VACUUM) && SUPPORT_VACUUM
+#if SUPPORT_VACUUM
     VacuumDriver::initialize();
+#endif
+#if FEATURE_FAN_CONTROL
+    FanDriver::initialize();
 #endif
 
 #ifdef RED_BLUE_STATUS_LEDS
@@ -761,16 +731,18 @@ void Machine::setup() {
 void Machine::defaultLoopActions() {
     checkForPeriodicalActions(true);
 	millis_t curtime = HAL::timeInMilliseconds();
-	if(MachineLine::hasLines())
+    if (MachineLine::hasLines()) {
         previousMillisCmd = curtime;
+    }
     else {
         curtime -= previousMillisCmd;
-        if(maxInactiveTime != 0 && curtime > maxInactiveTime)
-            kill(false);
-        else
-            setAllKilled(false); // prevent repeated kills
-        if(stepperInactiveTime != 0 && curtime > stepperInactiveTime)
+
+        if(maxInactiveTime != 0 && curtime > maxInactiveTime) kill(false);
+        else setAllKilled(false); // prevent repeated kills
+
+        if (stepperInactiveTime != 0 && curtime > stepperInactiveTime) {
             kill(true);
+        }
     }
 #if SDCARDDETECT > -1 && SDSUPPORT
     sd.automount();
@@ -816,9 +788,8 @@ void Machine::homeXAxis() {
 		currentPositionSteps[X_AXIS] = (X_HOME_DIR == -1) ? axisMinSteps[X_AXIS] - offX : axisMaxSteps[X_AXIS] + offX;
         MachineLine::moveRelativeDistanceInSteps(axisStepsPerMM[X_AXIS] * -ENDSTOP_X_BACK_MOVE * X_HOME_DIR, 0, 0, 0, homingFeedrate[X_AXIS] / ENDSTOP_X_RETEST_REDUCTION_FACTOR, true, false);
         MachineLine::moveRelativeDistanceInSteps(axisStepsPerMM[X_AXIS] * 2 * ENDSTOP_X_BACK_MOVE * X_HOME_DIR, 0, 0, 0, homingFeedrate[X_AXIS] / ENDSTOP_X_RETEST_REDUCTION_FACTOR, true, true);
-#if defined(ENDSTOP_X_BACK_ON_HOME)
-        if(ENDSTOP_X_BACK_ON_HOME > 0)
-            MachineLine::moveRelativeDistanceInSteps(axisStepsPerMM[X_AXIS] * -ENDSTOP_X_BACK_ON_HOME * X_HOME_DIR, 0, 0, 0, homingFeedrate[X_AXIS], true, true);
+#if ENDSTOP_X_BACK_ON_HOME > 0
+        MachineLine::moveRelativeDistanceInSteps(axisStepsPerMM[X_AXIS] * -ENDSTOP_X_BACK_ON_HOME * X_HOME_DIR, 0, 0, 0, homingFeedrate[X_AXIS], true, true);
 #endif
 		currentPositionSteps[X_AXIS] = (X_HOME_DIR == -1) ? axisMinSteps[X_AXIS] - offX : axisMaxSteps[X_AXIS] + offX;
         setXHomed(true);
@@ -840,9 +811,8 @@ void Machine::homeYAxis() {
         MachineLine::moveRelativeDistanceInSteps(0, axisStepsPerMM[Y_AXIS] * -ENDSTOP_Y_BACK_MOVE * Y_HOME_DIR, 0, 0, homingFeedrate[Y_AXIS] / ENDSTOP_X_RETEST_REDUCTION_FACTOR, true, false);
         MachineLine::moveRelativeDistanceInSteps(0, axisStepsPerMM[Y_AXIS] * 2 * ENDSTOP_Y_BACK_MOVE * Y_HOME_DIR, 0, 0, homingFeedrate[Y_AXIS] / ENDSTOP_X_RETEST_REDUCTION_FACTOR, true, true);
         setHoming(false);
-#if defined(ENDSTOP_Y_BACK_ON_HOME)
-        if(ENDSTOP_Y_BACK_ON_HOME > 0)
-            MachineLine::moveRelativeDistanceInSteps(0, axisStepsPerMM[Y_AXIS] * -ENDSTOP_Y_BACK_ON_HOME * Y_HOME_DIR, 0, 0, homingFeedrate[Y_AXIS], true, false);
+#if ENDSTOP_Y_BACK_ON_HOME > 0
+        MachineLine::moveRelativeDistanceInSteps(0, axisStepsPerMM[Y_AXIS] * -ENDSTOP_Y_BACK_ON_HOME * Y_HOME_DIR, 0, 0, homingFeedrate[Y_AXIS], true, false);
 #endif
 		currentPositionSteps[Y_AXIS] = (Y_HOME_DIR == -1) ? axisMinSteps[Y_AXIS] - offY : axisMaxSteps[Y_AXIS] + offY;
         setYHomed(true);
@@ -947,10 +917,9 @@ GCode::executeFString(PSTR(Z_PROBE_RUN_AFTER_EVERY_PROBE));
         //transformToPrinter(currentPosition[X_AXIS],currentPosition[Y_AXIS],0,xt,yt,zt);
         //zCorrection -= zt;
 #endif
-#if defined(ENDSTOP_Z_BACK_ON_HOME)
+#if ENDSTOP_Z_BACK_ON_HOME > 0
         // If we want to go up a bit more for some reason
-        if(ENDSTOP_Z_BACK_ON_HOME > 0)
-            zCorrection -= axisStepsPerMM[Z_AXIS] * ENDSTOP_Z_BACK_ON_HOME * Z_HOME_DIR;
+        zCorrection -= axisStepsPerMM[Z_AXIS] * ENDSTOP_Z_BACK_ON_HOME * Z_HOME_DIR;
 #endif
         //Com::printFLN(PSTR("Z-Correction-Steps:"),zCorrection); // TEST
 		MachineLine::moveRelativeDistanceInSteps(0, 0, zCorrection, 0, homingFeedrate[Z_AXIS], true, false);
@@ -986,9 +955,11 @@ void Machine::homeAxis(bool xaxis, bool yaxis, bool zaxis) { // home non-delta p
     bool nocheck = isNoDestinationCheck();
     setNoDestinationCheck(true);
 
-#if defined(SUPPORT_LASER) && SUPPORT_LASER
-    bool oldLaser = LaserDriver::laserOn;
-    LaserDriver::laserOn = false;
+#if SUPPORT_LASER
+    uint8_t wasLaserOn = LaserDriver::isOn();
+    if (mode == MACHINE_MODE_LASER) {
+        LaserDriver::turnOff();
+    }
 #endif
 
     float startPosition[A_AXIS_ARRAY];
@@ -1068,8 +1039,10 @@ void Machine::homeAxis(bool xaxis, bool yaxis, bool zaxis) { // home non-delta p
 	updateCurrentPosition(true);
     updateHomedAll();
 	Commands::printCurrentPosition();
-#if defined(SUPPORT_LASER) && SUPPORT_LASER
-    LaserDriver::laserOn = oldLaser;
+#if SUPPORT_LASER
+    if (wasLaserOn) {
+        LaserDriver::turnOn();
+    }
 #endif
     setNoDestinationCheck(nocheck);
     updateCurrentPosition();
@@ -1093,48 +1066,62 @@ void Machine::reportCaseLightStatus() {
 #endif
 }
 
+void Machine::changeFeedrateMultiply(uint16_t factor) {
+    feedrate *= (float)factor / (float)feedrateMultiply;
+    feedrateMultiply = factor;
+
+    Com::printFLN(Com::tSpeedMultiply, factor);
+}
+
+void Machine::showCapabilities() {
+    Com::writeToAll = false;
+    Com::printFLN(Com::tFirmware);
+    Com::cap(Com::tCapEeprom, EEPROM_MODE != 0);
+    Com::cap(Com::tCapZProbe, FEATURE_Z_PROBE);
+    Com::cap(Com::tCapSoftwarePower, PS_ON_PIN > -1);
+    Com::cap(Com::tCapToggleLights, CASE_LIGHTS_PIN > -1);
+    Com::cap(Com::tCapCoolantMist, SUPPORT_COOLANT && COOLANT_MIST_PIN > -1);
+    Com::cap(Com::tCapCoolantFlood, SUPPORT_COOLANT && COOLANT_FLOOD_PIN > -1);
+    Com::cap(Com::tCapDistortionCorrection, DISTORTION_CORRECTION);
+    Com::cap(Com::tCapVacuum, SUPPORT_VACUUM);
+    Com::cap(Com::tCapSDCard, SDSUPPORT);
+    Com::cap(Com::tCapFanControl, FEATURE_FAN_CONTROL);
+    if (FEATURE_FAN_CONTROL) {
+        Com::cap(Com::tCapFan, FAN_PIN > -1);
+        Com::cap(Com::tCapFan2, FAN2_PIN > -1);
+    }
+}
+
 void Machine::showConfiguration() {
-	Com::config(PSTR("Baudrate:"), baudrate);
+	Com::config(Com::tCfgBaudrate, baudrate);
 #ifndef EXTERNALSERIAL
-    Com::config(PSTR("InputBuffer:"), SERIAL_BUFFER_SIZE - 1);
+    Com::config(Com::tCfgInputBuffer, SERIAL_BUFFER_SIZE - 1);
 #endif
-	Com::config(PSTR("SDCard:"), SDSUPPORT);
-    Com::config(PSTR("Fan:"), FAN_PIN > -1 && FEATURE_FAN_CONTROL);
-#if FEATURE_FAN2_CONTROL && defined(FAN2_PIN) && FAN2_PIN > -1
-    Com::config(PSTR("Fan2:1"));
-#else
-    Com::config(PSTR("Fan2:0"));
-#endif
-	Com::config(PSTR("SoftwarePowerSwitch:"), PS_ON_PIN > -1);
-    Com::config(PSTR("XHomeDir:"), X_HOME_DIR);
-    Com::config(PSTR("YHomeDir:"), Y_HOME_DIR);
-	Com::config(PSTR("ZHomeDir:"), Z_HOME_DIR);
-	Com::config(PSTR("XHomePos:"), axisMin[X_AXIS] + (X_HOME_DIR > 0 ? axisLength[X_AXIS] : 0), 2);
-	Com::config(PSTR("YHomePos:"), axisMin[Y_AXIS] + (Y_HOME_DIR > 0 ? axisLength[Y_AXIS] : 0), 2);
-	Com::config(PSTR("ZHomePos:"), axisMin[Z_AXIS] + (Z_HOME_DIR > 0 ? axisLength[Z_AXIS] : 0), 3);
-	Com::config(PSTR("CaseLights:"), CASE_LIGHTS_PIN > -1);
-    Com::config(PSTR("ZProbe:"), FEATURE_Z_PROBE);
-	Com::config(PSTR("EEPROM:"), EEPROM_MODE != 0);
-    Com::config(PSTR("MachinelineCache:"), MACHINELINE_CACHE_SIZE);
-	Com::config(PSTR("KeepAliveInterval:"), KEEP_ALIVE_INTERVAL);
-	Com::config(PSTR("JerkX:"), maxJerk[X_AXIS]);
-	Com::config(PSTR("JerkY:"), maxJerk[Y_AXIS]);
-	Com::config(PSTR("JerkZ:"), maxJerk[Z_AXIS]);
-	Com::config(PSTR("JerkA:"), maxJerk[A_AXIS]);
-	Com::config(PSTR("XMin:"), axisMin[X_AXIS]);
-	Com::config(PSTR("YMin:"), axisMin[Y_AXIS]);
-	Com::config(PSTR("ZMin:"), axisMin[Z_AXIS]);
-	Com::config(PSTR("XMax:"), axisMin[X_AXIS] + axisLength[X_AXIS]);
-	Com::config(PSTR("YMax:"), axisMin[Y_AXIS] + axisLength[Y_AXIS]);
-	Com::config(PSTR("ZMax:"), axisMin[Z_AXIS] + axisLength[Z_AXIS]);
-	Com::config(PSTR("XSize:"), axisLength[X_AXIS]);
-	Com::config(PSTR("YSize:"), axisLength[Y_AXIS]);
-	Com::config(PSTR("ZSize:"), axisLength[Z_AXIS]);
-	Com::config(PSTR("XPrintAccel:"), maxAccelerationMMPerSquareSecond[X_AXIS]);
-	Com::config(PSTR("YPrintAccel:"), maxAccelerationMMPerSquareSecond[Y_AXIS]);
-	Com::config(PSTR("ZPrintAccel:"), maxAccelerationMMPerSquareSecond[Z_AXIS]);
-	Com::config(PSTR("APrintAccel:"), maxAccelerationMMPerSquareSecond[A_AXIS]);
-	Com::config(PSTR("PrinterType:Cartesian"));
+    Com::config(Com::tCfgXHomeDir, X_HOME_DIR);
+    Com::config(Com::tCfgYHomeDir, Y_HOME_DIR);
+	Com::config(Com::tCfgZHomeDir, Z_HOME_DIR);
+	Com::config(Com::tCfgXHomePos, axisMin[X_AXIS] + (X_HOME_DIR > 0 ? axisLength[X_AXIS] : 0), 2);
+	Com::config(Com::tCfgYHomePos, axisMin[Y_AXIS] + (Y_HOME_DIR > 0 ? axisLength[Y_AXIS] : 0), 2);
+	Com::config(Com::tCfgZHomePos, axisMin[Z_AXIS] + (Z_HOME_DIR > 0 ? axisLength[Z_AXIS] : 0), 3);
+    Com::config(Com::tCfgMachinelineCache, MACHINELINE_CACHE_SIZE);
+	Com::config(Com::tCfgKeepAliveInterval, KEEP_ALIVE_INTERVAL);
+	Com::config(Com::tCfgJerkX, maxJerk[X_AXIS]);
+	Com::config(Com::tCfgJerkY, maxJerk[Y_AXIS]);
+	Com::config(Com::tCfgJerkZ, maxJerk[Z_AXIS]);
+	Com::config(Com::tCfgJerkA, maxJerk[A_AXIS]);
+	Com::config(Com::tCfgXMin, axisMin[X_AXIS]);
+	Com::config(Com::tCfgYMin, axisMin[Y_AXIS]);
+	Com::config(Com::tCfgZMin, axisMin[Z_AXIS]);
+	Com::config(Com::tCfgXMax, axisMin[X_AXIS] + axisLength[X_AXIS]);
+	Com::config(Com::tCfgYMax, axisMin[Y_AXIS] + axisLength[Y_AXIS]);
+	Com::config(Com::tCfgZMax, axisMin[Z_AXIS] + axisLength[Z_AXIS]);
+	Com::config(Com::tCfgXSize, axisLength[X_AXIS]);
+	Com::config(Com::tCfgYSize, axisLength[Y_AXIS]);
+	Com::config(Com::tCfgZSize, axisLength[Z_AXIS]);
+	Com::config(Com::tCfgXAccel, maxAccelerationMMPerSquareSecond[X_AXIS]);
+	Com::config(Com::tCfgYAccel, maxAccelerationMMPerSquareSecond[Y_AXIS]);
+	Com::config(Com::tCfgZAccel, maxAccelerationMMPerSquareSecond[Z_AXIS]);
+	Com::config(Com::tCfgAAccel, maxAccelerationMMPerSquareSecond[A_AXIS]);
 }
 
 #if TMC_DRIVERS

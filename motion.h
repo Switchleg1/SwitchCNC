@@ -10,6 +10,9 @@
 #define FLAG_BLOCKED            128
 
 #define FLAG_TOOL_VACUUM_ON     1
+#define FLAG_TOOL_MIST_ON       2
+#define FLAG_TOOL_FLOOD_ON      4
+
 
 /** Are the step parameter computed */
 #define FLAG_JOIN_STEPPARAMS_COMPUTED 1
@@ -27,10 +30,10 @@ public:
     volatile ufast8_t flags;
     
     uint8_t toolFlags;
-#if defined(SUPPORT_LASER) && SUPPORT_LASER
+#if SUPPORT_LASER
     uint8_t laserIntensity;
 #endif
-#if FAN_PIN >- 1 && FEATURE_FAN_CONTROL
+#if FEATURE_FAN_CONTROL
     uint8_t fanSpeed;
 #endif
 private:

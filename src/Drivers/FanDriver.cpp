@@ -1,6 +1,6 @@
 #include "../../SwitchCNC.h"
 
-#if FAN_PIN >- 1 && FEATURE_FAN_CONTROL
+#if FEATURE_FAN_CONTROL
 
 uint8_t FanDriver::nextSpeed;
 uint8_t FanDriver::currentSpeed;
@@ -11,6 +11,7 @@ void FanDriver::initialize() {
 
 	Machine::pwm.set(FAN_PWM_INDEX, 0);
 	Machine::pwm.set(FAN2_PWM_INDEX, 0);
+	Machine::pwm.set(FAN_BOARD_PWM_INDEX, FAN_BOARD_MIN_SPEED);
 }
 
 void FanDriver::setNextSpeed(uint8_t speed, bool immediately) {
@@ -29,25 +30,28 @@ void FanDriver::setNextSpeed(uint8_t speed, bool immediately) {
 }
 
 void FanDriver::setSpeed(uint8_t speed, uint8_t fan) {
-#if FAN2_PIN >- 1 && FEATURE_FAN2_CONTROL
-	if (fan) {
+	switch(fan) {
+	case FAN_INDEX:
+		if (currentSpeed != speed) {
+			Machine::pwm.set(FAN_PWM_INDEX, speed);
+			currentSpeed = speed;
+			Com::printFLN(Com::tFanspeed, speed);
+		}
+		break;
+	case FAN2_INDEX:
 		Machine::pwm.set(FAN2_PWM_INDEX, speed);
-
-		Com::printFLN(Com::tFan2speed, speed); // send only new values to break update loops!
-
-		return;
+		Com::printFLN(Com::tFan2speed, speed);
+		break;
+	case FAN_BOARD_INDEX:
+		if (speed < FAN_BOARD_MIN_SPEED) {
+			speed = FAN_BOARD_MIN_SPEED;
+		}
+		if (speed > FAN_BOARD_MAX_SPEED) {
+			speed = FAN_BOARD_MAX_SPEED;
+		}
+		Machine::pwm.set(FAN_BOARD_PWM_INDEX, speed);
+		break;
 	}
-#endif
-
-	if (currentSpeed == speed) {
-		return;
-	}
-
-	Machine::pwm.set(FAN_PWM_INDEX, speed);
-
-	currentSpeed = speed;
-
-	Com::printFLN(Com::tFanspeed, speed); // send only new values to break update loops!
 }
 
 #endif

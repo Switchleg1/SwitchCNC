@@ -78,6 +78,7 @@ union floatLong {
 #include "PWM.h"
 #include "Temperature.h"
 #include "ZProbe.h"
+#include "src/Drivers/FanDriver.h"
 
 /**
 The Printer class is the main class for the control of the 3d printer. Here all
@@ -172,7 +173,6 @@ public:
 	static float maxAccelerationMMPerSquareSecond[];
 	static unsigned long maxAccelerationStepsPerSquareSecond[];
 
-    static uint8_t intensityMultiply;
     static fast8_t stepsTillNextCalc;
     static fast8_t stepsSinceLastCalc;
     static uint8_t mode;
@@ -210,9 +210,6 @@ public:
 #endif
 	static float memoryPosition[A_AXIS_ARRAY];
 	static float memoryF;
-#ifdef DEBUG_SEGMENT_LENGTH
-    static float maxRealSegmentLength;
-#endif
 #ifdef DEBUG_REAL_JERK
     static float maxRealJerk;
 #endif
@@ -441,16 +438,16 @@ public:
 
     static INLINE void setAllSteppersDiabled() {
         flag0 |= MACHINE_FLAG0_STEPPER_DISABLED;
-#if FAN_BOARD_PIN > -1
-        pwm.set(FAN_BOARD_PWM_INDEX, BOARD_FAN_MIN_SPEED);
-#endif // FAN_BOARD_PIN
+#if FEATURE_FAN_CONTROL
+        FanDriver::setSpeed(0, FAN_BOARD_INDEX);
+#endif
     }
 
     static INLINE void unsetAllSteppersDisabled() {
         flag0 &= ~MACHINE_FLAG0_STEPPER_DISABLED;
-#if FAN_BOARD_PIN > -1
-        pwm.set(FAN_BOARD_PWM_INDEX, BOARD_FAN_SPEED);
-#endif // FAN_BOARD_PIN
+#if FEATURE_FAN_CONTROL
+        FanDriver::setSpeed(255, FAN_BOARD_INDEX);
+#endif
     }
 
     static INLINE void setHasLines(bool lines) {
@@ -796,6 +793,8 @@ public:
 	static void SetMemoryPosition();
     static void GoToMemoryPosition(bool x, bool y, bool z, bool a, float feed);
 
+    static void changeFeedrateMultiply(uint16_t factor);
+    static void showCapabilities();
     static void showConfiguration();
     static void setCaseLight(bool on);
     static void reportCaseLightStatus();

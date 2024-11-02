@@ -1,6 +1,6 @@
 #include "../../SwitchCNC.h"
 
-#if defined(SUPPORT_VACUUM) && SUPPORT_VACUUM
+#if SUPPORT_VACUUM
 
 uint8_t VacuumDriver::nextState;
 uint8_t VacuumDriver::currentState;
@@ -9,7 +9,7 @@ void VacuumDriver::initialize() {
 	nextState = 0;
 	currentState = 0;
 
-#if VACUUM_PIN>-1
+#if VACUUM_PIN >- 1
 	SET_OUTPUT(VACUUM_PIN);
 	WRITE(VACUUM_PIN, LOW);
 #endif
@@ -38,7 +38,7 @@ void VacuumDriver::setState(uint8_t state) {
 		return;
 	}
 
-#if VACUUM_PIN>-1
+#if VACUUM_PIN >- 1
 	WRITE(VACUUM_PIN, state ? HIGH : LOW);
 #endif
 

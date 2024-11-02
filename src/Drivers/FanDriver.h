@@ -1,7 +1,11 @@
 #ifndef FANDRIVER_H
 #define FANDRIVER_H
 
-#if FAN_PIN >- 1 && FEATURE_FAN_CONTROL
+#define FAN_INDEX		0
+#define FAN2_INDEX		1
+#define FAN_BOARD_INDEX	2
+
+#if FEATURE_FAN_CONTROL
 
 class FanDriver {
 public:

@@ -13,14 +13,12 @@ public:
     static void waitUntilEndOfAllMoves();
     static void waitUntilEndOfAllBuffers();
     static void printCurrentPosition();
-    static void changeFeedrateMultiply(int factor);
-    static void changeIntensityMultiply(int factor);
     static void emergencyStop();
     static void checkFreeMemory();
     static void writeLowestFreeRAM();
 private:
-    static int lowestRAMValue;
-    static int lowestRAMValueSend;
+    static uint16_t lowestRAMValue;
+    static uint16_t lowestRAMValueSend;
 };
 
 #endif // COMMANDS_H_INCLUDED

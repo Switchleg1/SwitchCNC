@@ -163,17 +163,29 @@ void MachineLine::queueCartesianSegmentTo(int32_t *segmentSteps, uint8_t addDist
         Machine::currentPositionSteps[axis] = segmentSteps[axis];
     }
 
-#if defined(SUPPORT_LASER) && SUPPORT_LASER
-    p->laserIntensity = LaserDriver::intensity;
+#if SUPPORT_LASER
+    p->laserIntensity = LaserDriver::next();
 #endif
-#if FAN_PIN >- 1 && FEATURE_FAN_CONTROL
+#if FEATURE_FAN_CONTROL
     p->fanSpeed = FanDriver::next();
 #endif
 
     p->toolFlags = 0;
-#if defined(SUPPORT_VACUUM) && SUPPORT_VACUUM
+#if SUPPORT_VACUUM
     if (VacuumDriver::next()) {
         p->toolFlags |= FLAG_TOOL_VACUUM_ON;
+    }
+#endif
+
+#if SUPPORT_COOLANT && COOLANT_MIST_PIN > -1
+    if (CoolantMistDriver::next()) {
+        p->toolFlags |= FLAG_TOOL_MIST_ON;
+    }
+#endif
+
+#if SUPPORT_COOLANT && COOLANT_FLOOD_PIN > -1
+    if (CoolantFloodDriver::next()) {
+        p->toolFlags |= FLAG_TOOL_FLOOD_ON;
     }
 #endif
 
@@ -1051,16 +1063,22 @@ uint32_t MachineLine::bresenhamStep() {
 		Machine::timer = 0;
 		HAL::forbidInterrupts();
 
-#if defined(SUPPORT_LASER) && SUPPORT_LASER
+#if SUPPORT_LASER
         if (Machine::mode == MACHINE_MODE_LASER) {
-            LaserDriver::changeIntensity(cur->laserIntensity);
+            LaserDriver::setIntensity(cur->laserIntensity);
         }
 #endif
-#if FAN_PIN >- 1 && FEATURE_FAN_CONTROL
+#if FEATURE_FAN_CONTROL
         FanDriver::setSpeed(cur->fanSpeed);
 #endif
-#if defined(SUPPORT_VACUUM) && SUPPORT_VACUUM
+#if SUPPORT_VACUUM
         VacuumDriver::setState(cur->toolFlags & FLAG_TOOL_VACUUM_ON);
+#endif
+#if SUPPORT_COOLANT && COOLANT_MIST_PIN > -1
+        CoolantMistDriver::setState(cur->toolFlags & FLAG_TOOL_MIST_ON);
+#endif
+#if SUPPORT_COOLANT && COOLANT_FLOOD_PIN > -1
+        CoolantFloodDriver::setState(cur->toolFlags & FLAG_TOOL_FLOOD_ON);
 #endif
 
 
@@ -1136,6 +1154,11 @@ uint32_t MachineLine::bresenhamStep() {
         }
 #if defined(PAUSE_PIN) && PAUSE_PIN > -1
     }
+#if SUPPORT_LASER
+    else {
+        LaserDriver::setIntensity(0);
+    }
+#endif
 #endif
 
     HAL::allowInterrupts(); // Allow interrupts for other types, timer1 is still disabled
@@ -1160,6 +1183,11 @@ uint32_t MachineLine::bresenhamStep() {
         if (Machine::pauseSteps < 0) {
             Machine::pauseSteps = 0;
         }
+#if SUPPORT_LASER
+        else {
+            LaserDriver::setIntensity(cur->laserIntensity);
+        }
+#endif
 	}
 #endif // PAUSE
 
@@ -1219,12 +1247,12 @@ uint32_t MachineLine::bresenhamStep() {
         removeCurrentLineForbidInterrupt();
         Machine::disableAllowedStepper();
 		if(linesCount == 0) {
-#if defined(SUPPORT_LASER) && SUPPORT_LASER
+#if SUPPORT_LASER
             if (Machine::mode == MACHINE_MODE_LASER) { // Last move disables laser for safety!
-                LaserDriver::changeIntensity(0);
+                LaserDriver::setIntensity(0);
             }
 #endif
-#if FAN_PIN >- 1 && FEATURE_FAN_CONTROL
+#if FEATURE_FAN_CONTROL
             FanDriver::setSpeed(FanDriver::next());
 #endif
         }

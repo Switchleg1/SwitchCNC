@@ -532,6 +532,8 @@ public:
         // set SS high - may be chip select for another SPI device
 #if defined(SET_SPI_SS_HIGH) && SET_SPI_SS_HIGH
         WRITE(SDSS, HIGH);
+#else 
+        WRITE(SDSS, LOW);
 #endif  // SET_SPI_SS_HIGH
 #endif
     }

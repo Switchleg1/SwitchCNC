@@ -1,48 +1,62 @@
 #include "SwitchCNC.h"
 
-const uint8_t PWM::softwareKickstart[NUM_PWM] PROGMEM = { SPINDLE_KICKSTART_TIME, BOARD_FAN_KICKSTART_TIME, FAN_KICKSTART_TIME, FAN2_KICKSTART_TIME };
+const uint8_t PWM::softwareKickstart[NUM_PWM] PROGMEM = { SPINDLE_KICKSTART_TIME, FAN_KICKSTART_TIME, FAN2_KICKSTART_TIME, FAN_BOARD_KICKSTART_TIME };
 
 PWM::PWM() {
 	softwarePosition = 0;
+
+#if SPINDLE_PWM_PIN > -1
+	SET_OUTPUT(SPINDLE_PWM_PIN);
+#endif
+#if FEATURE_FAN_CONTROL
+#if FAN_PIN > -1
+	SET_OUTPUT(FAN_PIN);
+#endif
+#if FAN2_PIN > -1
+	SET_OUTPUT(FAN2_PIN);
+#endif
+#if FAN_BOARD_PIN > -1
+	SET_OUTPUT(FAN_BOARD_PIN);
+#endif
+#endif
+
+	clear();
 }
 
 void PWM::doPWM(bool deincrementKickStart) {
-#if FAN_PIN > -1 && FEATURE_FAN_CONTROL
-	if (softwareKickstartValue[FAN_PWM_INDEX]) softwareKickstartValue[FAN_PWM_INDEX]--;
+	if (softwarePosition++ == 0) {
+#if SUPPORT_SPINDLE && SPINDLE_PWM_PIN > -1
+		WRITE(SPINDLE_PWM_PIN, softwareValues[SPINDLE_PWM_INDEX] ? HIGH : LOW);
 #endif
-#if FAN2_PIN > -1 && FEATURE_FAN2_CONTROL
-	if (softwareKickstartValue[FAN2_PWM_INDEX]) softwareKickstartValue[FAN2_PWM_INDEX]--;
+#if FEATURE_FAN_CONTROL
+#if FAN_PIN > -1
+		WRITE(FAN_PIN, softwareValues[FAN_PWM_INDEX] ? HIGH : LOW);
 #endif
-
-	softwarePosition++;
-
-	if (softwarePosition == 0) {
-#if SPINDLE_PWM_PIN > -1
-		WRITE(SPINDLE_PWM_PIN, softwareValues[SPINDLE_PWM_INDEX] ? 1 : 0);
+#if FAN2_PIN > -1
+		WRITE(FAN2_PIN, softwareValues[FAN2_PWM_INDEX] ? HIGH : LOW);
 #endif
 #if FAN_BOARD_PIN > -1
-		WRITE(FAN_BOARD_PIN, softwareValues[FAN_BOARD_PWM_INDEX] ? 1 : 0);
+		WRITE(FAN_BOARD_PIN, softwareValues[FAN_BOARD_PWM_INDEX] ? HIGH : LOW);
 #endif
-#if FAN_PIN > -1 && FEATURE_FAN_CONTROL
-		WRITE(FAN_PIN, softwareValues[FAN_PWM_INDEX] ? 1 : 0);
-#endif
-#if FAN2_PIN > -1 && FEATURE_FAN2_CONTROL
-		WRITE(FAN2_PIN, softwareValues[FAN2_PWM_INDEX] ? 1 : 0);
 #endif
 	} else {
-#if SPINDLE_PWM_PIN > -1
-		if (softwareValues[SPINDLE_PWM_INDEX] == softwarePosition) WRITE(SPINDLE_PWM_PIN, 0);
+#if SUPPORT_SPINDLE && SPINDLE_PWM_PIN > -1
+		if (deincrementKickStart && softwareKickstartValue[SPINDLE_PWM_INDEX]) softwareKickstartValue[SPINDLE_PWM_INDEX]--;
+		if (softwareKickstartValue[SPINDLE_PWM_INDEX] == 0 && softwareValues[SPINDLE_PWM_INDEX] == softwarePosition) WRITE(SPINDLE_PWM_PIN, LOW);
+#endif
+#if FEATURE_FAN_CONTROL
+#if FAN_PIN > -1
+		if (deincrementKickStart && softwareKickstartValue[FAN_PWM_INDEX]) softwareKickstartValue[FAN_PWM_INDEX]--;
+		if (softwareKickstartValue[FAN_PWM_INDEX] == 0 && softwareValues[FAN_PWM_INDEX] == softwarePosition) WRITE(FAN_PIN, LOW);
+#endif
+#if FAN2_PIN > -1
+		if (deincrementKickStart && softwareKickstartValue[FAN2_PWM_INDEX]) softwareKickstartValue[FAN2_PWM_INDEX]--;
+		if (softwareKickstartValue[FAN2_PWM_INDEX] == 0 && softwareValues[FAN2_PWM_INDEX] == softwarePosition) WRITE(FAN2_PIN, LOW);
 #endif
 #if FAN_BOARD_PIN > -1
-		if (softwareValues[FAN_BOARD_PWM_INDEX] == softwarePosition) WRITE(FAN_BOARD_PIN, 0);
+		if (deincrementKickStart && softwareKickstartValue[FAN_BOARD_PWM_INDEX]) softwareKickstartValue[FAN_BOARD_PWM_INDEX]--;
+		if (softwareKickstartValue[FAN_BOARD_PWM_INDEX] == 0 && softwareValues[FAN_BOARD_PWM_INDEX] == softwarePosition) WRITE(FAN_BOARD_PIN, LOW);
 #endif
-#if FAN_PIN > -1 && FEATURE_FAN_CONTROL
-		if (deincrementKickStart && softwareKickstartValue[FAN_PWM_INDEX]) softwareKickstartValue[FAN_PWM_INDEX]--;
-		if (softwareKickstartValue[FAN_PWM_INDEX] == 0 && softwareValues[FAN_PWM_INDEX] == softwarePosition) WRITE(FAN_PIN, 0);
-#endif
-#if FAN2_PIN > -1 && FEATURE_FAN2_CONTROL
-		if (deincrementKickStart && softwareKickstartValue[FAN2_PWM_INDEX]) softwareKickstartValue[FAN2_PWM_INDEX]--;
-		if (softwareKickstartValue[FAN2_PWM_INDEX] == 0 && softwareValues[FAN2_PWM_INDEX] == softwarePosition) WRITE(FAN2_PIN, 0);
 #endif
 	}
 }
@@ -54,19 +68,18 @@ void PWM::clear() {
 	}
 
 #if SPINDLE_PWM_PIN > -1
-	WRITE(SPINDLE_PWM_PIN, 0);
+	WRITE(SPINDLE_PWM_PIN, LOW);
 #endif
+#if FEATURE_FAN_CONTROL
 #if FAN_BOARD_PIN > -1
-	WRITE(FAN_BOARD_PIN, 0);
+	WRITE(FAN_BOARD_PIN, LOW);
 #endif
-#if FAN_PIN > -1 && FEATURE_FAN_CONTROL
-	WRITE(FAN_PIN, 0);
+#if FAN_PIN > -1
+	WRITE(FAN_PIN, LOW);
 #endif
-#if FAN2_PIN > -1 && FEATURE_FAN2_CONTROL
-	WRITE(FAN2_PIN, 0);
+#if FAN2_PIN > -1
+	WRITE(FAN2_PIN, LOW);
 #endif
-#if defined(SUPPORT_LASER) && SUPPORT_LASER
-	OCR5B = 0;
 #endif
 }
 

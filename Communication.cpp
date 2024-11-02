@@ -1,7 +1,7 @@
 #include "SwitchCNC.h"
 
-FSTRINGVALUE(Com::tFirmware, "FIRMWARE_NAME:Repetier_" SWITCHCNC_VERSION " COMPILED:" __DATE__ " FIRMWARE_URL:" FIRMWARE_URL " PROTOCOL_VERSION:1.0 MACHINE_TYPE:" MACHINE_TYPE " REPETIER_PROTOCOL:3")
 FSTRINGVALUE(Com::tDebug, "Debug:")
+FSTRINGVALUE(Com::tFirmware, "FIRMWARE_NAME:Repetier_" SWITCHCNC_VERSION " COMPILED:" __DATE__ " FIRMWARE_URL:" FIRMWARE_URL " PROTOCOL_VERSION:1.0 MACHINE_TYPE:" MACHINE_TYPE " REPETIER_PROTOCOL:3")
 FSTRINGVALUE(Com::tOk, "ok")
 FSTRINGVALUE(Com::tNewline, "\r\n")
 FSTRINGVALUE(Com::tNAN, "NAN")
@@ -12,9 +12,47 @@ FSTRINGVALUE(Com::tWarning, "Warning:")
 FSTRINGVALUE(Com::tResend, "Resend:")
 FSTRINGVALUE(Com::tEcho, "Echo:")
 FSTRINGVALUE(Com::tCap, "Cap:")
+FSTRINGVALUE(Com::tCapEeprom, "EEPROM:")
+FSTRINGVALUE(Com::tCapZProbe, "Z_PROBE:")
+FSTRINGVALUE(Com::tCapSoftwarePower, "SOFTWARE_POWER:")
+FSTRINGVALUE(Com::tCapToggleLights, "TOGGLE_LIGHTS:")
+FSTRINGVALUE(Com::tCapCoolantMist, "COOLANT_MIST:")
+FSTRINGVALUE(Com::tCapCoolantFlood, "COOLANT_FLOOD:")
+FSTRINGVALUE(Com::tCapDistortionCorrection, "DISTORTION_CORRECTION:")
+FSTRINGVALUE(Com::tCapFanControl, "FAN_CONTROL:")
+FSTRINGVALUE(Com::tCapFan, "FAN:")
+FSTRINGVALUE(Com::tCapFan2, "FAN2:")
+FSTRINGVALUE(Com::tCapVacuum, "VACUUM:")
+FSTRINGVALUE(Com::tCapSDCard, "SDCARD:")
+FSTRINGVALUE(Com::tCfgBaudrate, "Baudrate:")
+FSTRINGVALUE(Com::tCfgInputBuffer, "InputBuffer:")
+FSTRINGVALUE(Com::tCfgXHomeDir, "XHomeDir:")
+FSTRINGVALUE(Com::tCfgYHomeDir, "YHomeDir:")
+FSTRINGVALUE(Com::tCfgZHomeDir, "ZHomeDir:")
+FSTRINGVALUE(Com::tCfgXHomePos, "XHomePos:")
+FSTRINGVALUE(Com::tCfgYHomePos, "YHomePos:")
+FSTRINGVALUE(Com::tCfgZHomePos, "ZHomePos:")
+FSTRINGVALUE(Com::tCfgMachinelineCache, "MachinelineCache:")
+FSTRINGVALUE(Com::tCfgKeepAliveInterval, "KeepAliveInterval:")
+FSTRINGVALUE(Com::tCfgJerkX, "JerkX:")
+FSTRINGVALUE(Com::tCfgJerkY, "JerkY:")
+FSTRINGVALUE(Com::tCfgJerkZ, "JerkZ:")
+FSTRINGVALUE(Com::tCfgJerkA, "JerkA:")
+FSTRINGVALUE(Com::tCfgXMin, "XMin:")
+FSTRINGVALUE(Com::tCfgYMin, "YMin:")
+FSTRINGVALUE(Com::tCfgZMin, "ZMin:")
+FSTRINGVALUE(Com::tCfgXMax, "XMax:")
+FSTRINGVALUE(Com::tCfgYMax, "YMax:")
+FSTRINGVALUE(Com::tCfgZMax, "ZMax:")
+FSTRINGVALUE(Com::tCfgXSize, "XSize:")
+FSTRINGVALUE(Com::tCfgYSize, "YSize:")
+FSTRINGVALUE(Com::tCfgZSize, "ZSize:")
+FSTRINGVALUE(Com::tCfgXAccel, "XAccel:")
+FSTRINGVALUE(Com::tCfgYAccel, "YAccel:")
+FSTRINGVALUE(Com::tCfgZAccel, "ZAccel:")
+FSTRINGVALUE(Com::tCfgAAccel, "AAccel:")
 FSTRINGVALUE(Com::tOkSpace, "ok ")
 FSTRINGVALUE(Com::tWrongChecksum, "Wrong checksum")
-FSTRINGVALUE(Com::tMissingChecksum, "Missing checksum")
 FSTRINGVALUE(Com::tFormatError, "Format error")
 FSTRINGVALUE(Com::tDoneMilling, "Done milling part")
 FSTRINGVALUE(Com::tX, " X")
@@ -93,8 +131,7 @@ FSTRINGVALUE(Com::tYJerkColon, " YJerk:")
 FSTRINGVALUE(Com::tZJerkColon, " ZJerk:")
 FSTRINGVALUE(Com::tAJerkColon, " AJerk:")
 FSTRINGVALUE(Com::tEEPROMUpdated, "EEPROM updated")
-FSTRINGVALUE(Com::tPauseCommunication, "// action:pause")
-FSTRINGVALUE(Com::tContinueCommunication, "// action:resume")
+FSTRINGVALUE(Com::tMachineHeight, "Machine height:")
 #ifdef DEBUG_QUEUE_MOVE
 FSTRINGVALUE(Com::tDBGId, "ID:")
 FSTRINGVALUE(Com::tDBGVStartEnd, "vStart/End:")
@@ -119,16 +156,11 @@ FSTRINGVALUE(Com::tDBGMissedSteps, "Missed steps:")
 #endif // DEBUG_STEPCOUNT
 #if FEATURE_Z_PROBE
 FSTRINGVALUE(Com::tZProbe, "Z-probe:")
-FSTRINGVALUE(Com::tZProbeAverage, "Z-probe average height:")
-FSTRINGVALUE(Com::tZProbeZReset, "Reset Z height")
 FSTRINGVALUE(Com::tZProbeState, "Z-probe state:")
-FSTRINGVALUE(Com::tZProbeStartScript, Z_PROBE_START_SCRIPT)
-FSTRINGVALUE(Com::tZProbeEndScript, Z_PROBE_FINISHED_SCRIPT)
-FSTRINGVALUE(Com::tHitZProbe, "Hit z-probe")
-#endif
+FSTRINGVALUE(Com::tZProbeZReset, "Reset Z height")
 FSTRINGVALUE(Com::tZProbeFailed, "Z-probe failed")
-FSTRINGVALUE(Com::tZProbeMax, "Z-probe max:")
-FSTRINGVALUE(Com::tZProbePrinterHeight, "Printer height:")
+#endif
+#if DISTORTION_CORRECTION
 FSTRINGVALUE(Com::tDistortionXMIN, "Distortion XMIN:") //SL
 FSTRINGVALUE(Com::tDistortionXMAX, "Distortion XMAX:") //SL
 FSTRINGVALUE(Com::tDistortionYMIN, "Distortion YMIN:") //SL
@@ -137,6 +169,7 @@ FSTRINGVALUE(Com::tDistortionPoints, "Distortion Grid Points:") //SL
 FSTRINGVALUE(Com::tDistortionStart, "Distortion Degrade Start:") //SL
 FSTRINGVALUE(Com::tDistortionEnd, "Distortion Degrade Length:") //SL
 FSTRINGVALUE(Com::tDistortionUseOffset, "Distortion Use Z Offset:") //SL
+#endif
 #if defined(PAUSE_PIN) && PAUSE_PIN>-1
 FSTRINGVALUE(Com::tPaused, "-PAUSED-") //SL
 FSTRINGVALUE(Com::tUnpaused, "-UNPAUSED-")
@@ -224,19 +257,22 @@ FSTRINGVALUE(Com::tConfig, "Config:")
 FSTRINGVALUE(Com::tExtrDot, "Extr.")
 FSTRINGVALUE(Com::tMachineModeLaser, "MachineMode: Laser")
 FSTRINGVALUE(Com::tMachineModeCNC, "MachineMode: Spindle")
-#if defined(SUPPORT_LASER) && SUPPORT_LASER
-FSTRINGVALUE(Com::tLaserMinIntensity, "Set min laser intensity to:");
-FSTRINGVALUE(Com::tLaserOn, "Laser on.");
-FSTRINGVALUE(Com::tLaserOff, "Laser off.");
+#if SUPPORT_SPINDLE
+FSTRINGVALUE(Com::tSpindleState, "Spindle:");
+FSTRINGVALUE(Com::tSpaceRpm, " RPM:");
+#endif
+#if SUPPORT_LASER
+FSTRINGVALUE(Com::tLaserState, "Laser:");
+FSTRINGVALUE(Com::tSpaceMinimumIntensity, " Minimum Intensity:");
 #endif
 #ifdef STARTUP_GCODE
 FSTRINGVALUE(Com::tStartupGCode, STARTUP_GCODE)
 #endif
 bool Com::writeToAll = true; // transmit start messages to all devices!
 
-void Com::cap(FSTRINGPARAM(text)) {
+void Com::cap(FSTRINGPARAM(text), int value) {
     printF(tCap);
-    printFLN(text);
+    printFLN(text, value);
 }
 void Com::config(FSTRINGPARAM(text)) {
     printF(tConfig);
@@ -309,8 +345,11 @@ void Com::printF(FSTRINGPARAM(text), const char *msg) {
     printF(text);
     print(msg);
 }
-
-void Com::printF(FSTRINGPARAM(text), int value) {
+void Com::printF(FSTRINGPARAM(text), int16_t value) {
+    printF(text);
+    print(value);
+}
+void Com::printF(FSTRINGPARAM(text), uint16_t value) {
     printF(text);
     print(value);
 }
@@ -322,7 +361,12 @@ void Com::printF(FSTRINGPARAM(text), uint32_t value) {
     printF(text);
     printNumber(value);
 }
-void Com::printFLN(FSTRINGPARAM(text), int value) {
+void Com::printFLN(FSTRINGPARAM(text), int16_t value) {
+    printF(text);
+    print(value);
+    println();
+}
+void Com::printFLN(FSTRINGPARAM(text), uint16_t value) {
     printF(text);
     print(value);
     println();
@@ -352,7 +396,7 @@ void Com::print(const char *text) {
         GCodeSource::writeToAll(*text++);
     }
 }
-void Com::print(long value) {
+void Com::print(int32_t value) {
     if(value < 0) {
         GCodeSource::writeToAll('-');
         value = -value;

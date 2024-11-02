@@ -15,9 +15,47 @@ public:
     FSTRINGVAR(tResend)
     FSTRINGVAR(tEcho)
     FSTRINGVAR(tCap)
+    FSTRINGVAR(tCapEeprom)
+    FSTRINGVAR(tCapZProbe)
+    FSTRINGVAR(tCapSoftwarePower)
+    FSTRINGVAR(tCapToggleLights)
+    FSTRINGVAR(tCapCoolantMist)
+    FSTRINGVAR(tCapCoolantFlood)
+    FSTRINGVAR(tCapDistortionCorrection)
+    FSTRINGVAR(tCapFanControl)
+    FSTRINGVAR(tCapFan)
+    FSTRINGVAR(tCapFan2)
+    FSTRINGVAR(tCapVacuum)
+    FSTRINGVAR(tCapSDCard)
+    FSTRINGVAR(tCfgBaudrate)
+    FSTRINGVAR(tCfgInputBuffer)
+    FSTRINGVAR(tCfgXHomeDir)
+    FSTRINGVAR(tCfgYHomeDir)
+    FSTRINGVAR(tCfgZHomeDir)
+    FSTRINGVAR(tCfgXHomePos)
+    FSTRINGVAR(tCfgYHomePos)
+    FSTRINGVAR(tCfgZHomePos)
+    FSTRINGVAR(tCfgMachinelineCache)
+    FSTRINGVAR(tCfgKeepAliveInterval)
+    FSTRINGVAR(tCfgJerkX)
+    FSTRINGVAR(tCfgJerkY)
+    FSTRINGVAR(tCfgJerkZ)
+    FSTRINGVAR(tCfgJerkA)
+    FSTRINGVAR(tCfgXMin)
+    FSTRINGVAR(tCfgYMin)
+    FSTRINGVAR(tCfgZMin)
+    FSTRINGVAR(tCfgXMax)
+    FSTRINGVAR(tCfgYMax)
+    FSTRINGVAR(tCfgZMax)
+    FSTRINGVAR(tCfgXSize)
+    FSTRINGVAR(tCfgYSize)
+    FSTRINGVAR(tCfgZSize)
+    FSTRINGVAR(tCfgXAccel)
+    FSTRINGVAR(tCfgYAccel)
+    FSTRINGVAR(tCfgZAccel)
+    FSTRINGVAR(tCfgAAccel)
     FSTRINGVAR(tOkSpace)
     FSTRINGVAR(tWrongChecksum)
-    FSTRINGVAR(tMissingChecksum)
     FSTRINGVAR(tFormatError)
     FSTRINGVAR(tDoneMilling)
     FSTRINGVAR(tX)
@@ -96,8 +134,7 @@ public:
     FSTRINGVAR(tZJerkColon)
     FSTRINGVAR(tAJerkColon)
     FSTRINGVAR(tEEPROMUpdated)
-    FSTRINGVAR(tPauseCommunication)
-    FSTRINGVAR(tContinueCommunication)
+    FSTRINGVAR(tMachineHeight)
 #ifdef DEBUG_QUEUE_MOVE
     FSTRINGVAR(tDBGId)
     FSTRINGVAR(tDBGVStartEnd)
@@ -123,16 +160,10 @@ public:
 #if FEATURE_Z_PROBE
     FSTRINGVAR(tZProbe)
     FSTRINGVAR(tZProbeState)
-    FSTRINGVAR(tZProbeStartScript)
-    FSTRINGVAR(tZProbeEndScript)
-    FSTRINGVAR(tHitZProbe)
-    FSTRINGVAR(tZProbeAverage)
     FSTRINGVAR(tZProbeZReset)
-    FSTRINGVAR(tZProbeBedDitance)
-#endif
     FSTRINGVAR(tZProbeFailed)
-    FSTRINGVAR(tZProbeMax)
-    FSTRINGVAR(tZProbePrinterHeight)
+#endif
+#if DISTORTION_CORRECTION
     FSTRINGVAR(tDistortionXMIN) //SL
     FSTRINGVAR(tDistortionXMAX) //SL
     FSTRINGVAR(tDistortionYMIN) //SL
@@ -141,6 +172,7 @@ public:
     FSTRINGVAR(tDistortionStart) //SL
     FSTRINGVAR(tDistortionEnd) //SL
     FSTRINGVAR(tDistortionUseOffset) //SL
+#endif
 #if defined(PAUSE_PIN) && PAUSE_PIN>-1
     FSTRINGVAR(tPaused)
     FSTRINGVAR(tUnpaused)
@@ -232,22 +264,25 @@ public:
     FSTRINGVAR(tExtrDot)
     FSTRINGVAR(tMachineModeLaser)
     FSTRINGVAR(tMachineModeCNC)
-#if defined(SUPPORT_LASER) && SUPPORT_LASER
-    FSTRINGVAR(tLaserMinIntensity)
-    FSTRINGVAR(tLaserOn)
-    FSTRINGVAR(tLaserOff)
+#if SUPPORT_SPINDLE
+    FSTRINGVAR(tSpindleState)
+    FSTRINGVAR(tSpaceRpm)
+#endif
+#if SUPPORT_LASER
+    FSTRINGVAR(tLaserState)
+    FSTRINGVAR(tSpaceMinimumIntensity)
 #endif
 #ifdef STARTUP_GCODE
     FSTRINGVAR(tStartupGCode)
 #endif
 
-    static void cap(FSTRINGPARAM(text));
+    static void cap(FSTRINGPARAM(text), int value);
     static void config(FSTRINGPARAM(text));
-    static void config(FSTRINGPARAM(text),int value);
-    static void config(FSTRINGPARAM(text),const char *msg);
-    static void config(FSTRINGPARAM(text),int32_t value);
-    static void config(FSTRINGPARAM(text),uint32_t value);
-    static void config(FSTRINGPARAM(text),float value,uint8_t digits=2);
+    static void config(FSTRINGPARAM(text), int value);
+    static void config(FSTRINGPARAM(text), const char *msg);
+    static void config(FSTRINGPARAM(text), int32_t value);
+    static void config(FSTRINGPARAM(text), uint32_t value);
+    static void config(FSTRINGPARAM(text), float value, uint8_t digits=2);
     static void printNumber(uint32_t n);
     static void printWarningF(FSTRINGPARAM(text));
     static void printInfoF(FSTRINGPARAM(text));
@@ -257,26 +292,29 @@ public:
     static void printErrorFLN(FSTRINGPARAM(text));
     static void printFLN(FSTRINGPARAM(text));
     static void printF(FSTRINGPARAM(text));
-    static void printF(FSTRINGPARAM(text),int value);
-    static void printF(FSTRINGPARAM(text),const char *msg);
-    static void printF(FSTRINGPARAM(text),int32_t value);
-    static void printF(FSTRINGPARAM(text),uint32_t value);
-    static void printF(FSTRINGPARAM(text),float value,uint8_t digits=2);
-    static void printFLN(FSTRINGPARAM(text),int value);
-    static void printFLN(FSTRINGPARAM(text),int32_t value);
-    static void printFLN(FSTRINGPARAM(text),uint32_t value);
-    static void printFLN(FSTRINGPARAM(text),const char *msg);
-    static void printFLN(FSTRINGPARAM(text),float value,uint8_t digits=2);
-    static void printArrayFLN(FSTRINGPARAM(text),float *arr,uint8_t n=4,uint8_t digits=2);
-    static void printArrayFLN(FSTRINGPARAM(text),long *arr,uint8_t n=4);
-    static void print(long value);
-    static inline void print(uint32_t value) {printNumber(value);}
-    static inline void print(int value) {print((int32_t)value);}
+    static void printF(FSTRINGPARAM(text), int16_t value);
+    static void printF(FSTRINGPARAM(text), uint16_t value);
+    static void printF(FSTRINGPARAM(text), const char *msg);
+    static void printF(FSTRINGPARAM(text), int32_t value);
+    static void printF(FSTRINGPARAM(text), uint32_t value);
+    static void printF(FSTRINGPARAM(text), float value, uint8_t digits=2);
+    static void printFLN(FSTRINGPARAM(text), int16_t value);
+    static void printFLN(FSTRINGPARAM(text), uint16_t value);
+    static void printFLN(FSTRINGPARAM(text), int32_t value);
+    static void printFLN(FSTRINGPARAM(text), uint32_t value);
+    static void printFLN(FSTRINGPARAM(text), const char *msg);
+    static void printFLN(FSTRINGPARAM(text), float value,uint8_t digits=2);
+    static void printArrayFLN(FSTRINGPARAM(text), float *arr, uint8_t n=4, uint8_t digits=2);
+    static void printArrayFLN(FSTRINGPARAM(text), long *arr, uint8_t n=4);
+    static void print(int32_t value);
+    static inline void print(uint32_t value) { printNumber(value); }
+    static inline void print(int16_t value) { printNumber((int32_t)value); }
+    static inline void print(uint16_t value) { printNumber((uint32_t)value); }
     static void print(const char *text);
-    static inline void print(char c) {GCodeSource::writeToAll(c);}
+    static inline void print(char c) { GCodeSource::writeToAll(c); }
     static void printFloat(float number, uint8_t digits);
-    static inline void print(float number) {printFloat(number, 6);}
-    static inline void println() {GCodeSource::writeToAll('\r');GCodeSource::writeToAll('\n');}
+    static inline void print(float number) { printFloat(number, 6); }
+    static inline void println() { GCodeSource::writeToAll('\r'); GCodeSource::writeToAll('\n'); }
     static bool writeToAll;
 
 protected:

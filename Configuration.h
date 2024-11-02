@@ -32,6 +32,11 @@
 #define SUPPORT_VACUUM							1
 #define VACUUM_PIN								9
 
+//Coolant settings
+#define SUPPORT_COOLANT							1
+#define COOLANT_MIST_PIN						-1
+#define COOLANT_FLOOD_PIN						-1
+
 //Spindle settings
 #define SUPPORT_SPINDLE							1
 #define SPINDLE_WAIT_ON_START					5
@@ -58,15 +63,11 @@
 #define FEATURE_FAN_CONTROL						1
 #define FAN_KICKSTART_TIME						200
 #define FAN_PIN									-1
-
-#define FEATURE_FAN2_CONTROL					0
 #define FAN2_KICKSTART_TIME						200
 #define FAN2_PIN								-1
-
-//Fanboard settings
-#define BOARD_FAN_SPEED							255
-#define BOARD_FAN_MIN_SPEED						0
-#define BOARD_FAN_KICKSTART_TIME				200
+#define FAN_BOARD_MAX_SPEED						255
+#define FAN_BOARD_MIN_SPEED						0
+#define FAN_BOARD_KICKSTART_TIME				200
 #define FAN_BOARD_PIN 							11
 
 //Pause settings

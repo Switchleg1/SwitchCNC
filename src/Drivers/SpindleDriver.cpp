@@ -1,18 +1,22 @@
 #include "../../SwitchCNC.h"
 
-#if defined(SUPPORT_SPINDLE) && SUPPORT_SPINDLE
+#if SUPPORT_SPINDLE
 
 /**
 The CNC driver differs a bit from laser driver. Here only M3,M4,M5 have an influence on the spindle.
 The motor also keeps running for G0 moves. M3 and M4 wait for old moves to be finished and then enables
 the motor. It then waits SPINDLE_WAIT_ON_START milliseconds for the spindle to reach target speed.
 */
+uint8_t SpindleDriver::rpmMultiplier;
+uint16_t SpindleDriver::targetSpindleRpm;
 int8_t SpindleDriver::currentDirection;
 uint8_t SpindleDriver::currentSpindleSpeed;
 uint16_t SpindleDriver::currentSpindleRpm;
 
 /** Initialize cnc pins. EVENT_INITIALIZE_SPINDLE should return false to prevent default initialization.*/
 void SpindleDriver::initialize() {
+    rpmMultiplier = 100;
+    targetSpindleRpm = 0;
     currentDirection = 0;
     currentSpindleSpeed = 0;
     currentSpindleRpm = 0;
@@ -31,23 +35,28 @@ void SpindleDriver::initialize() {
 EVENT_SPINDLE_OFF
 returning false.
 */
-void SpindleDriver::turnOff() {
-    if (currentDirection == 0) 
+void SpindleDriver::turnOff(uint8_t quiet) {
+    if (currentDirection == SPINDLE_OFF) {
         return; // already off
+    }
 
     if (EVENT_SPINDLE_OFF) {
+        Commands::waitUntilEndOfAllMoves();
+
 #if SPINDLE_ON_PIN > -1
         WRITE(SPINDLE_ON_PIN, !SPINDLE_ON_HIGH);
 #endif
-#if SPINDLE_PWM_PIN > -1
-        Machine::pwm.set(SPINDLE_PWM_INDEX, 0);
-#endif
 
-        currentSpindleSpeed = 0;
-        currentSpindleRpm = 0;
+        targetSpindleRpm = 0;
         currentDirection = 0;
 
-        HAL::delayMilliseconds(SPINDLE_WAIT_ON_STOP);
+        setRpm();
+
+        HAL::delaySeconds(SPINDLE_WAIT_ON_STOP);
+
+        if (!quiet) {
+            printState();
+        }
     }
 }
 /** Turns spindle on. Default implementation uses a enable pin SPINDLE_ON_PIN. If
@@ -55,65 +64,81 @@ SPINDLE_DIRECTION_PIN is not -1 it sets direction to SPINDLE_DIRECTION_CW. rpm i
 To override with event system, return false for the event
 EVENT_SPINDLE_CW(rpm)
 */
-void SpindleDriver::turnOnCW(uint16_t rpm) {
-    if (currentDirection == 1 && currentSpindleRpm == rpm) {
+void SpindleDriver::turnOn(int8_t direction, uint16_t rpm, uint8_t quiet) {
+    if (direction == SPINDLE_OFF || (currentDirection == direction && targetSpindleRpm == rpm)) {
         return;
     }
 
-    if (currentDirection == -1) {
+    if (currentDirection != direction) {
         turnOff();
     }
 
-    if (EVENT_SPINDLE_CW(rpm)) {
+    if (direction > 0 ? EVENT_SPINDLE_CW(rpm) : EVENT_SPINDLE_CW(rpm)) {
+        Commands::waitUntilEndOfAllMoves();
+
+        if (currentDirection == SPINDLE_OFF) {
+            Endstops::update();
+            Endstops::update();
+            while (!Endstops::zProbe()) {
+                Com::printFLN(PSTR("Unclip Zprobe from tool prior to starting spindle!"));
+                millis_t wait = 1000 + HAL::timeInMilliseconds();
+
+                while (wait - HAL::timeInMilliseconds() < 100000) {
+                    Machine::defaultLoopActions();
+                }
+                Endstops::update();
+                Endstops::update();
+            }
+        }
+
 #if SPINDLE_DIRECTION_PIN > -1
-        WRITE(SPINDLE_DIRECTION_PIN, SPINDLE_DIRECTION_CW);
+        WRITE(SPINDLE_DIRECTION_PIN, direction > 0 ? SPINDLE_DIRECTION_CW : SPINDLE_DIRECTION_CCW);
 #endif
 #if SPINDLE_ON_PIN > -1
         WRITE(SPINDLE_ON_PIN, SPINDLE_ON_HIGH);
 #endif
-#if SPINDLE_PWM_PIN > -1
-        Machine::pwm.set(SPINDLE_PWM_INDEX, spindleSpeed);
-#endif
 
-        currentSpindleSpeed = map(rpm, SPINDLE_RPM_MIN, SPINDLE_RPM_MAX, 0, 255);// linear interpolation
-        currentSpindleRpm = rpm;// for display
-        currentDirection = 1;
+        targetSpindleRpm = rpm;
+        currentDirection = direction;
+
+        setRpm();
 
         HAL::delaySeconds(SPINDLE_WAIT_ON_START);
+
+        if (!quiet) {
+            printState();
+        }
     }
 }
-/** Turns spindle on. Default implementation uses a enable pin SPINDLE_ON_PIN. If
-SPINDLE_DIRECTION_PIN is not -1 it sets direction to !SPINDLE_DIRECTION_CW. rpm is ignored.
-To override with event system, return false for the event
-EVENT_SPINDLE_CCW(rpm)
-*/
-void SpindleDriver::turnOnCCW(uint16_t rpm)
-{
-    if (currentDirection == -1 && currentSpindleRpm == rpm) {
-        return;
+
+void SpindleDriver::setRpmMultiplier(uint8_t multiplier) {
+    rpmMultiplier = multiplier;
+
+    setRpm();
+}
+
+void SpindleDriver::setRpm() {
+    if (currentDirection) {
+        currentSpindleRpm = (uint32_t)rpmMultiplier * targetSpindleRpm / 100;
+        if (currentSpindleRpm > SPINDLE_RPM_MAX) {
+            currentSpindleRpm = SPINDLE_RPM_MAX;
+        }
+
+        if (currentSpindleRpm < SPINDLE_RPM_MIN) {
+            currentSpindleRpm = SPINDLE_RPM_MIN;
+        }
+    }
+    else {
+        currentSpindleRpm = 0;
     }
 
-    if (currentDirection == 1) {
-        turnOff();
-    }
+    currentSpindleSpeed = map(currentSpindleRpm, SPINDLE_RPM_MIN, SPINDLE_RPM_MAX, 0, 255);// linear interpolation
+    Machine::pwm.set(SPINDLE_PWM_INDEX, currentSpindleSpeed);
+}
 
-    if (EVENT_SPINDLE_CCW(rpm)) {
-#if SPINDLE_DIRECTION_PIN > -1
-        WRITE(SPINDLE_DIRECTION_PIN, !SPINDLE_DIRECTION_CW);
-#endif
-#if SPINDLE_ON_PIN > -1
-        WRITE(SPINDLE_ON_PIN, SPINDLE_ON_HIGH);
-#endif
-#if SPINDLE_PWM_PIN > -1
-        Machine::pwm.set(SPINDLE_PWM_INDEX, spindleSpeed);
-#endif
-
-        currentSpindleSpeed = map(rpm, SPINDLE_RPM_MIN, SPINDLE_RPM_MAX, 0, 255);// linear interpolation
-        currentSpindleRpm = rpm;// for display
-        currentDirection = -1;
-
-        HAL::delayMilliseconds(SPINDLE_WAIT_ON_START);
-    }
+void SpindleDriver::printState() {
+    Com::printF(Com::tSpindleState, currentDirection);
+    Com::printFLN(Com::tSpaceRpm, currentSpindleRpm);
 }
 
 #endif

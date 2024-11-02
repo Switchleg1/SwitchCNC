@@ -5,10 +5,10 @@
 #include "hal.h"
 
 #define SPINDLE_PWM_INDEX				0
-#define FAN_BOARD_PWM_INDEX				SPINDLE_PWM_INDEX + 1
-#define FAN_PWM_INDEX					FAN_BOARD_PWM_INDEX + 1
+#define FAN_PWM_INDEX					SPINDLE_PWM_INDEX + 1
 #define FAN2_PWM_INDEX					FAN_PWM_INDEX + 1
-#define NUM_PWM							FAN2_PWM_INDEX + 1
+#define FAN_BOARD_PWM_INDEX				FAN2_PWM_INDEX + 1
+#define NUM_PWM							FAN_BOARD_PWM_INDEX + 1
 
 class PWM {
 public:
