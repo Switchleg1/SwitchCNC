@@ -384,7 +384,7 @@ void MachineLine::queueCartesianMove(int32_t *destinationSteps, uint8_t checkEnd
         queueCartesianSegmentTo(destinationSteps, distortionCorrection, checkEndstops, pathOptimize);
     }
 #else
-    queueCartesianSegmentTo(false, checkEndstops, pathOptimize);
+    queueCartesianSegmentTo(destinationSteps, false, checkEndstops, pathOptimize);
 #endif
 }
 

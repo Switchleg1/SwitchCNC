@@ -159,6 +159,10 @@ FSTRINGVALUE(Com::tZProbe, "Z-probe:")
 FSTRINGVALUE(Com::tZProbeState, "Z-probe state:")
 FSTRINGVALUE(Com::tZProbeZReset, "Reset Z height")
 FSTRINGVALUE(Com::tZProbeFailed, "Z-probe failed")
+FSTRINGVALUE(Com::tToolOffset, "TOOL OFFSET:")
+FSTRINGVALUE(Com::tSpaceXOffset, " X_OFFSET:")
+FSTRINGVALUE(Com::tSpaceYOffset, " Y_OFFSET:")
+FSTRINGVALUE(Com::tSpaceZOffset, " Z_OFFSET:")
 #endif
 #if DISTORTION_CORRECTION
 FSTRINGVALUE(Com::tDistortionXMIN, "Distortion XMIN:") //SL

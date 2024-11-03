@@ -15,12 +15,11 @@
 #define BLUETOOTH_BAUD							250000
 #define PAUSE_START_COMMANDS					""
 #define PAUSE_END_COMMANDS						""
-#define ARC_SUPPORT								1
-#define FEATURE_MEMORY_POSITION					1
-#define FEATURE_CHECKSUM_FORCED					0
 #define CASE_LIGHTS_PIN							-1
 #define CASE_LIGHT_DEFAULT_ON					1
 #define INTERRUPT_FREQUENCY_DIVISOR				8
+#define ALLOW_PARTIAL_GCODE_AS_MOVE				1
+#define ALLOW_PARTIAL_GCODE_DEFAULT				1
 
 //Power settings
 #define AUTOMATIC_POWERUP						1
@@ -55,7 +54,6 @@
 #define LASER_ON_HIGH							1
 #define LASER_WARMUP_TIME						0
 #define LASER_PWM_MAX							255
-#define LASER_WATT								0
 #define LASER_TEMP_PIN							 -1
 #define LASER_TEMP_SENSOR_TYPE					0
 
@@ -107,11 +105,11 @@
 #define SD_STOP_MOTORS_ON_STOP					1
 
 //Distortion settings
-#define DISTORTION_CORRECTION					1 //SL
+#define DISTORTION_CORRECTION					1
 #define DISTORTION_CORRECTION_POINTS			10
 #define DISTORTION_LIMIT_TO						0
 #define DISTORTION_CORRECTION_R					100
-#define DISTORTION_PERMANENT					0 // SL
+#define DISTORTION_PERMANENT					0
 #define DISTORTION_UPDATE_FREQUENCY				15
 #define DISTORTION_START						0
 #define DISTORTION_END							1
@@ -210,6 +208,9 @@
 #define LINE_N_SEGMENT_CORRECT					25
 #define MOVE_CACHE_LOW							8
 #define LOW_TICKS_PER_MOVE						250000
+
+//Arc settings
+#define ARC_SUPPORT								1
 #define ARC_MM_MIN_TRAVEL						0.1
 #define ARC_TOLERANCE							0.005
 #define ARC_N_SEGMENT_CORRECT					25

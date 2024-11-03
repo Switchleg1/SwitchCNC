@@ -1,7 +1,6 @@
 #include "SwitchCNC.h"
 
-void EEPROM::update(GCode *com)
-{
+void EEPROM::update(GCode *com) {
 #if EEPROM_MODE != 0
     if(com->hasT() && com->hasP()) switch(com->T)
         {
@@ -31,11 +30,10 @@ void EEPROM::update(GCode *com)
 #endif
 }
 
-void EEPROM::restoreEEPROMSettingsFromConfiguration()
-{
+void EEPROM::restoreEEPROMSettingsFromConfiguration() {
 	// can only be done right if we also update permanent values not cached!
 #if EEPROM_MODE != 0
-	EEPROM::initalizeUncached();
+	initalizeUncached();
     uint8_t newcheck = computeChecksum();
     if(newcheck != HAL::eprGetByte(EPR_INTEGRITY_BYTE))
 		HAL::eprSetByte(EPR_INTEGRITY_BYTE, newcheck);	
@@ -76,14 +74,18 @@ void EEPROM::restoreEEPROMSettingsFromConfiguration()
 	Machine::backlash[A_AXIS] = A_BACKLASH;
 #endif
 #if DISTORTION_CORRECTION
-	Distortion::XMIN		= DISTORTION_XMIN;					//SL
-	Distortion::XMAX		= DISTORTION_XMAX;					//SL
-	Distortion::YMIN		= DISTORTION_YMIN;					//SL
-	Distortion::YMAX		= DISTORTION_YMAX;					//SL
-	Distortion::setPoints(DISTORTION_CORRECTION_POINTS);		//SL
-	Distortion::start		= DISTORTION_START;					//SL
-	Distortion::end			= DISTORTION_END;					//SL
-	Distortion::useOffset	= DISTORTION_USE_OFFSET;			//SL
+	Distortion::XMIN		= DISTORTION_XMIN;
+	Distortion::XMAX		= DISTORTION_XMAX;
+	Distortion::YMIN		= DISTORTION_YMIN;
+	Distortion::YMAX		= DISTORTION_YMAX;
+	Distortion::setPoints(DISTORTION_CORRECTION_POINTS);
+	Distortion::start		= DISTORTION_START;
+	Distortion::end			= DISTORTION_END;
+	Distortion::useOffset	= DISTORTION_USE_OFFSET;
+	Distortion::resetCorrection();
+#endif
+#if ALLOW_PARTIAL_GCODE_AS_MOVE
+	Commands::allowPartialGCode = ALLOW_PARTIAL_GCODE_DEFAULT;
 #endif
     initalizeUncached();
 	Machine::updateDerivedParameter();
@@ -93,8 +95,7 @@ void EEPROM::restoreEEPROMSettingsFromConfiguration()
 #endif
 }
 
-void EEPROM::storeDataIntoEEPROM(uint8_t corrupted)
-{
+void EEPROM::storeDataIntoEEPROM(uint8_t corrupted) {
 #if EEPROM_MODE != 0
     HAL::eprSetInt32(EPR_BAUDRATE, Machine::baudrate);
     HAL::eprSetInt32(EPR_MAX_INACTIVE_TIME, Machine::maxInactiveTime);
@@ -133,17 +134,19 @@ void EEPROM::storeDataIntoEEPROM(uint8_t corrupted)
 	HAL::eprSetFloat(EPR_BACKLASH_Z,Machine::backlash[A_AXIS]);
 #endif
 #if DISTORTION_CORRECTION
-	HAL::eprSetInt16(EPR_DISTORTION_XMIN, Distortion::XMIN); //SL
-	HAL::eprSetInt16(EPR_DISTORTION_XMAX, Distortion::XMAX); //SL
-	HAL::eprSetInt16(EPR_DISTORTION_YMIN, Distortion::YMIN); //SL
-	HAL::eprSetInt16(EPR_DISTORTION_YMAX, Distortion::YMAX); //SL
-	HAL::eprSetByte(EPR_DISTORTION_POINTS, Distortion::getPoints()); //SL
-	HAL::eprSetFloat(EPR_DISTORTION_START, Distortion::start); //SL
-	HAL::eprSetFloat(EPR_DISTORTION_END, Distortion::end); //SL
-	HAL::eprSetByte(EPR_DISTORTION_USE_OFFSET, Distortion::useOffset); //SL
+	HAL::eprSetInt16(EPR_DISTORTION_XMIN, Distortion::XMIN);
+	HAL::eprSetInt16(EPR_DISTORTION_XMAX, Distortion::XMAX);
+	HAL::eprSetInt16(EPR_DISTORTION_YMIN, Distortion::YMIN);
+	HAL::eprSetInt16(EPR_DISTORTION_YMAX, Distortion::YMAX);
+	HAL::eprSetByte(EPR_DISTORTION_POINTS, Distortion::getPoints());
+	HAL::eprSetFloat(EPR_DISTORTION_START, Distortion::start);
+	HAL::eprSetFloat(EPR_DISTORTION_END, Distortion::end);
+	HAL::eprSetByte(EPR_DISTORTION_USE_OFFSET, Distortion::useOffset);
 #endif
-    if(corrupted)
-    {
+#if ALLOW_PARTIAL_GCODE_AS_MOVE
+	HAL::eprSetByte(EPR_ALLOW_PARTIAL_GCODE_AS_MOVE, Commands::allowPartialGCode);
+#endif
+    if(corrupted) {
 		initalizeUncached();
     }
     // Save version and build checksum
@@ -152,16 +155,15 @@ void EEPROM::storeDataIntoEEPROM(uint8_t corrupted)
 #endif
 }
 
-void EEPROM::initalizeUncached()
-{
-    HAL::eprSetFloat(EPR_Z_PROBE_HEIGHT,Z_PROBE_HEIGHT);
-    HAL::eprSetFloat(EPR_Z_PROBE_SPEED,Z_PROBE_SPEED);
-	HAL::eprSetFloat(EPR_Z_PROBE_XY_SPEED,Z_PROBE_XY_SPEED);
-	HAL::eprSetByte(EPR_DISTORTION_CORRECTION_ENABLED,0);
+void EEPROM::initalizeUncached() {
+    HAL::eprSetFloat(EPR_Z_PROBE_HEIGHT, Z_PROBE_HEIGHT);
+    HAL::eprSetFloat(EPR_Z_PROBE_SPEED, Z_PROBE_SPEED);
+	HAL::eprSetFloat(EPR_Z_PROBE_XY_SPEED, Z_PROBE_XY_SPEED);
+	HAL::eprSetByte(EPR_DISTORTION_CORRECTION_ENABLED, 0);
+	HAL::eprSetByte(EPR_ALLOW_PARTIAL_GCODE_AS_MOVE, ALLOW_PARTIAL_GCODE_DEFAULT);
 }
 
-void EEPROM::readDataFromEEPROM()
-{
+void EEPROM::readDataFromEEPROM() {
 #if EEPROM_MODE != 0
     uint8_t version = HAL::eprGetByte(EPR_VERSION); // This is the saved version. Don't copy data nor set it to older versions!
     Com::printFLN(PSTR("Detected EEPROM version:"),(int)version);
@@ -202,24 +204,25 @@ void EEPROM::readDataFromEEPROM()
 	Machine::backlash[A_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_A);
 #endif
 #if DISTORTION_CORRECTION
-	Distortion::XMIN		= HAL::eprGetInt16(EPR_DISTORTION_XMIN); //SL
-	Distortion::XMAX		= HAL::eprGetInt16(EPR_DISTORTION_XMAX); //SL
-	Distortion::YMIN		= HAL::eprGetInt16(EPR_DISTORTION_YMIN); //SL
-	Distortion::YMAX		= HAL::eprGetInt16(EPR_DISTORTION_YMAX); //SL
-	Distortion::setPoints(HAL::eprGetByte(EPR_DISTORTION_POINTS)); //SL
-	Distortion::start		= HAL::eprGetFloat(EPR_DISTORTION_START); //SL
-	Distortion::end			= HAL::eprGetFloat(EPR_DISTORTION_END); //SL
-	Distortion::useOffset	= HAL::eprGetByte(EPR_DISTORTION_USE_OFFSET); //SL
+	Distortion::XMIN		= HAL::eprGetInt16(EPR_DISTORTION_XMIN);
+	Distortion::XMAX		= HAL::eprGetInt16(EPR_DISTORTION_XMAX);
+	Distortion::YMIN		= HAL::eprGetInt16(EPR_DISTORTION_YMIN);
+	Distortion::YMAX		= HAL::eprGetInt16(EPR_DISTORTION_YMAX);
+	Distortion::setPoints(HAL::eprGetByte(EPR_DISTORTION_POINTS));
+	Distortion::start		= HAL::eprGetFloat(EPR_DISTORTION_START);
+	Distortion::end			= HAL::eprGetFloat(EPR_DISTORTION_END);
+	Distortion::useOffset	= HAL::eprGetByte(EPR_DISTORTION_USE_OFFSET);
 	Distortion::SetStartEnd(Distortion::start, Distortion::end);
 #endif
-	if(version != EEPROM_PROTOCOL_VERSION)
-    {
+#if ALLOW_PARTIAL_GCODE_AS_MOVE
+	Commands::allowPartialGCode = HAL::eprGetByte(EPR_ALLOW_PARTIAL_GCODE_AS_MOVE);
+#endif
+	if(version != EEPROM_PROTOCOL_VERSION) {
         Com::printInfoFLN(Com::tEPRProtocolChanged);
-		if(version < 1)
-		{
-			HAL::eprSetFloat(EPR_Z_PROBE_HEIGHT,Z_PROBE_HEIGHT);
-			HAL::eprSetFloat(EPR_Z_PROBE_SPEED,Z_PROBE_SPEED);
-			HAL::eprSetFloat(EPR_Z_PROBE_XY_SPEED,Z_PROBE_XY_SPEED);
+		if(version < 1) {
+			HAL::eprSetFloat(EPR_Z_PROBE_HEIGHT, Z_PROBE_HEIGHT);
+			HAL::eprSetFloat(EPR_Z_PROBE_SPEED, Z_PROBE_SPEED);
+			HAL::eprSetFloat(EPR_Z_PROBE_XY_SPEED, Z_PROBE_XY_SPEED);
 			HAL::eprSetByte(EPR_DISTORTION_CORRECTION_ENABLED, 0);
 		}
 
@@ -229,8 +232,7 @@ void EEPROM::readDataFromEEPROM()
 #endif
 }
 
-void EEPROM::initBaudrate()
-{
+void EEPROM::initBaudrate() {
     // Invariant - baudrate is initialized with or without eeprom!
 	Machine::baudrate = BAUDRATE;
 #if EEPROM_MODE != 0
@@ -243,8 +245,7 @@ void EEPROM::initBaudrate()
 #ifndef USE_CONFIGURATION_BAUD_RATE
 #define USE_CONFIGURATION_BAUD_RATE 0
 #endif // USE_CONFIGURATION_BAUD_RATE
-void EEPROM::init()
-{
+void EEPROM::init() {
 #if EEPROM_MODE != 0
     uint8_t check = computeChecksum();
     uint8_t storedcheck = HAL::eprGetByte(EPR_INTEGRITY_BYTE);
@@ -263,19 +264,11 @@ void EEPROM::init()
             Com::printFLN(PSTR("RECOMPILE WITH USE_CONFIGURATION_BAUD_RATE == 0 to alter baud rate via EEPROM"));
         }
     }
-    else
-    {
-        HAL::eprSetByte(EPR_MAGIC_BYTE,EEPROM_MODE); // Make data change permanent
+    else {
+        HAL::eprSetByte(EPR_MAGIC_BYTE, EEPROM_MODE); // Make data change permanent
         initalizeUncached();
         storeDataIntoEEPROM(storedcheck != check);
     }
-#endif
-}
-
-void EEPROM::updatePrinterUsage()
-{
-#if EEPROM_MODE != 0
-	
 #endif
 }
 
@@ -291,8 +284,7 @@ With
 - value = The value currently stored
 - description = Definition of the value
 */
-void EEPROM::writeSettings()
-{
+void EEPROM::writeSettings() {
 #if EEPROM_MODE != 0
 	writeLong(EPR_BAUDRATE, Com::tEPRBaudrate);
 	writeLong(EPR_MAX_INACTIVE_TIME, Com::tEPRMaxInactiveTime);
@@ -350,10 +342,79 @@ void EEPROM::writeSettings()
 #endif
 }
 
+#if FEATURE_Z_PROBE
+void EEPROM::setZProbeHeight(float mm) {
+#if EEPROM_MODE != 0
+	HAL::eprSetFloat(EPR_Z_PROBE_HEIGHT, mm);
+	Com::printFLN(PSTR("Z-Probe height set to: "), mm, 3);
+	EEPROM::updateChecksum();
+#endif
+}
+
+float EEPROM::zProbeSpeed() {
+#if EEPROM_MODE != 0
+	return HAL::eprGetFloat(EPR_Z_PROBE_SPEED);
+#else
+	return Z_PROBE_SPEED;
+#endif
+}
+
+float EEPROM::zProbeXYSpeed() {
+#if EEPROM_MODE != 0
+	return HAL::eprGetFloat(EPR_Z_PROBE_XY_SPEED);
+#else
+	return Z_PROBE_XY_SPEED;
+#endif
+}
+
+float EEPROM::zProbeHeight() {
+#if EEPROM_MODE != 0
+	return HAL::eprGetFloat(EPR_Z_PROBE_HEIGHT);
+#else
+	return Z_PROBE_HEIGHT;
+#endif
+}
+#endif
+
+#if DISTORTION_CORRECTION && EEPROM_MODE
+void EEPROM::setZCorrection(uint8_t* data, uint16_t count) {
+	for (uint16_t i = 0; i < count; i++) {
+		HAL::eprSetInt32(EPR_DISTORTION_POINT_DATA + (i << 2), data[i]);
+	}
+}
+
+void EEPROM::getZCorrection(uint8_t* data, uint16_t count) {
+	for (uint16_t i = 0; i < count; i++) {
+		data[i] = HAL::eprGetInt32(EPR_DISTORTION_POINT_DATA + (i << 2));
+	}
+}
+
+void EEPROM::setZCorrectionEnabled(int8_t on) {
+	if (isZCorrectionEnabled() == on) return;
+	HAL::eprSetByte(EPR_DISTORTION_CORRECTION_ENABLED, on);
+	EEPROM::updateChecksum();
+}
+
+int8_t EEPROM::isZCorrectionEnabled() {
+	return HAL::eprGetByte(EPR_DISTORTION_CORRECTION_ENABLED);
+}
+#endif
+
+#if ALLOW_PARTIAL_GCODE_AS_MOVE && EEPROM_MODE
+void EEPROM::setAllowPartialGCode(uint8_t allow) {
+	if (getAllowPartialGCode() != allow) {
+		HAL::eprSetByte(EPR_ALLOW_PARTIAL_GCODE_AS_MOVE, allow);
+		EEPROM::updateChecksum();
+	}
+}
+uint8_t EEPROM::getAllowPartialGCode() {
+	return HAL::eprGetByte(EPR_ALLOW_PARTIAL_GCODE_AS_MOVE);
+}
+#endif
+
 #if EEPROM_MODE != 0
 
-uint8_t EEPROM::computeChecksum()
-{
+uint8_t EEPROM::computeChecksum() {
     unsigned int i;
     uint8_t checksum = 0;
     for(i = 0; i < 2048; i++)
@@ -364,16 +425,14 @@ uint8_t EEPROM::computeChecksum()
     return checksum;
 }
 
-void EEPROM::updateChecksum()
-{
+void EEPROM::updateChecksum() {
     uint8_t newcheck = computeChecksum();
     if(newcheck!=HAL::eprGetByte(EPR_INTEGRITY_BYTE))
         HAL::eprSetByte(EPR_INTEGRITY_BYTE,newcheck);
 }
 
 
-void EEPROM::writeFloat(uint pos,PGM_P text,uint8_t digits)
-{
+void EEPROM::writeFloat(uint pos,PGM_P text,uint8_t digits) {
     Com::printF(Com::tEPR3, static_cast<int>(pos));
     Com::print(' ');
     Com::printFloat(HAL::eprGetFloat(pos),digits);
@@ -382,8 +441,7 @@ void EEPROM::writeFloat(uint pos,PGM_P text,uint8_t digits)
 	HAL::delayMilliseconds(4); // reduces somehow transmission errors
 }
 
-void EEPROM::writeLong(uint pos,PGM_P text)
-{
+void EEPROM::writeLong(uint pos,PGM_P text) {
     Com::printF(Com::tEPR2, static_cast<int>(pos));
     Com::print(' ');
     Com::print(HAL::eprGetInt32(pos));
@@ -392,8 +450,7 @@ void EEPROM::writeLong(uint pos,PGM_P text)
 	HAL::delayMilliseconds(4); // reduces somehow transmission errors
 }
 
-void EEPROM::writeInt(uint pos,PGM_P text)
-{
+void EEPROM::writeInt(uint pos,PGM_P text) {
     Com::printF(Com::tEPR1, static_cast<int>(pos));
     Com::print(' ');
     Com::print(HAL::eprGetInt16(pos));
@@ -402,19 +459,13 @@ void EEPROM::writeInt(uint pos,PGM_P text)
 	HAL::delayMilliseconds(4); // reduces somehow transmission errors
 }
 
-void EEPROM::writeByte(uint pos,PGM_P text)
-{
+void EEPROM::writeByte(uint pos,PGM_P text) {
 	Com::printF(Com::tEPR0, static_cast<int>(pos));
 	Com::print(' ');
 	Com::print((int)HAL::eprGetByte(pos));
 	Com::print(' ');
 	Com::printFLN(text);
 	HAL::delayMilliseconds(4); // reduces somehow transmission errors
-}
-
-void EEPROM::setZCorrection(int32_t c,int index)
-{
-    HAL::eprSetInt32(2048 + (index << 2), c);
 }
 
 #endif

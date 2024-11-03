@@ -63,6 +63,10 @@ public:
     {
         return ((params & 4)!=0);
     }
+    inline void setG()
+    {
+        params |= 4;
+    }
     inline bool hasX()
     {
         return ((params & 8)!=0);

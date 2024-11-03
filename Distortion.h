@@ -51,8 +51,6 @@ public:
 
 private:
     static int16_t matrixIndex(fast8_t x, fast8_t y);
-    static int32_t getMatrix(int index);
-    static void    setMatrix(int32_t val, int index);
     static bool    isCorner(fast8_t i, fast8_t j);
     static INLINE  int32_t extrapolatePoint(fast8_t x1, fast8_t y1, fast8_t x2, fast8_t y2);
     static void    extrapolateCorner(fast8_t x, fast8_t y, fast8_t dx, fast8_t dy);
@@ -62,9 +60,7 @@ private:
     static int32_t xCorrectionSteps, xOffsetSteps;
     static int32_t yCorrectionSteps, yOffsetSteps;
     static int32_t zStart, zEnd;
-#if !DISTORTION_PERMANENT
     static int32_t matrix[DISTORTION_CORRECTION_POINTS * DISTORTION_CORRECTION_POINTS];
-#endif
     static uint8_t points;
     static bool    enabled;
 };

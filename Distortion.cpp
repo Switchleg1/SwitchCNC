@@ -15,18 +15,18 @@ int32_t Distortion::yCorrectionSteps;
 int32_t Distortion::yOffsetSteps;
 int32_t Distortion::zStart;
 int32_t Distortion::zEnd;
-#if !DISTORTION_PERMANENT
 int32_t Distortion::matrix[DISTORTION_CORRECTION_POINTS * DISTORTION_CORRECTION_POINTS];
-#endif
 uint8_t Distortion::points;
 bool    Distortion::enabled;
 
 void Distortion::init() {
     updateDerived();
-#if !DISTORTION_PERMANENT
+#if DISTORTION_PERMANENT && EEPROM_MODE != 0
+	EEPROM::getZCorrection(matrix, DISTORTION_CORRECTION_POINTS * DISTORTION_CORRECTION_POINTS);
+#else
 	resetCorrection();
 #endif
-#if EEPROM_MODE != 0
+#if DISTORTION_PERMANENT && EEPROM_MODE != 0
     enabled = EEPROM::isZCorrectionEnabled();
     Com::printFLN(PSTR("zDistortionCorrection:"), (int)enabled);
 #else
@@ -95,8 +95,7 @@ bool Distortion::measure(float maxDistance, int repetitions) {
 				ZProbe::finish();
 				return false;
 			}
-			setMatrix(floor(0.5f + Machine::axisStepsPerMM[Z_AXIS] * (z - zp)) + zCorrection,
-				matrixIndex(ix, iy));
+			matrix[matrixIndex(ix, iy)] = floor(0.5f + Machine::axisStepsPerMM[Z_AXIS] * (z - zp)) + zCorrection;
 		}
 	}
 	ZProbe::finish();
@@ -108,28 +107,23 @@ bool Distortion::measure(float maxDistance, int repetitions) {
 	float sum = 0;
 	for (iy = 0; iy < points; iy++) {
 		for (ix = 0; ix < points; ix++) {
-			sum += getMatrix(matrixIndex(ix, iy));
+			sum += matrix[matrixIndex(ix, iy)];
 		}
 	}
 
 	sum /= static_cast<float>(points == 0 ? 1 : (points * points));
 	for (iy = 0; iy < points; iy++) {
 		for (ix = 0; ix < points; ix++) {
-			setMatrix(getMatrix(matrixIndex(ix, iy)) - sum, matrixIndex(ix, iy));
+			matrix[matrixIndex(ix, iy)] -= sum;
 		}
 	}
 	//	Machine::zLength -= sum * Machine::invAxisStepsPerMM[Z_AXIS];
 
-#if EEPROM_MODE
-	EEPROM::storeDataIntoEEPROM();
+#if DISTORTION_PERMANENT && EEPROM_MODE != 0
+	EEPROM::setZCorrection(matrix, DISTORTION_CORRECTION_POINTS * DISTORTION_CORRECTION_POINTS);
 #endif
+
 	// print matrix
-	/*	Com::printInfoFLN(PSTR("Distortion correction matrix:"));
-		for (iy = points - 1; iy >= 0 ; iy--) {
-			for(ix = 0; ix < points; ix++)
-				Com::printF(ix ? PSTR(", ") : PSTR(""), getMatrix(matrixIndex(ix, iy)));
-			Com::println();
-		} */
 	showMatrix();
 	enable(false);
 	return true;
@@ -146,33 +140,37 @@ int32_t Distortion::zMaxSteps() {
 	return zEnd;
 }
 
-void Distortion::SetStartEnd(float Start, float End)
-{
+void Distortion::SetStartEnd(float Start, float End) {
 	zStart	= Start * Machine::axisStepsPerMM[Z_AXIS] + Machine::axisMinSteps[Z_AXIS];
 	zEnd	= (Start+End) * Machine::axisStepsPerMM[Z_AXIS] + Machine::axisMinSteps[Z_AXIS];
-	if(useOffset)
-	{
+	if(useOffset) {
 		zStart	-= Machine::coordinateOffset[Z_AXIS] * Machine::axisStepsPerMM[Z_AXIS];
 		zEnd	-= Machine::coordinateOffset[Z_AXIS] * Machine::axisStepsPerMM[Z_AXIS];
 	}
 }
 
-void Distortion::resetCorrection(void) {
+void Distortion::resetCorrection() {
     Com::printInfoFLN(PSTR("Resetting Z correction"));
-	for(int i = 0; i < DISTORTION_CORRECTION_POINTS * DISTORTION_CORRECTION_POINTS; i++)
-        setMatrix(0, i);
-}
-
-void Distortion::filter(float amount)
-{
-	for(int i=0; i < DISTORTION_CORRECTION_POINTS * DISTORTION_CORRECTION_POINTS; i++)
-	{
-		setMatrix(getMatrix(i)*amount, i);
+	for (int i = 0; i < DISTORTION_CORRECTION_POINTS * DISTORTION_CORRECTION_POINTS; i++) {
+		matrix[i] = 0;
 	}
+
+#if DISTORTION_PERMANENT && EEPROM_MODE != 0
+	EEPROM::setZCorrection(matrix, DISTORTION_CORRECTION_POINTS * DISTORTION_CORRECTION_POINTS);
+#endif
 }
 
-void Distortion::smooth(float amount)
-{
+void Distortion::filter(float amount) {
+	for(int i=0; i < DISTORTION_CORRECTION_POINTS * DISTORTION_CORRECTION_POINTS; i++) {
+		matrix[i] *= amount;
+	}
+
+#if DISTORTION_PERMANENT && EEPROM_MODE != 0
+	EEPROM::setZCorrection(matrix, DISTORTION_CORRECTION_POINTS * DISTORTION_CORRECTION_POINTS);
+#endif
+}
+
+void Distortion::smooth(float amount) {
 	if(amount > 1.0f)
 		amount = 1.0f;
 
@@ -181,58 +179,48 @@ void Distortion::smooth(float amount)
 
 	int32_t nMatrix[points * points];
 
-	for(uint8_t x = 0; x < points; x++)
-	{
-		for(uint8_t y = 0; y < points; y++)
-		{
+	for(uint8_t x = 0; x < points; x++) {
+		for(uint8_t y = 0; y < points; y++) {
 			uint8_t idx11 = y * DISTORTION_CORRECTION_POINTS + x;
 			uint8_t idn = y * points + x;
 
 			uint8_t cnt = 1;
-			nMatrix[idn] = getMatrix(idx11);
+			nMatrix[idn] = matrix[idx11];
 
-			if(x > 0)
-			{
-				nMatrix[idn] += getMatrix(idx11-1);
+			if(x > 0) {
+				nMatrix[idn] += matrix[idx11 - 1];
 				cnt++;
 
-				if(y > 0)
-				{
-					nMatrix[idn] += getMatrix(idx11-DISTORTION_CORRECTION_POINTS-1);
+				if(y > 0) {
+					nMatrix[idn] += matrix[idx11 - DISTORTION_CORRECTION_POINTS - 1];
 					cnt++;
 				}
-				if(y < points - 1)
-				{
-					nMatrix[idn] += getMatrix(idx11+DISTORTION_CORRECTION_POINTS-1);
+				if(y < points - 1) {
+					nMatrix[idn] += matrix[idx11 + DISTORTION_CORRECTION_POINTS - 1];
 					cnt++;
 				}
 			}
 
-			if(x < points - 1)
-			{
-				nMatrix[idn] += getMatrix(idx11+1);
+			if(x < points - 1) {
+				nMatrix[idn] += matrix[idx11 + 1];
 				cnt++;
-				if(y > 0)
-				{
-					nMatrix[idn] += getMatrix(idx11-DISTORTION_CORRECTION_POINTS+1);
+				if(y > 0) {
+					nMatrix[idn] += matrix[idx11 - DISTORTION_CORRECTION_POINTS + 1];
 					cnt++;
 				}
-				if(y < points - 1)
-				{
-					nMatrix[idn] += getMatrix(idx11+DISTORTION_CORRECTION_POINTS+1);
+				if(y < points - 1) {
+					nMatrix[idn] += matrix[idx11 + DISTORTION_CORRECTION_POINTS + 1];
 					cnt++;
 				}
 			}
 
-			if(y > 0)
-			{
-				nMatrix[idn] += getMatrix(idx11-DISTORTION_CORRECTION_POINTS);
+			if(y > 0) {
+				nMatrix[idn] += matrix[idx11 - DISTORTION_CORRECTION_POINTS];
 				cnt++;
 			}
 
-			if(y < points - 1)
-			{
-				nMatrix[idn] += getMatrix(idx11+DISTORTION_CORRECTION_POINTS);
+			if(y < points - 1) {
+				nMatrix[idn] += matrix[idx11 + DISTORTION_CORRECTION_POINTS];
 				cnt++;
 			}
 
@@ -240,20 +228,21 @@ void Distortion::smooth(float amount)
 		}
 	}
 
-	for(uint8_t x = 0; x < points; x++)
-	{
-		for(uint8_t y = 0; y < points; y++)
-		{
+	for(uint8_t x = 0; x < points; x++) {
+		for(uint8_t y = 0; y < points; y++) {
 			uint8_t idx11 = y * DISTORTION_CORRECTION_POINTS + x;
 			uint8_t idn = y * points + x;
 
-			setMatrix(getMatrix(idx11)*(1.0f-amount) + nMatrix[idn]*amount, idx11);
+			matrix[idx11] = matrix[idx11] * (1.0f - amount) + nMatrix[idn] * amount;
 		}
 	}
+
+#if DISTORTION_PERMANENT && EEPROM_MODE != 0
+	EEPROM::setZCorrection(matrix, DISTORTION_CORRECTION_POINTS * DISTORTION_CORRECTION_POINTS);
+#endif
 }
 
-uint8_t Distortion::setPoints(uint8_t count)
-{
+uint8_t Distortion::setPoints(uint8_t count) {
 	if (count > DISTORTION_CORRECTION_POINTS) {
 		points = DISTORTION_CORRECTION_POINTS;
 	} else if (count < 2) {
@@ -265,30 +254,12 @@ uint8_t Distortion::setPoints(uint8_t count)
 	return points;
 }
 
-uint8_t Distortion::getPoints()
-{
+uint8_t Distortion::getPoints() {
 	return points;
 }
 
 int Distortion::matrixIndex(fast8_t x, fast8_t y) {
 	return static_cast<int>(y) * DISTORTION_CORRECTION_POINTS + x;
-}
-
-int32_t Distortion::getMatrix(int index) {
-#if DISTORTION_PERMANENT
-    return EEPROM::getZCorrection(index);
-#else
-    return matrix[index];
-#endif
-}
-void Distortion::setMatrix(int32_t val, int index) {
-#if DISTORTION_PERMANENT
-#if EEPROM_MODE != 0
-    EEPROM::setZCorrection(val, index);
-#endif
-#else
-    matrix[index] = val;
-#endif
 }
 
 bool Distortion::isCorner(fast8_t i, fast8_t j) {
@@ -300,12 +271,11 @@ bool Distortion::isCorner(fast8_t i, fast8_t j) {
  Extrapolates the changes from p1 to p2 to p3 which has the same distance as p1-p2.
 */
 inline int32_t Distortion::extrapolatePoint(fast8_t x1, fast8_t y1, fast8_t x2, fast8_t y2) {
-    return 2 * getMatrix(matrixIndex(x2, y2)) - getMatrix(matrixIndex(x1, y1));
+    return 2 * matrix[matrixIndex(x2, y2)] - matrix[matrixIndex(x1, y1)];
 }
 
 void Distortion::extrapolateCorner(fast8_t x, fast8_t y, fast8_t dx, fast8_t dy) {
-    setMatrix((extrapolatePoint(x + 2 * dx, y, x + dx, y) + extrapolatePoint(x, y + 2 * dy, x, y + dy)) / 2.0,
-              matrixIndex(x, y));
+    matrix[matrixIndex(x, y)] = (extrapolatePoint(x + 2 * dx, y, x + dx, y) + extrapolatePoint(x, y + 2 * dy, x, y + dy)) / 2.0f;
 }
 
 void Distortion::extrapolateCorners() {
@@ -314,6 +284,10 @@ void Distortion::extrapolateCorners() {
     extrapolateCorner(0, m, 1, -1);
     extrapolateCorner(m, 0, -1, 1);
     extrapolateCorner(m, m, -1, -1);
+
+#if DISTORTION_PERMANENT && EEPROM_MODE != 0
+	EEPROM::setZCorrection(matrix, DISTORTION_CORRECTION_POINTS * DISTORTION_CORRECTION_POINTS);
+#endif
 }
 
 int32_t Distortion::correct(int32_t x, int32_t y, int32_t z) {
@@ -351,10 +325,10 @@ int32_t Distortion::correct(int32_t x, int32_t y, int32_t z) {
     }
 
     int32_t idx11 = matrixIndex(fxFloor, fyFloor);
-	int32_t m11 = getMatrix(idx11);
-	int32_t m12 = getMatrix(idx11 + 1);
-	int32_t m21 = getMatrix(idx11 + DISTORTION_CORRECTION_POINTS);
-	int32_t m22 = getMatrix(idx11 + DISTORTION_CORRECTION_POINTS + 1);
+	int32_t m11 = matrix[idx11];
+	int32_t m12 = matrix[idx11 + 1];
+	int32_t m21 = matrix[idx11 + DISTORTION_CORRECTION_POINTS];
+	int32_t m22 = matrix[idx11 + DISTORTION_CORRECTION_POINTS + 1];
     int32_t zx1 = m11 + ((m12 - m11) * fx) / xCorrectionSteps;
     int32_t zx2 = m21 + ((m22 - m21) * fx) / xCorrectionSteps;
 	int32_t correction_z = zx1 + ((zx2 - zx1) * fy) / yCorrectionSteps;
@@ -379,7 +353,11 @@ void Distortion::set(float x, float y, float z) {
 	if(ix >= points - 1) ix = points - 1;
 	if(iy >= points - 1) iy = points - 1;
     int32_t idx = matrixIndex(ix, iy);
-    setMatrix(z * Machine::axisStepsPerMM[Z_AXIS], idx);
+    matrix[idx] = z * Machine::axisStepsPerMM[Z_AXIS];
+
+#if DISTORTION_PERMANENT && EEPROM_MODE != 0
+	EEPROM::setZCorrection(matrix, DISTORTION_CORRECTION_POINTS * DISTORTION_CORRECTION_POINTS);
+#endif
 }
 
 void Distortion::showMatrix() {
@@ -388,7 +366,7 @@ void Distortion::showMatrix() {
             float x = (xOffsetSteps + ix * xCorrectionSteps) * Machine::invAxisStepsPerMM[X_AXIS];
             float y = (yOffsetSteps + iy * yCorrectionSteps) * Machine::invAxisStepsPerMM[Y_AXIS];
             int32_t idx = matrixIndex(ix, iy);
-            float z = getMatrix(idx) * Machine::invAxisStepsPerMM[Z_AXIS];
+            float z = matrix[idx] * Machine::invAxisStepsPerMM[Z_AXIS];
             Com::printF(PSTR("G33 X"), x, 2);
             Com::printF(PSTR(" Y"), y, 2);
             Com::printFLN(PSTR(" Z"), z, 3);

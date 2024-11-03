@@ -3,6 +3,10 @@
 const int8_t sensitive_pins[] PROGMEM = SENSITIVE_PINS; // Sensitive pin list for M42
 uint16_t Commands::lowestRAMValue = MAX_RAM;
 uint16_t Commands::lowestRAMValueSend = MAX_RAM;
+#if ALLOW_PARTIAL_GCODE_AS_MOVE
+uint8_t Commands::allowPartialGCode;
+int8_t Commands::lastMoveType = -1;
+#endif
 
 void Commands::commandLoop() {
 #ifdef DEBUG_MACHINE
@@ -99,11 +103,129 @@ void Commands::printCurrentPosition() {
 #endif
 }
 
+void Commands::emergencyStop() {
+#if defined(KILL_METHOD) && KILL_METHOD == 1
+    HAL::resetHardware();
+#else
+    //HAL::forbidInterrupts(); // Don't allow interrupts to do their work
+    Machine::kill(false);
+    Machine::pwm.clear();
+    HAL::delayMilliseconds(200);
+    InterruptProtectedBlock noInts;
+    while (1) {}
+#endif
+}
+
+void Commands::checkFreeMemory() {
+    int newfree = HAL::getFreeRam();
+    if (newfree < lowestRAMValue) {
+        lowestRAMValue = newfree;
+    }
+}
+
+void Commands::writeLowestFreeRAM() {
+    if (lowestRAMValueSend > lowestRAMValue) {
+        lowestRAMValueSend = lowestRAMValue;
+        Com::printFLN(Com::tFreeRAM, lowestRAMValue);
+    }
+}
+
+/**
+\brief Execute the G command stored in com.
+*/
+void Commands::executeGCode(GCode* com) {
+    // Set return channel for private commands. By default all commands send to all receivers.
+    GCodeSource* actSource = GCodeSource::activeSource;
+    GCodeSource::activeSource = com->source;
+    Com::writeToAll = true;
+
+#ifdef INCLUDE_DEBUG_COMMUNICATION
+    if (Machine::debugCommunication()) {
+        if (com->hasG() || (com->hasM() && com->M != 111)) {
+            Machine::previousMillisCmd = HAL::timeInMilliseconds();
+            GCodeSource::activeSource = actSource;
+
+            return;
+        }
+    }
+#endif
+
+    if (com->hasG()) processGCode(com);
+    else if (com->hasM()) processMCode(com);
+    else if (com->hasT()) processTCode(com);
+    else 
+#if ALLOW_PARTIAL_GCODE_AS_MOVE
+    if (allowPartialGCode && lastMoveType > -1 && (!com->hasNoXYZA() || com->hasF() || com->hasS() || com->hasH())) {
+        com->setG();
+        com->G = lastMoveType;
+        processMove(com, lastMoveType < 2 ? 1 : 0);
+    } else 
+#endif
+    {
+        if (Machine::debugErrors()) {
+            Com::printF(Com::tUnknownCommand);
+            com->printCommand();
+        }
+    }
+
+    GCodeSource::activeSource = actSource;
+}
+
+void Commands::processMove(GCode* com, uint8_t linear) {
+#if SUPPORT_LASER
+    if (Machine::mode == MACHINE_MODE_LASER) {
+        // disable laser for G0 moves
+        if (!com->G) LaserDriver::setNextIntensity(0);
+        else if (com->hasS()) LaserDriver::setNextIntensity(constrain(com->S, 0, LASER_PWM_MAX));
+    }
+    else {
+        if (com->hasS()) {
+            Machine::setNoDestinationCheck(com->S != 0);
+        }
+    }
+#else
+    if (com->hasS()) Machine::setNoDestinationCheck(com->S != 0);
+#endif
+    if (com->hasH()) Machine::setNoDestinationCheck(com->H != 0);
+
+    if (linear) {
+        if (Machine::setDestinationStepsFromGCode(com)) {// For X Y Z A F
+            int32_t destinationSteps[A_AXIS_ARRAY];
+            Machine::lastCmdPosSteps(destinationSteps);
+            MachineLine::queueCartesianMove(destinationSteps, ALWAYS_CHECK_ENDSTOPS, true);
+        }
+    }
+#if ARC_SUPPORT
+    else {
+        processArc(com);
+    }
+#endif
+
+#ifdef DEBUG_QUEUE_MOVE
+    {
+        InterruptProtectedBlock noInts;
+        int lc = (int)MachineLine::linesCount;
+        int lp = (int)MachineLine::linesPos;
+        int wp = (int)MachineLine::linesWritePos;
+        int n = (wp - lp);
+        if (n < 0) n += MACHINELINE_CACHE_SIZE;
+        noInts.unprotect();
+        if (n != lc)
+            Com::printFLN(PSTR("Buffer corrupted"));
+    }
+#endif
+}
+
 /**
 \brief Execute the Arc command stored in com.
 */
 #if ARC_SUPPORT
 void Commands::processArc(GCode *com) {
+#if SUPPORT_LASER
+    if (com->hasS()) {
+        LaserDriver::setNextIntensity(constrain(com->E, 0, LASER_PWM_MAX));
+    }
+#endif
 	float position[A_AXIS_ARRAY];
 	Machine::realPosition(position);
 	if(!Machine::setDestinationStepsFromGCode(com)) return; // For X Y Z A F
@@ -227,65 +349,32 @@ void Commands::processGCode(GCode *com) {
         Machine::previousMillisCmd = HAL::timeInMilliseconds();
         return;
     }
-    uint32_t codenum; //throw away variable
+
+    //random variables
+    uint8_t flag0 = 0;
+    uint32_t val0;
+    float fl0;
+
     switch(com->G) {
     case 0: // G0 -> G1
 	case 1: // G1
-#if SUPPORT_LASER
-        if (Machine::mode == MACHINE_MODE_LASER) {
-            if (com->G == 0) {
-                // disable laser for G0 moves
-                LaserDriver::setNextIntensity(0);
-            } else {
-                if (com->hasE()) {
-                    LaserDriver::setNextIntensity(constrain(com->E, 0, LASER_PWM_MAX));
-                }
-            }
-        }
+        flag0 = 1;
+    case 2: // G2
+    case 3: // G3
+#if ALLOW_PARTIAL_GCODE_AS_MOVE
+        //save current gcode value
+        lastMoveType = com->G;
 #endif
 
-        if (com->hasS()) {
-            Machine::setNoDestinationCheck(com->S != 0);
-        }
-
-        if (Machine::setDestinationStepsFromGCode(com)) {// For X Y Z A F
-            int32_t destinationSteps[A_AXIS_ARRAY];
-            Machine::lastCmdPosSteps(destinationSteps);
-            MachineLine::queueCartesianMove(destinationSteps, ALWAYS_CHECK_ENDSTOPS, true);
-        }
-
-#ifdef DEBUG_QUEUE_MOVE
-        {
-            InterruptProtectedBlock noInts;
-            int lc = (int)MachineLine::linesCount;
-            int lp = (int)MachineLine::linesPos;
-            int wp = (int)MachineLine::linesWritePos;
-            int n = (wp - lp);
-            if(n < 0) n += MACHINELINE_CACHE_SIZE;
-            noInts.unprotect();
-            if(n != lc)
-                Com::printFLN(PSTR("Buffer corrupted"));
-        }
-#endif
-    break;
-#if ARC_SUPPORT
-    case 2: // CW Arc
-	case 3: // CCW Arc MOTION_MODE_CW_ARC: case MOTION_MODE_CCW_ARC:
-#if SUPPORT_LASER
-        if (com->hasE()) {
-            LaserDriver::setNextIntensity(constrain(com->E, 0, LASER_PWM_MAX));
-        }
-#endif
-		processArc(com);
-    break;
-#endif
+        processMove(com, flag0);
+        break;
     case 4: // G4 dwell
         waitUntilEndOfAllMoves();
-        codenum = 0;
-        if(com->hasP()) codenum = com->P; // milliseconds to wait
-        if(com->hasS()) codenum = com->S * 1000; // seconds to wait
-        codenum += HAL::timeInMilliseconds();  // keep track of when we started waiting
-        while((uint32_t)(codenum - HAL::timeInMilliseconds())  < 2000000000 ) {
+        val0 = 0;
+        if(com->hasP()) val0 = com->P; // milliseconds to wait
+        if(com->hasS()) val0 = com->S * 1000; // seconds to wait
+        val0 += HAL::timeInMilliseconds();  // keep track of when we started waiting
+        while((uint32_t)(val0 - HAL::timeInMilliseconds())  < 2000000000 ) {
             GCode::keepAlive(Processing);
             Machine::checkForPeriodicalActions(true);
         }
@@ -373,10 +462,13 @@ void Commands::processGCode(GCode *com) {
 
 				Machine::measureDistortion(md, reps);
 			}
-		} else Distortion::reportStatus();
+        }
+        else {
+            Distortion::reportStatus();
+        }
 		break;
 #endif
-	case 38: { // Tool Height G38 <axis><value> (A)<tool diameter>
+	case 38: // Tool Height G38 <axis><value> (A)<tool diameter>
         if (ZProbe::start()) {
             if (com->hasX()) {
                 float xp = ZProbe::run(X_AXIS, com->X, Z_PROBE_REPETITIONS);
@@ -387,8 +479,8 @@ void Commands::processGCode(GCode *com) {
                     }
 
                     Machine::coordinateOffset[X_AXIS] = xp - Machine::currentPosition[X_AXIS];
-                    Com::printF(PSTR(" TOOL OFFSET:"), xp, 3);
-                    Com::printFLN(PSTR(" X_OFFSET:"), Machine::coordinateOffset[X_AXIS], 3);
+                    Com::printF(Com::tToolOffset, xp, 3);
+                    Com::printFLN(Com::tSpaceXOffset, Machine::coordinateOffset[X_AXIS], 3);
                 }
             }
             else if (com->hasY()) {
@@ -400,8 +492,8 @@ void Commands::processGCode(GCode *com) {
                     }
 
                     Machine::coordinateOffset[Y_AXIS] = yp - Machine::currentPosition[Y_AXIS];
-                    Com::printF(PSTR(" TOOL OFFSET:"), yp, 3);
-                    Com::printFLN(PSTR(" Y_OFFSET:"), Machine::coordinateOffset[Y_AXIS], 3);
+                    Com::printF(Com::tToolOffset, yp, 3);
+                    Com::printFLN(Com::tSpaceYOffset, Machine::coordinateOffset[Y_AXIS], 3);
                 }
             }
             else {
@@ -415,8 +507,8 @@ void Commands::processGCode(GCode *com) {
                     else zp += EEPROM::zProbeHeight();
 
                     Machine::coordinateOffset[Z_AXIS] = zp - Machine::currentPosition[Z_AXIS];
-                    Com::printF(PSTR(" TOOL OFFSET:"), zp, 3);
-                    Com::printFLN(PSTR(" Z_OFFSET:"), Machine::coordinateOffset[Z_AXIS], 3);
+                    Com::printF(Com::tToolOffset, zp, 3);
+                    Com::printFLN(Com::tSpaceZOffset, Machine::coordinateOffset[Z_AXIS], 3);
 #if DISTORTION_CORRECTION
                     Distortion::SetStartEnd(Distortion::start, Distortion::end);
 #endif
@@ -426,8 +518,7 @@ void Commands::processGCode(GCode *com) {
 
             printCurrentPosition();
         }
-	}
-	break;
+	    break;
 #endif
 #if TMC_DRIVERS
 	case 41:
@@ -439,7 +530,7 @@ void Commands::processGCode(GCode *com) {
 		Com::printFLN(PSTR(" Z OFS:"), Machine::tmcStepperZ.pwm_ofs_auto(), 3);
 		Com::printF(PSTR("2 Grad:"), Machine::tmcStepper2.pwm_grad_auto(), 3);
 		Com::printFLN(PSTR(" 2 OFS:"), Machine::tmcStepper2.pwm_ofs_auto(), 3);
-	break;
+	    break;
 #endif
     case 90: // G90
         Machine::setRelativeCoorinateMode(false);
@@ -451,7 +542,7 @@ void Commands::processGCode(GCode *com) {
         if(com->internalCommand)
             Com::printInfoFLN(PSTR("Relative positioning"));
         break;
-	case 92: { // G92
+	case 92: // G92
 		if(com->hasX()) Machine::coordinateOffset[X_AXIS] = Machine::convertToMM(com->X) - Machine::currentPosition[X_AXIS];
 		if(com->hasY()) Machine::coordinateOffset[Y_AXIS] = Machine::convertToMM(com->Y) - Machine::currentPosition[Y_AXIS];
 		if(com->hasZ()) Machine::coordinateOffset[Z_AXIS] = Machine::convertToMM(com->Z) - Machine::currentPosition[Z_AXIS];
@@ -467,9 +558,8 @@ void Commands::processGCode(GCode *com) {
 #if DISTORTION_CORRECTION
         Distortion::SetStartEnd(Distortion::start, Distortion::end);
 #endif
-	}
-	break;
-	case 93: { // G93
+	    break;
+	case 93: // G93
 		if(com->hasX()) Machine::coordinateOffset[X_AXIS] = Machine::convertToMM(com->X);
 		if(com->hasY()) Machine::coordinateOffset[Y_AXIS] = Machine::convertToMM(com->Y);
 		if(com->hasZ()) Machine::coordinateOffset[Z_AXIS] = Machine::convertToMM(com->Z);
@@ -478,8 +568,7 @@ void Commands::processGCode(GCode *com) {
 			Com::printF(PSTR(" Y_OFFSET:"), Machine::coordinateOffset[Y_AXIS], 3);
 			Com::printFLN(PSTR(" Z_OFFSET:"), Machine::coordinateOffset[Z_AXIS], 3);
 		}
-    }
-	break;
+	    break;
 #if defined(NUM_MOTOR_DRIVERS) && NUM_MOTOR_DRIVERS > 0
     case 201:
         commandG201(*com);
@@ -511,6 +600,12 @@ void Commands::processGCode(GCode *com) {
 void Commands::processMCode(GCode *com) {
     if(EVENT_UNHANDLED_M_CODE(com))
         return;
+
+    //random variables
+    uint8_t flag0 = 0;
+    uint32_t val0;
+    float fl0;
+
     switch (com->M) {
     case 3: // Spindle CW
     case 4: // Spindle CCW
@@ -566,63 +661,57 @@ void Commands::processMCode(GCode *com) {
         break;
 #endif
     case 17: //M17 is to enable named axis
-    {
         waitUntilEndOfAllMoves();
-        bool named = false;
         if (com->hasX()) {
-            named = true;
+            flag0 = 1;
             Machine::enableXStepper();
         }
         if (com->hasY()) {
-            named = true;
+            flag0 = 1;
             Machine::enableYStepper();
         }
         if (com->hasZ()) {
-            named = true;
+            flag0 = 1;
             Machine::enableZStepper();
         }
         if (com->hasA()) {
-            named = true;
+            flag0 = 1;
             Machine::enableAStepper();
         }
-        if (!named) {
+        if (!flag0) {
             Machine::enableXStepper();
             Machine::enableYStepper();
             Machine::enableZStepper();
             Machine::enableAStepper();
         }
         Machine::unsetAllSteppersDisabled();
-    }
-    break;
+        break;
     case 18: // M18 is to disable named axis
-    {
         waitUntilEndOfAllMoves();
-        bool named = false;
         if (com->hasX()) {
-            named = true;
+            flag0 = 1;
             Machine::disableXStepper();
         }
         if (com->hasY()) {
-            named = true;
+            flag0 = 1;
             Machine::disableYStepper();
         }
         if (com->hasZ()) {
-            named = true;
+            flag0 = 1;
             Machine::disableZStepper();
         }
         if (com->hasA()) {
-            named = true;
+            flag0 = 1;
             Machine::disableAStepper();
         }
-        if (!named) {
+        if (!flag0) {
             Machine::disableXStepper();
             Machine::disableYStepper();
             Machine::disableZStepper();
             Machine::disableAStepper();
             Machine::setAllSteppersDiabled();
         }
-    }
-    break;
+        break;
 #if SDSUPPORT
     case 20: // M20 - list SD card
         sd.ls();
@@ -675,7 +764,7 @@ void Commands::processMCode(GCode *com) {
 #endif
     case 42: //M42 -Change pin status via gcode
         if (com->hasP()) {
-            int pin_number = com->P;
+            int8_t pin_number = com->P;
             for (uint8_t i = 0; i < (uint8_t)sizeof(sensitive_pins); i++) {
                 if (pgm_read_byte(&sensitive_pins[i]) == pin_number) {
                     pin_number = -1;
@@ -742,34 +831,24 @@ void Commands::processMCode(GCode *com) {
         if (com->hasA()) Machine::axisStepsPerMM[A_AXIS] = com->Z;
         Machine::updateDerivedParameter();
         break;
-    case 99: { // M99 S<time>
-            millis_t wait = 10000;
-            if (com->hasS())
-                wait = 1000 * com->S;
-            if (com->hasX())
-                Machine::disableXStepper();
-            if (com->hasY())
-                Machine::disableYStepper();
-            if (com->hasZ())
-                Machine::disableZStepper();
-            if (com->hasA())
-                Machine::disableAStepper();
-            wait += HAL::timeInMilliseconds();
+    case 99: // M99 S<time>
+        val0 = 10000;
+        if (com->hasS()) val0 = 1000 * com->S;
+        if (com->hasX()) Machine::disableXStepper();
+        if (com->hasY()) Machine::disableYStepper();
+        if (com->hasZ()) Machine::disableZStepper();
+        if (com->hasA()) Machine::disableAStepper();
+        val0 += HAL::timeInMilliseconds();
 #ifdef DEBUG_MACHINE
-            Machine::debugWaitLoop = 2;
+        Machine::debugWaitLoop = 2;
 #endif
-            while (wait - HAL::timeInMilliseconds() < 100000) {
-                Machine::defaultLoopActions();
-            }
-            if (com->hasX())
-                Machine::enableXStepper();
-            if (com->hasY())
-                Machine::enableYStepper();
-            if (com->hasZ())
-                Machine::enableZStepper();
-            if (com->hasA())
-                Machine::enableAStepper();
+        while (val0 - HAL::timeInMilliseconds() < 100000) {
+            Machine::defaultLoopActions();
         }
+        if (com->hasX()) Machine::enableXStepper();
+        if (com->hasY()) Machine::enableYStepper();
+        if (com->hasZ()) Machine::enableZStepper();
+        if (com->hasA()) Machine::enableAStepper();
         break;
     case 105: // M105  get speed. Always returns the speed or laser temp
 #if SUPPORT_LASER
@@ -789,7 +868,6 @@ void Commands::processMCode(GCode *com) {
 #endif
         Com::println();
         break;
-
 #if FEATURE_FAN_CONTROL
     case 106: // M106 Fan On
         if(com->hasI()) {
@@ -843,34 +921,20 @@ void Commands::processMCode(GCode *com) {
 #endif
 #if RAMP_ACCELERATION
     case 201: // M201
-        if (com->hasX()) {
-            Machine::maxAccelerationMMPerSquareSecond[X_AXIS] = com->X;
-        }
-        if (com->hasY()) {
-            Machine::maxAccelerationMMPerSquareSecond[Y_AXIS] = com->Y;
-        }
-        if (com->hasZ()) {
-            Machine::maxAccelerationMMPerSquareSecond[Z_AXIS] = com->Z;
-        }
-        if (com->hasA()) {
-            Machine::maxAccelerationMMPerSquareSecond[A_AXIS] = com->A;
-        }
+        if (com->hasX()) Machine::maxAccelerationMMPerSquareSecond[X_AXIS] = com->X;
+        if (com->hasY()) Machine::maxAccelerationMMPerSquareSecond[Y_AXIS] = com->Y;
+        if (com->hasZ()) Machine::maxAccelerationMMPerSquareSecond[Z_AXIS] = com->Z;
+        if (com->hasA()) Machine::maxAccelerationMMPerSquareSecond[A_AXIS] = com->A;
+
 		Machine::updateDerivedParameter();
         break;
 #endif
     case 203: // M203 Temperature monitor
-		if(com->hasX()) {
-			Machine::maxFeedrate[X_AXIS] = com->X / 60.0f;
-		}
-		if(com->hasY()) {
-			Machine::maxFeedrate[Y_AXIS] = com->Y / 60.0f;
-		}
-		if(com->hasZ()) {
-			Machine::maxFeedrate[Z_AXIS] = com->Z / 60.0f;
-		}
-        if(com->hasA()) {
-            Machine::maxFeedrate[A_AXIS] = com->A / 60.0f;
-        }
+		if(com->hasX()) Machine::maxFeedrate[X_AXIS] = com->X / 60.0f;
+		if(com->hasY()) Machine::maxFeedrate[Y_AXIS] = com->Y / 60.0f;
+		if(com->hasZ()) Machine::maxFeedrate[Z_AXIS] = com->Z / 60.0f;
+        if(com->hasA()) Machine::maxFeedrate[A_AXIS] = com->A / 60.0f;
+
 		break;
     case 205: // M205 Show EEPROM settings
         Com::writeToAll = false;
@@ -881,18 +945,11 @@ void Commands::processMCode(GCode *com) {
         EEPROM::update(com);
         break;
     case 207: // M207 X<XY jerk> Z<Z Jerk>
-        if (com->hasX()) {
-            Machine::maxJerk[X_AXIS] = com->X;
-        }
-        if (com->hasY()) {
-            Machine::maxJerk[Y_AXIS] = com->Y;
-        }
-        if (com->hasZ()) {
-            Machine::maxJerk[Z_AXIS] = com->Z;
-        }
-        if (com->hasA()) {
-            Machine::maxJerk[A_AXIS] = com->A;
-        }
+        if (com->hasX()) Machine::maxJerk[X_AXIS] = com->X;
+        if (com->hasY()) Machine::maxJerk[Y_AXIS] = com->Y;
+        if (com->hasZ()) Machine::maxJerk[Z_AXIS] = com->Z;
+        if (com->hasA()) Machine::maxJerk[A_AXIS] = com->A;
+
 		Com::printF(Com::tXJerkColon, Machine::maxJerk[X_AXIS]);
 		Com::printF(Com::tYJerkColon, Machine::maxJerk[Y_AXIS]);
 		Com::printF(Com::tZJerkColon, Machine::maxJerk[Z_AXIS]);
@@ -916,19 +973,17 @@ void Commands::processMCode(GCode *com) {
     case 226: // M226 P<pin> S<state 0/1> - Wait for pin getting state S
         if(!com->hasS() || !com->hasP())
             break;
-        {
-            bool comp = com->S;
-            if(com->hasX()) {
-                if(com->X == 0)
-                    HAL::pinMode(com->P, INPUT);
-                else
-                    HAL::pinMode(com->P, INPUT_PULLUP);
-            }
-            do {
-                Machine::checkForPeriodicalActions(true);
-                GCode::keepAlive(Waiting);
-            } while(HAL::digitalRead(com->P) != comp);
+
+        flag0 = com->S;
+        if(com->hasX()) {
+            if(com->X == 0) HAL::pinMode(com->P, INPUT);
+            else HAL::pinMode(com->P, INPUT_PULLUP);
         }
+        do {
+            Machine::checkForPeriodicalActions(true);
+            GCode::keepAlive(Waiting);
+        } while(HAL::digitalRead(com->P) != flag0);
+
 		break;
 #if Z_HOME_DIR > 0 && MAX_HARDWARE_ENDSTOP_Z
     case 251: // M251
@@ -946,7 +1001,6 @@ void Commands::processMCode(GCode *com) {
 #endif
     case 281: // Trigger watchdog
 #if FEATURE_WATCHDOG
-    {
         if(com->hasX()) {
             HAL::stopWatchdog();
             Com::printFLN(PSTR("Watchdog disabled"));
@@ -959,22 +1013,21 @@ void Commands::processMCode(GCode *com) {
         InterruptProtectedBlock noInts;         // don't disable interrupts on mega2560 and mega1280 because of bootloader bug
 #endif
         while(1) {} // Endless loop
-    }
 #else
-    Com::printInfoFLN(PSTR("Watchdog feature was not compiled into this version!"));
+        Com::printInfoFLN(PSTR("Watchdog feature was not compiled into this version!"));
 #endif
-    break;
+        break;
 #if defined(BEEPER_PIN) && BEEPER_PIN>=0
-    case 300: { // M300
-        int beepS = 1;
-        int beepP = 1000;
-        if(com->hasS()) beepS = com->S;
-        if(com->hasP()) beepP = com->P;
-        HAL::tone(BEEPER_PIN, beepS);
-        HAL::delayMilliseconds(beepP);
+    case 300: // M300
+        flag0 = 1;
+        val0 = 1000;
+        if(com->hasS()) flag0 = com->S;
+        if(com->hasP()) val0 = com->P;
+        HAL::tone(BEEPER_PIN, flag0);
+        HAL::delayMilliseconds(val0);
         HAL::noTone(BEEPER_PIN);
-    }
-    break;
+
+        break;
 #endif
 #if FEATURE_SERVO
     case 340: // M340
@@ -991,10 +1044,8 @@ void Commands::processMCode(GCode *com) {
         break;
 #endif // FEATURE_SERVO
     case 355: // M355 S<0/1> - Turn case light on/off, no S = report status
-        if(com->hasS()) {
-            Machine::setCaseLight(com->S);
-        } else
-            Machine::reportCaseLightStatus();
+        if(com->hasS()) Machine::setCaseLight(com->S);
+        else Machine::reportCaseLightStatus();
         break;
     case 360: // M360 - show configuration
         Com::writeToAll = false;
@@ -1034,24 +1085,22 @@ void Commands::processMCode(GCode *com) {
 #endif
         Machine::reportPrinterMode();
         break;
-    case 500: { // M500
+    case 500: // M500
 #if EEPROM_MODE != 0
         EEPROM::storeDataIntoEEPROM(false);
         Com::printInfoFLN(Com::tConfigStoredEEPROM);
 #else
         Com::printErrorFLN(Com::tNoEEPROMSupport);
 #endif
-    }
-    break;
-    case 501: { // M501
+        break;
+    case 501: // M501
 #if EEPROM_MODE != 0
         EEPROM::readDataFromEEPROM();
 		Com::printInfoFLN(Com::tConfigLoadedEEPROM);
 #else
         Com::printErrorFLN(Com::tNoEEPROMSupport);
 #endif
-    }
-    break;
+        break;
     case 502: // M502
         EEPROM::restoreEEPROMSettingsFromConfiguration();
 		break;
@@ -1087,6 +1136,7 @@ void Commands::processMCode(GCode *com) {
     break;
 #endif // DEBUG_QUEUE_MOVE
 #ifdef DEBUG_REAL_JERK
+    case 534:
         Com::printFLN(PSTR("Max. jerk measured:"), Machine::maxRealJerk);
         if(com->hasS())
             Machine::maxRealJerk = 0;
@@ -1103,6 +1153,18 @@ void Commands::processMCode(GCode *com) {
     case 900: // Check if sending Binary
         Com::printFLN(PSTR("Sending Binary:"), (int)com->isSendingBinary());
         break;
+#if ALLOW_PARTIAL_GCODE_AS_MOVE
+    case 901: // M901 (S<0/1>)
+        if (com->hasS()) {
+            allowPartialGCode = com->S ? 1 : 0;
+#if EEPROM_MODE
+            EEPROM::setAllowPartialGCode(allowPartialGCode);
+#endif
+        }
+
+        Com::printFLN(PSTR("Allowing Partial GCode:"), (int)allowPartialGCode);
+        break;
+#endif
     case 999: // Stop fatal error take down
         if(com->hasS())
             GCode::fatalError(PSTR("Testing fatal error"));
@@ -1119,64 +1181,4 @@ void Commands::processMCode(GCode *com) {
 }
 
 void Commands::processTCode(GCode* com) {
-}
-
-/**
-\brief Execute the G command stored in com.
-*/
-void Commands::executeGCode(GCode *com) {
-    // Set return channel for private commands. By default all commands send to all receivers.
-    GCodeSource *actSource = GCodeSource::activeSource;
-    GCodeSource::activeSource = com->source;
-    Com::writeToAll = true;
-
-#ifdef INCLUDE_DEBUG_COMMUNICATION
-    if(Machine::debugCommunication()) {
-        if(com->hasG() || (com->hasM() && com->M != 111)) {
-            Machine::previousMillisCmd = HAL::timeInMilliseconds();
-            GCodeSource::activeSource = actSource;
-
-            return;
-        }
-    }
-#endif
-
-    if (com->hasG()) processGCode(com);
-    else if (com->hasM()) processMCode(com);
-    else if (com->hasT()) processTCode(com);
-	else {
-        if(Machine::debugErrors()) {
-            Com::printF(Com::tUnknownCommand);
-            com->printCommand();
-        }
-    }
-
-    GCodeSource::activeSource = actSource;
-}
-
-void Commands::emergencyStop() {
-#if defined(KILL_METHOD) && KILL_METHOD == 1
-    HAL::resetHardware();
-#else
-    //HAL::forbidInterrupts(); // Don't allow interrupts to do their work
-    Machine::kill(false);
-    Machine::pwm.clear();
-	HAL::delayMilliseconds(200);
-    InterruptProtectedBlock noInts;
-    while(1) {}
-#endif
-}
-
-void Commands::checkFreeMemory() {
-    int newfree = HAL::getFreeRam();
-    if (newfree < lowestRAMValue) {
-        lowestRAMValue = newfree;
-    }
-}
-
-void Commands::writeLowestFreeRAM() {
-    if(lowestRAMValueSend > lowestRAMValue) {
-        lowestRAMValueSend = lowestRAMValue;
-        Com::printFLN(Com::tFreeRAM, lowestRAMValue);
-    }
 }

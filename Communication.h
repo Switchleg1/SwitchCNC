@@ -162,16 +162,21 @@ public:
     FSTRINGVAR(tZProbeState)
     FSTRINGVAR(tZProbeZReset)
     FSTRINGVAR(tZProbeFailed)
+    FSTRINGVAR(tToolOffset)
+    FSTRINGVAR(tSpaceXOffset)
+    FSTRINGVAR(tSpaceYOffset)
+    FSTRINGVAR(tSpaceZOffset)
+        
 #endif
 #if DISTORTION_CORRECTION
-    FSTRINGVAR(tDistortionXMIN) //SL
-    FSTRINGVAR(tDistortionXMAX) //SL
-    FSTRINGVAR(tDistortionYMIN) //SL
-    FSTRINGVAR(tDistortionYMAX) //SL
-    FSTRINGVAR(tDistortionPoints) //SL
-    FSTRINGVAR(tDistortionStart) //SL
-    FSTRINGVAR(tDistortionEnd) //SL
-    FSTRINGVAR(tDistortionUseOffset) //SL
+    FSTRINGVAR(tDistortionXMIN)
+    FSTRINGVAR(tDistortionXMAX)
+    FSTRINGVAR(tDistortionYMIN)
+    FSTRINGVAR(tDistortionYMAX)
+    FSTRINGVAR(tDistortionPoints)
+    FSTRINGVAR(tDistortionStart)
+    FSTRINGVAR(tDistortionEnd)
+    FSTRINGVAR(tDistortionUseOffset)
 #endif
 #if defined(PAUSE_PIN) && PAUSE_PIN>-1
     FSTRINGVAR(tPaused)

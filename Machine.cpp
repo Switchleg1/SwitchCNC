@@ -243,8 +243,7 @@ void Machine::checkForPeriodicalActions(bool allowNewMoves)
     }
 }
 
-void Machine::timerInterrupt()
-{
+void Machine::timerInterrupt() {
     // Approximate a 100ms timer
     bool deincrementKickStart = false;
     counterPeriodical++;
@@ -462,12 +461,12 @@ uint8_t Machine::setDestinationStepsFromGCode(GCode *com) {
 			if(com->hasZ()) currentPosition[Z_AXIS] = (lastCmdPos[Z_AXIS] += convertToMM(com->Z));
 			if(com->hasA()) currentPosition[A_AXIS] = (lastCmdPos[A_AXIS] += convertToMM(com->A));
 		}
-		posAllowed = com->hasNoXYZ() || isPositionAllowed(lastCmdPos[X_AXIS], lastCmdPos[Y_AXIS], lastCmdPos[Z_AXIS]);
+		posAllowed = com->hasNoXYZA() || isPositionAllowed(lastCmdPos[X_AXIS], lastCmdPos[Y_AXIS], lastCmdPos[Z_AXIS]);
 #if DISTORTION_CORRECTION == 0
     }
 #endif
 
-    if(com->hasF() && com->F > 0.1) {
+    if(com->hasF() && com->F > 0.1f) {
         if(isUnitInches()) feedrate = com->F * 0.0042333f * (float)feedrateMultiply;  // Factor is 25.5/60/100
         else feedrate = com->F * (float)feedrateMultiply * 0.00016666666f;
     }

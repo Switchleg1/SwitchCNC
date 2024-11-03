@@ -2,7 +2,7 @@
 #define _EEPROM_H
 
 // Id to distinguish version changes
-#define EEPROM_PROTOCOL_VERSION 2
+#define EEPROM_PROTOCOL_VERSION             2
 
 /** Where to start with our data block in memory. Can be moved if you
 have problems with other modules using the eeprom */
@@ -39,21 +39,24 @@ have problems with other modules using the eeprom */
 #define EPR_Z_PROBE_HEIGHT        			117
 #define EPR_Z_PROBE_SPEED         			121
 #define EPR_Z_PROBE_XY_SPEED      			125
-#define EPR_MAX_AJERK              			129  	//SL
-#define EPR_A_MAX_ACCEL            			133		//SL
-#define EPR_AAXIS_STEPS_PER_MM      		137		//SL
-#define EPR_A_MAX_FEEDRATE         			141		//SL
-#define EPR_BACKLASH_A            			145		//SL
-#define EPR_MAX_YJERK               		149		//SL
+#define EPR_MAX_AJERK              			129
+#define EPR_A_MAX_ACCEL            			133
+#define EPR_AAXIS_STEPS_PER_MM      		137
+#define EPR_A_MAX_FEEDRATE         			141
+#define EPR_BACKLASH_A            			145
+#define EPR_MAX_YJERK               		149
 #define EPR_DISTORTION_CORRECTION_ENABLED  	165
-#define EPR_DISTORTION_USE_OFFSET			166		 //SL
-#define EPR_DISTORTION_XMIN					167       //SL
-#define EPR_DISTORTION_XMAX					169       //SL
-#define EPR_DISTORTION_YMIN					171       //SL
-#define EPR_DISTORTION_YMAX					173       //SL
-#define EPR_DISTORTION_POINTS				175       //SL
-#define EPR_DISTORTION_START				176		 //SL
-#define EPR_DISTORTION_END					180		 //SL
+#define EPR_DISTORTION_USE_OFFSET			166
+#define EPR_DISTORTION_XMIN					167
+#define EPR_DISTORTION_XMAX					169
+#define EPR_DISTORTION_YMIN					171
+#define EPR_DISTORTION_YMAX					173
+#define EPR_DISTORTION_POINTS				175
+#define EPR_DISTORTION_START				176
+#define EPR_DISTORTION_END					180
+#define EPR_ALLOW_PARTIAL_GCODE_AS_MOVE     184
+
+#define EPR_DISTORTION_POINT_DATA           2048
 
 #if EEPROM_MODE != 0
 #define EEPROM_FLOAT(x) HAL::eprGetFloat(EPR_##x)
@@ -67,19 +70,8 @@ have problems with other modules using the eeprom */
 #define EEPROM_SET_BYTE(x,val)
 #endif
 
-class EEPROM
-{
-#if EEPROM_MODE != 0
-	static void writeFloat(uint pos,PGM_P text,uint8_t digits = 3);
-    static void writeLong(uint pos,PGM_P text);
-    static void writeInt(uint pos,PGM_P text);
-    static void writeByte(uint pos,PGM_P text);
+class EEPROM {
 public:
-    static uint8_t computeChecksum();
-    static void updateChecksum();
-#endif
-public:
-
     static void init();
     static void initBaudrate();
     static void storeDataIntoEEPROM(uint8_t corrupted = 0);
@@ -87,63 +79,31 @@ public:
     static void restoreEEPROMSettingsFromConfiguration();
     static void writeSettings();
     static void update(GCode *com);
-    static void updatePrinterUsage();
-    static inline void setVersion(uint8_t v) {
-#if EEPROM_MODE != 0
-        HAL::eprSetByte(EPR_VERSION,v);
-        HAL::eprSetByte(EPR_INTEGRITY_BYTE,computeChecksum());
-#endif
-    }
+    static uint8_t computeChecksum();
 #if FEATURE_Z_PROBE
-	static inline void setZProbeHeight(float mm) {
+    static void setZProbeHeight(float mm);
+    static float zProbeSpeed();
+    static float zProbeXYSpeed();
+    static float zProbeHeight();
+#endif
+#if DISTORTION_CORRECTION && EEPROM_MODE
+    static void setZCorrection(uint8_t* data, uint16_t count);
+    static void getZCorrection(uint8_t* data, uint16_t count);
+    static void setZCorrectionEnabled(int8_t on);
+    static int8_t isZCorrectionEnabled();
+#endif
+#if ALLOW_PARTIAL_GCODE_AS_MOVE && EEPROM_MODE
+    static void setAllowPartialGCode(uint8_t allow);
+    static uint8_t getAllowPartialGCode();
+#endif
+private:
+    static void initalizeUncached();
+    static void updateChecksum();
 #if EEPROM_MODE != 0
-		HAL::eprSetFloat(EPR_Z_PROBE_HEIGHT, mm);
-		Com::printFLN(PSTR("Z-Probe height set to: "),mm,3);
-		EEPROM::updateChecksum();
+    static void writeFloat(uint pos, PGM_P text, uint8_t digits = 3);
+    static void writeLong(uint pos, PGM_P text);
+    static void writeInt(uint pos, PGM_P text);
+    static void writeByte(uint pos, PGM_P text);
 #endif
-	}
-#endif
-
-    static inline float zProbeSpeed() {
-#if EEPROM_MODE != 0
-        return HAL::eprGetFloat(EPR_Z_PROBE_SPEED);
-#else
-        return Z_PROBE_SPEED;
-#endif
-    }
-    static inline float zProbeXYSpeed() {
-#if EEPROM_MODE != 0
-        return HAL::eprGetFloat(EPR_Z_PROBE_XY_SPEED);
-#else
-        return Z_PROBE_XY_SPEED;
-#endif
-	}
-	static inline float zProbeHeight() {
-#if EEPROM_MODE != 0
-		return HAL::eprGetFloat(EPR_Z_PROBE_HEIGHT);
-#else
-        return Z_PROBE_HEIGHT;
-#endif
-	}
-	static void initalizeUncached();
-
-    static void setZCorrection(int32_t c,int index);
-    static inline int32_t getZCorrection(int index) {
-        return HAL::eprGetInt32(2048 + (index << 2));
-    }
-    static inline void setZCorrectionEnabled(int8_t on) {
-#if EEPROM_MODE != 0
-        if(isZCorrectionEnabled() == on) return;
-		HAL::eprSetByte(EPR_DISTORTION_CORRECTION_ENABLED, on);
-        EEPROM::updateChecksum();
-#endif
-    }
-    static inline int8_t isZCorrectionEnabled() {
-#if EEPROM_MODE != 0
-        return HAL::eprGetByte(EPR_DISTORTION_CORRECTION_ENABLED);
-#else
-        return 0;
-#endif
-	}
 };
 #endif
