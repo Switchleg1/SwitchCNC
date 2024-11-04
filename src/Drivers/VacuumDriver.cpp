@@ -1,6 +1,6 @@
 #include "../../SwitchCNC.h"
 
-#if SUPPORT_VACUUM
+#if VACUUM_SUPPORT
 
 uint8_t VacuumDriver::nextState;
 uint8_t VacuumDriver::currentState;

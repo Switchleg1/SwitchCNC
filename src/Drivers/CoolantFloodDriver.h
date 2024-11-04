@@ -1,7 +1,7 @@
 #ifndef COOLANTFLOODDRIVER_H
 #define COOLANTFLOODDRIVER_H
 
-#if SUPPORT_COOLANT && COOLANT_FLOOD_PIN > -1
+#if COOLANT_SUPPORT && COOLANT_FLOOD_PIN > -1
 
 class CoolantFloodDriver {
 public:

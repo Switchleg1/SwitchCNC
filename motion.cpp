@@ -70,7 +70,7 @@ void MachineLine::moveRelativeDistanceInSteps(int32_t x, int32_t y, int32_t z, i
         Machine::currentPositionSteps[A_AXIS] + a
     };
 	Machine::feedrate = feedrate;
-#if DISTORTION_CORRECTION
+#if DISTORTION_CORRECTION_SUPPORT
     destinationSteps[Z_AXIS] -= Machine::zCorrectionStepsIncluded; // correct as it will be added later in Cartesian move computation
 #endif
 	queueCartesianMove(destinationSteps, checkEndstop, pathOptimize);
@@ -130,7 +130,7 @@ void MachineLine::moveRelativeDistanceInStepsReal(int32_t x, int32_t y, int32_t 
 }
 
 void MachineLine::queueCartesianSegmentTo(int32_t *segmentSteps, uint8_t addDistortion, uint8_t checkEndstops, uint8_t pathOptimize) {
-#if DISTORTION_CORRECTION
+#if DISTORTION_CORRECTION_SUPPORT
     if (addDistortion) {
         // Correct the bumps
         Machine::zCorrectionStepsIncluded = Distortion::correct(segmentSteps[X_AXIS], segmentSteps[Y_AXIS], segmentSteps[Z_AXIS]);
@@ -163,27 +163,27 @@ void MachineLine::queueCartesianSegmentTo(int32_t *segmentSteps, uint8_t addDist
         Machine::currentPositionSteps[axis] = segmentSteps[axis];
     }
 
-#if SUPPORT_LASER
+#if LASER_SUPPORT
     p->laserIntensity = LaserDriver::next();
 #endif
-#if FEATURE_FAN_CONTROL
+#if FAN_CONTROL_SUPPORT
     p->fanSpeed = FanDriver::next();
 #endif
 
     p->toolFlags = 0;
-#if SUPPORT_VACUUM
+#if VACUUM_SUPPORT
     if (VacuumDriver::next()) {
         p->toolFlags |= FLAG_TOOL_VACUUM_ON;
     }
 #endif
 
-#if SUPPORT_COOLANT && COOLANT_MIST_PIN > -1
+#if COOLANT_SUPPORT && COOLANT_MIST_PIN > -1
     if (CoolantMistDriver::next()) {
         p->toolFlags |= FLAG_TOOL_MIST_ON;
     }
 #endif
 
-#if SUPPORT_COOLANT && COOLANT_FLOOD_PIN > -1
+#if COOLANT_SUPPORT && COOLANT_FLOOD_PIN > -1
     if (CoolantFloodDriver::next()) {
         p->toolFlags |= FLAG_TOOL_FLOOD_ON;
     }
@@ -196,7 +196,7 @@ void MachineLine::queueCartesianSegmentTo(int32_t *segmentSteps, uint8_t addDist
     }
 
 	float xydist2 = 0;
-#if ENABLE_BACKLASH_COMPENSATION
+#if BACKLASH_COMPENSATION_SUPPORT
     if((p->isXYZAMove()) && ((p->dir & XYZA_DIRPOS) ^ (Machine::backlashDir & XYZA_DIRPOS)) & (Machine::backlashDir >> 3)) { // We need to compensate backlash, add a move
         MachineLine::waitForXFreeLines(2);
         uint8_t wpos2 = MachineLine::linesWritePos + 1;
@@ -281,7 +281,7 @@ void MachineLine::queueCartesianMove(int32_t *destinationSteps, uint8_t checkEnd
     Machine::constrainDestinationCoords(destinationSteps);
 	Machine::unsetAllSteppersDisabled();
 
-#if DISTORTION_CORRECTION || ALWAYS_SPLIT_LINES
+#if DISTORTION_CORRECTION_SUPPORT || ALWAYS_SPLIT_LINES
     float moveLen = 0;
     bool distortionCorrection = false;
 #if ALWAYS_SPLIT_LINES
@@ -305,7 +305,7 @@ void MachineLine::queueCartesianMove(int32_t *destinationSteps, uint8_t checkEnd
 	}
 #endif
 
-#if DISTORTION_CORRECTION
+#if DISTORTION_CORRECTION_SUPPORT
 	if(Distortion::isEnabled() && (destinationSteps[Z_AXIS] < Distortion::zMaxSteps()) && !Machine::isZProbingActive() && !Machine::isHoming()) {
         Machine::currentPositionSteps[Z_AXIS] -= Machine::zCorrectionStepsIncluded;
 
@@ -327,7 +327,7 @@ void MachineLine::queueCartesianMove(int32_t *destinationSteps, uint8_t checkEnd
 	}
 #endif
 
-#if DISTORTION_CORRECTION || ALWAYS_SPLIT_LINES
+#if DISTORTION_CORRECTION_SUPPORT || ALWAYS_SPLIT_LINES
     // Split if length is larger than the allowed segment size
     if (moveLen > LINE_SEGMENT_SIZE * LINE_SEGMENT_SIZE) {
         // we need to split longer lines to follow bed curvature
@@ -1063,21 +1063,21 @@ uint32_t MachineLine::bresenhamStep() {
 		Machine::timer = 0;
 		HAL::forbidInterrupts();
 
-#if SUPPORT_LASER
+#if LASER_SUPPORT
         if (Machine::mode == MACHINE_MODE_LASER) {
             LaserDriver::setIntensity(cur->laserIntensity);
         }
 #endif
-#if FEATURE_FAN_CONTROL
+#if FAN_CONTROL_SUPPORT
         FanDriver::setSpeed(cur->fanSpeed);
 #endif
-#if SUPPORT_VACUUM
+#if VACUUM_SUPPORT
         VacuumDriver::setState(cur->toolFlags & FLAG_TOOL_VACUUM_ON);
 #endif
-#if SUPPORT_COOLANT && COOLANT_MIST_PIN > -1
+#if COOLANT_SUPPORT && COOLANT_MIST_PIN > -1
         CoolantMistDriver::setState(cur->toolFlags & FLAG_TOOL_MIST_ON);
 #endif
-#if SUPPORT_COOLANT && COOLANT_FLOOD_PIN > -1
+#if COOLANT_SUPPORT && COOLANT_FLOOD_PIN > -1
         CoolantFloodDriver::setState(cur->toolFlags & FLAG_TOOL_FLOOD_ON);
 #endif
 
@@ -1154,7 +1154,7 @@ uint32_t MachineLine::bresenhamStep() {
         }
 #if defined(PAUSE_PIN) && PAUSE_PIN > -1
     }
-#if SUPPORT_LASER
+#if LASER_SUPPORT
     else {
         LaserDriver::setIntensity(0);
     }
@@ -1183,7 +1183,7 @@ uint32_t MachineLine::bresenhamStep() {
         if (Machine::pauseSteps < 0) {
             Machine::pauseSteps = 0;
         }
-#if SUPPORT_LASER
+#if LASER_SUPPORT
         else {
             LaserDriver::setIntensity(cur->laserIntensity);
         }
@@ -1232,10 +1232,10 @@ uint32_t MachineLine::bresenhamStep() {
 
 #if defined(PAUSE_PIN) && PAUSE_PIN > -1
 	if(Machine::pauseSteps) Machine::interval += Machine::interval * Machine::pauseSteps / PAUSE_SLOPE;
-#endif // PAUSE
-#if SPEED_DIAL && SPEED_DIAL_PIN > -1
+#endif
+#if SPEED_DIAL_SUPPORT && SPEED_DIAL_PIN > -1
     if (Machine::speed_dial != (1 << SPEED_DIAL_BITS)) Machine::interval = (Machine::interval << SPEED_DIAL_BITS) / Machine::speed_dial;
-#endif // SPEED_DIAL
+#endif
 	if(cur->stepsRemaining <= 0 || cur->isNoMove()) { // line finished
 #ifdef DEBUG_STEPCOUNT
         if(cur->totalStepsRemaining) {
@@ -1247,12 +1247,12 @@ uint32_t MachineLine::bresenhamStep() {
         removeCurrentLineForbidInterrupt();
         Machine::disableAllowedStepper();
 		if(linesCount == 0) {
-#if SUPPORT_LASER
+#if LASER_SUPPORT
             if (Machine::mode == MACHINE_MODE_LASER) { // Last move disables laser for safety!
                 LaserDriver::setIntensity(0);
             }
 #endif
-#if FEATURE_FAN_CONTROL
+#if FAN_CONTROL_SUPPORT
             FanDriver::setSpeed(FanDriver::next());
 #endif
         }

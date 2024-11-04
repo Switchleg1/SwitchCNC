@@ -6,8 +6,8 @@
 #include "Configuration.h"
 
 #define SWITCHCNC_VERSION       "1.0.3"
-#if SUPPORT_SPINDLE
-#if SUPPORT_LASER
+#if SPINDLE_SUPPORT
+#if LASER_SUPPORT
 #define MACHINE_TYPE            "SPINDLE/LASER"
 #else
 #define MACHINE_TYPE            "SPINDLE"
@@ -22,11 +22,11 @@
 #define MACHINE_MODE_LASER      1
 
 //error check default machine mode
-#if DEFAULT_MACHINE_MODE == 0 && (!SUPPORT_SPINDLE)
-#error DEFAULT_MACHINE_MODE cannot be 0 when SUPPORT_SPINDLE is not defined
+#if DEFAULT_MACHINE_MODE == 0 && (!SPINDLE_SUPPORT)
+#error DEFAULT_MACHINE_MODE cannot be 0 when SPINDLE_SUPPORT is not defined
 #endif
-#if DEFAULT_MACHINE_MODE == 1 && (!SUPPORT_LASER)
-#error DEFAULT_MACHINE_MODE cannot be 1 when SUPPORT_LASER is not defined
+#if DEFAULT_MACHINE_MODE == 1 && (!LASER_SUPPORT)
+#error DEFAULT_MACHINE_MODE cannot be 1 when LASER_SUPPORT is not defined
 #endif
 #if DEFAULT_MACHINE_MODE > 1
 #error DEFAULT_MACHINE_MODE cannot be greater than 1
@@ -150,12 +150,12 @@ usage or for searching for memory induced errors. Switch it off for production, 
 #define BOARD_FAN_SPEED
 #endif
 
-#if FEATURE_Z_PROBE && Z_PROBE_PIN < 0
+#if Z_PROBE_SUPPORT && Z_PROBE_PIN < 0
 #error You need to define Z_PROBE_PIN to use z probe!
 #endif
 
-#if DISTORTION_CORRECTION
-#if !FEATURE_Z_PROBE
+#if DISTORTION_CORRECTION_SUPPORT
+#if !Z_PROBE_SUPPORT
 #error Distortion correction requires the z probe feature to be enabled and configured!
 #endif
 #endif
@@ -208,7 +208,7 @@ usage or for searching for memory induced errors. Switch it off for production, 
 /**  \brief Horizontal distance bridged by the diagonal push rod when the end effector is in the center. It is pretty close to 50% of the push rod length (250 mm).
 */
 
-#ifdef FEATURE_Z_PROBE
+#ifdef Z_PROBE_SUPPORT
 #define MANUAL_CONTROL              1
 #endif
 
@@ -242,8 +242,8 @@ usage or for searching for memory induced errors. Switch it off for production, 
 #define SDCARDDETECT                -1
 #endif
 
-#ifndef SDSUPPORT
-#define SDSUPPORT                   0
+#ifndef SDCARD_SUPPORT
+#define SDCARD_SUPPORT				0
 #endif
 
 #define DELAY1MICROSECOND           __asm__("nop\n\t""nop\n\t""nop\n\t""nop\n\t""nop\n\t""nop\n\t")
@@ -280,7 +280,7 @@ usage or for searching for memory induced errors. Switch it off for production, 
 #include "src/Drivers/CoolantFloodDriver.h"
 #include "Events.h"
 
-#if SDSUPPORT
+#if SDCARD_SUPPORT
 #include "src/SdFat/SdFat.h"
 #endif
 

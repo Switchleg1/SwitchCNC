@@ -1,6 +1,6 @@
 #include "SwitchCNC.h"
 
-#if DISTORTION_CORRECTION
+#if DISTORTION_CORRECTION_SUPPORT
 
 int16_t Distortion::XMIN;
 int16_t Distortion::XMAX;
@@ -374,4 +374,4 @@ void Distortion::showMatrix() {
     }
 }
 
-#endif // DISTORTION_CORRECTION
+#endif

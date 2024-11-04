@@ -1,7 +1,7 @@
 #ifndef SDCARDGCODESOURCE_H
 #define SDCARDGCODESOURCE_H
 
-#if SDSUPPORT
+#if SDCARD_SUPPORT
 class SDCardGCodeSource : public GCodeSource {
 public:
     virtual bool isOpen();

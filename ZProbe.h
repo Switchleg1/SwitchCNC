@@ -1,7 +1,7 @@
 #ifndef _Z_PROBE_H_
 #define _Z_PROBE_H_
 
-#if FEATURE_Z_PROBE
+#if Z_PROBE_SUPPORT
 
 class ZProbe {
 public:

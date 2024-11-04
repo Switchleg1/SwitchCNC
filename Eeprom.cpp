@@ -67,13 +67,13 @@ void EEPROM::restoreEEPROMSettingsFromConfiguration() {
 	Machine::axisMin[X_AXIS] = X_MIN_POS;
 	Machine::axisMin[Y_AXIS] = Y_MIN_POS;
 	Machine::axisMin[Z_AXIS] = Z_MIN_POS;
-#if ENABLE_BACKLASH_COMPENSATION
+#if BACKLASH_COMPENSATION_SUPPORT
 	Machine::backlash[X_AXIS] = X_BACKLASH;
 	Machine::backlash[Y_AXIS] = Y_BACKLASH;
 	Machine::backlash[Z_AXIS] = Z_BACKLASH;
 	Machine::backlash[A_AXIS] = A_BACKLASH;
 #endif
-#if DISTORTION_CORRECTION
+#if DISTORTION_CORRECTION_SUPPORT
 	Distortion::XMIN		= DISTORTION_XMIN;
 	Distortion::XMAX		= DISTORTION_XMAX;
 	Distortion::YMIN		= DISTORTION_YMIN;
@@ -127,13 +127,13 @@ void EEPROM::storeDataIntoEEPROM(uint8_t corrupted) {
 	HAL::eprSetFloat(EPR_X_LENGTH,Machine::axisLength[X_AXIS]);
 	HAL::eprSetFloat(EPR_Y_LENGTH,Machine::axisLength[Y_AXIS]);
 	HAL::eprSetFloat(EPR_Z_LENGTH,Machine::axisLength[Z_AXIS]);
-#if ENABLE_BACKLASH_COMPENSATION
+#if BACKLASH_COMPENSATION_SUPPORT
 	HAL::eprSetFloat(EPR_BACKLASH_X,Machine::backlash[X_AXIS]);
 	HAL::eprSetFloat(EPR_BACKLASH_Y,Machine::backlash[Y_AXIS]);
 	HAL::eprSetFloat(EPR_BACKLASH_Z,Machine::backlash[Z_AXIS]);
 	HAL::eprSetFloat(EPR_BACKLASH_Z,Machine::backlash[A_AXIS]);
 #endif
-#if DISTORTION_CORRECTION
+#if DISTORTION_CORRECTION_SUPPORT
 	HAL::eprSetInt16(EPR_DISTORTION_XMIN, Distortion::XMIN);
 	HAL::eprSetInt16(EPR_DISTORTION_XMAX, Distortion::XMAX);
 	HAL::eprSetInt16(EPR_DISTORTION_YMIN, Distortion::YMIN);
@@ -197,13 +197,13 @@ void EEPROM::readDataFromEEPROM() {
 	Machine::axisLength[X_AXIS] = HAL::eprGetFloat(EPR_X_LENGTH);
 	Machine::axisLength[Y_AXIS] = HAL::eprGetFloat(EPR_Y_LENGTH);
 	Machine::axisLength[Z_AXIS] = HAL::eprGetFloat(EPR_Z_LENGTH);
-#if ENABLE_BACKLASH_COMPENSATION
+#if BACKLASH_COMPENSATION_SUPPORT
 	Machine::backlash[X_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_X);
 	Machine::backlash[Y_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_Y);
 	Machine::backlash[Z_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_Z);
 	Machine::backlash[A_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_A);
 #endif
-#if DISTORTION_CORRECTION
+#if DISTORTION_CORRECTION_SUPPORT
 	Distortion::XMIN		= HAL::eprGetInt16(EPR_DISTORTION_XMIN);
 	Distortion::XMAX		= HAL::eprGetInt16(EPR_DISTORTION_XMAX);
 	Distortion::YMIN		= HAL::eprGetInt16(EPR_DISTORTION_YMIN);
@@ -310,7 +310,7 @@ void EEPROM::writeSettings() {
 	writeFloat(EPR_X_LENGTH, Com::tEPRXMaxLength);
 	writeFloat(EPR_Y_LENGTH, Com::tEPRYMaxLength);
 	writeFloat(EPR_Z_LENGTH, Com::tEPRZMaxLength);
-#if ENABLE_BACKLASH_COMPENSATION
+#if BACKLASH_COMPENSATION_SUPPORT
     writeFloat(EPR_BACKLASH_X, Com::tEPRXBacklash);
     writeFloat(EPR_BACKLASH_Y, Com::tEPRYBacklash);
 	writeFloat(EPR_BACKLASH_Z, Com::tEPRZBacklash);
@@ -322,12 +322,12 @@ void EEPROM::writeSettings() {
 	writeFloat(EPR_Z_MAX_ACCEL, Com::tEPRZAcceleration);
 	writeFloat(EPR_A_MAX_ACCEL, Com::tEPRAAcceleration);
 #endif
-#if FEATURE_Z_PROBE
+#if Z_PROBE_SUPPORT
     writeFloat(EPR_Z_PROBE_HEIGHT, Com::tZProbeHeight);
 	writeFloat(EPR_Z_PROBE_SPEED, Com::tZProbeSpeed);
 	writeFloat(EPR_Z_PROBE_XY_SPEED, Com::tZProbeSpeedXY);
 #endif
-#if DISTORTION_CORRECTION
+#if DISTORTION_CORRECTION_SUPPORT
 	writeInt(EPR_DISTORTION_XMIN, Com::tDistortionXMIN);
 	writeInt(EPR_DISTORTION_XMAX, Com::tDistortionXMAX);
 	writeInt(EPR_DISTORTION_YMIN, Com::tDistortionYMIN);
@@ -342,12 +342,23 @@ void EEPROM::writeSettings() {
 #endif
 }
 
-#if FEATURE_Z_PROBE
+void EEPROM::setVersion(uint8_t version) {
+	if (version != getVersion()) {
+		HAL::eprSetByte(EPR_VERSION, version);
+		updateChecksum();
+	}
+}
+
+uint8_t EEPROM::getVersion() {
+	return HAL::eprGetByte(EPR_VERSION);
+}
+
+#if Z_PROBE_SUPPORT
 void EEPROM::setZProbeHeight(float mm) {
 #if EEPROM_MODE != 0
 	HAL::eprSetFloat(EPR_Z_PROBE_HEIGHT, mm);
 	Com::printFLN(PSTR("Z-Probe height set to: "), mm, 3);
-	EEPROM::updateChecksum();
+	updateChecksum();
 #endif
 }
 
@@ -376,14 +387,29 @@ float EEPROM::zProbeHeight() {
 }
 #endif
 
-#if DISTORTION_CORRECTION && EEPROM_MODE
-void EEPROM::setZCorrection(uint8_t* data, uint16_t count) {
+#if DISTORTION_CORRECTION_SUPPORT && EEPROM_MODE
+void EEPROM::setZCorrectionPoints(uint8_t count) {
+	HAL::eprSetInt16(EPR_DISTORTION_POINTS, count);
+
+	updateChecksum();
+}
+
+void EEPROM::setZCorrectionMinMax(int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax) {
+	HAL::eprSetInt16(EPR_DISTORTION_XMIN, xMin);
+	HAL::eprSetInt16(EPR_DISTORTION_YMIN, yMin);
+	HAL::eprSetInt16(EPR_DISTORTION_XMAX, xMax);
+	HAL::eprSetInt16(EPR_DISTORTION_YMAX, yMax);
+
+	updateChecksum();
+}
+
+void EEPROM::setZCorrection(int32_t* data, uint16_t count) {
 	for (uint16_t i = 0; i < count; i++) {
 		HAL::eprSetInt32(EPR_DISTORTION_POINT_DATA + (i << 2), data[i]);
 	}
 }
 
-void EEPROM::getZCorrection(uint8_t* data, uint16_t count) {
+void EEPROM::getZCorrection(int32_t* data, uint16_t count) {
 	for (uint16_t i = 0; i < count; i++) {
 		data[i] = HAL::eprGetInt32(EPR_DISTORTION_POINT_DATA + (i << 2));
 	}
@@ -392,7 +418,7 @@ void EEPROM::getZCorrection(uint8_t* data, uint16_t count) {
 void EEPROM::setZCorrectionEnabled(int8_t on) {
 	if (isZCorrectionEnabled() == on) return;
 	HAL::eprSetByte(EPR_DISTORTION_CORRECTION_ENABLED, on);
-	EEPROM::updateChecksum();
+	updateChecksum();
 }
 
 int8_t EEPROM::isZCorrectionEnabled() {
@@ -404,7 +430,7 @@ int8_t EEPROM::isZCorrectionEnabled() {
 void EEPROM::setAllowPartialGCode(uint8_t allow) {
 	if (getAllowPartialGCode() != allow) {
 		HAL::eprSetByte(EPR_ALLOW_PARTIAL_GCODE_AS_MOVE, allow);
-		EEPROM::updateChecksum();
+		updateChecksum();
 	}
 }
 uint8_t EEPROM::getAllowPartialGCode() {
@@ -427,7 +453,7 @@ uint8_t EEPROM::computeChecksum() {
 
 void EEPROM::updateChecksum() {
     uint8_t newcheck = computeChecksum();
-    if(newcheck!=HAL::eprGetByte(EPR_INTEGRITY_BYTE))
+    if(newcheck != HAL::eprGetByte(EPR_INTEGRITY_BYTE))
         HAL::eprSetByte(EPR_INTEGRITY_BYTE,newcheck);
 }
 

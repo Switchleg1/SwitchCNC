@@ -1,6 +1,6 @@
 #include "../../SwitchCNC.h"
 
-#if SUPPORT_LASER
+#if LASER_SUPPORT
 
 uint8_t LaserDriver::laserOn;
 uint8_t LaserDriver::intensityMultiplier;
@@ -164,4 +164,4 @@ void LaserDriver::printState() {
     }
 }
 
-#endif // SUPPORT_LASER
+#endif

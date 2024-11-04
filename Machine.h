@@ -21,7 +21,7 @@ Level 5: Nonlinear motor step position, only for nonlinear drive systems
 #ifndef MACHINE_H_INCLUDED
 #define MACHINE_H_INCLUDED
 
-#if TMC_DRIVERS
+#if TMC_DRIVER_SUPPORT
 #include <TMCStepper.h>
 #endif
 
@@ -184,7 +184,7 @@ public:
 	static float currentPosition[A_AXIS_ARRAY];                 ///< Position in global coordinates
 	static float lastCmdPos[A_AXIS_ARRAY];                      ///< Last coordinates (global coordinates) send by g-codes
 	static int32_t zCorrectionStepsIncluded;
-#if FEATURE_Z_PROBE || MAX_HARDWARE_ENDSTOP_Z
+#if Z_PROBE_SUPPORT || MAX_HARDWARE_ENDSTOP_Z
     static int32_t stepsRemainingAtZHit;
 #endif
 	static int32_t axisMaxSteps[Z_AXIS_ARRAY];                  ///< For software endstops, limit of move in positive direction.
@@ -195,7 +195,7 @@ public:
     static int feedrateMultiply;                                ///< Multiplier for feedrate in percent (factor 1 = 100)
 	static float maxJerk[A_AXIS_ARRAY];                         ///< Maximum allowed jerk in mm/s
 	static speed_t vMaxReached;                                 ///< Maximum reached speed
-#if ENABLE_BACKLASH_COMPENSATION
+#if BACKLASH_COMPENSATION_SUPPORT
 	static float backlash[A_AXIS_ARRAY];
     static uint8_t backlashDir;
 #endif
@@ -213,7 +213,7 @@ public:
 #ifdef DEBUG_REAL_JERK
     static float maxRealJerk;
 #endif
-#if TMC_DRIVERS
+#if TMC_DRIVER_SUPPORT
 #if TMC_X_TYPE==TMC_5160
 	static TMC5160Stepper tmcStepperX;
 #endif
@@ -234,7 +234,7 @@ public:
 	static int8_t pauseSteps;
 #endif
 #endif //PAUSE
-#if SPEED_DIAL && SPEED_DIAL_PIN > -1
+#if SPEED_DIAL_SUPPORT && SPEED_DIAL_PIN > -1
     static uint8_t speed_dial;
 #endif
 #ifdef DEBUG_MACHINE
@@ -303,7 +303,7 @@ public:
 #if (X_ENABLE_PIN > -1)
         WRITE(X_ENABLE_PIN, !X_ENABLE_ON);
 #endif
-#if FEATURE_TWO_XSTEPPER && (X2_ENABLE_PIN > -1)
+#if X2_XSTEPPER_SUPPORT && (X2_ENABLE_PIN > -1)
         WRITE(X2_ENABLE_PIN, !X_ENABLE_ON);
 #endif
 	}
@@ -312,7 +312,7 @@ public:
 #if (Y_ENABLE_PIN > -1)
         WRITE(Y_ENABLE_PIN, !Y_ENABLE_ON);
 #endif
-#if FEATURE_TWO_YSTEPPER && (Y2_ENABLE_PIN > -1)
+#if Y2_YSTEPPER_SUPPORT && (Y2_ENABLE_PIN > -1)
         WRITE(Y2_ENABLE_PIN, !Y_ENABLE_ON);
 #endif
     }
@@ -321,7 +321,7 @@ public:
 #if (Z_ENABLE_PIN > -1)
         WRITE(Z_ENABLE_PIN, !Z_ENABLE_ON);
 #endif
-#if FEATURE_TWO_ZSTEPPER && (Z2_ENABLE_PIN > -1)
+#if Z2_ZSTEPPER_SUPPORT && (Z2_ENABLE_PIN > -1)
         WRITE(Z2_ENABLE_PIN, !Z_ENABLE_ON);
 #endif
     }
@@ -330,7 +330,7 @@ public:
 #if (Y_ENABLE_PIN > -1)
 		WRITE(A_ENABLE_PIN, !A_ENABLE_ON);
 #endif
-#if FEATURE_TWO_ASTEPPER && (A2_ENABLE_PIN > -1)
+#if A2_ASTEPPER_SUPPORT && (A2_ENABLE_PIN > -1)
 		WRITE(A2_ENABLE_PIN, !A_ENABLE_ON);
 #endif
 	}
@@ -339,7 +339,7 @@ public:
 #if (X_ENABLE_PIN > -1)
         WRITE(X_ENABLE_PIN, X_ENABLE_ON);
 #endif
-#if FEATURE_TWO_XSTEPPER && (X2_ENABLE_PIN > -1)
+#if X2_XSTEPPER_SUPPORT && (X2_ENABLE_PIN > -1)
         WRITE(X2_ENABLE_PIN, X_ENABLE_ON);
 #endif
     }
@@ -349,7 +349,7 @@ public:
 #if (Y_ENABLE_PIN > -1)
         WRITE(Y_ENABLE_PIN, Y_ENABLE_ON);
 #endif
-#if FEATURE_TWO_YSTEPPER && (Y2_ENABLE_PIN > -1)
+#if Y2_YSTEPPER_SUPPORT && (Y2_ENABLE_PIN > -1)
         WRITE(Y2_ENABLE_PIN, Y_ENABLE_ON);
 #endif
     }
@@ -358,7 +358,7 @@ public:
 #if (Z_ENABLE_PIN > -1)
         WRITE(Z_ENABLE_PIN, Z_ENABLE_ON);
 #endif
-#if FEATURE_TWO_ZSTEPPER && (Z2_ENABLE_PIN > -1)
+#if Z2_ZSTEPPER_SUPPORT && (Z2_ENABLE_PIN > -1)
         WRITE(Z2_ENABLE_PIN, Z_ENABLE_ON);
 #endif
     }
@@ -367,16 +367,19 @@ public:
 #if (A_ENABLE_PIN > -1)
 		WRITE(A_ENABLE_PIN, A_ENABLE_ON);
 #endif
+#if A2_ASTEPPER_SUPPORT && (A2_ENABLE_PIN > -1)
+        WRITE(A2_ENABLE_PIN, A_ENABLE_ON);
+#endif
 	}
     static INLINE void setXDirection(bool positive) {
         if(positive) {
             WRITE(X_DIR_PIN, !INVERT_X_DIR);
-#if FEATURE_TWO_XSTEPPER
+#if X2_XSTEPPER_SUPPORT
             WRITE(X2_DIR_PIN, !INVERT_X2_DIR);
 #endif
         } else {
             WRITE(X_DIR_PIN, INVERT_X_DIR);
-#if FEATURE_TWO_XSTEPPER
+#if X2_XSTEPPER_SUPPORT
             WRITE(X2_DIR_PIN, INVERT_X2_DIR);
 #endif
         }
@@ -385,12 +388,12 @@ public:
     static INLINE void setYDirection(bool positive) {
         if(positive) {
             WRITE(Y_DIR_PIN, !INVERT_Y_DIR);
-#if FEATURE_TWO_YSTEPPER
+#if Y2_YSTEPPER_SUPPORT
             WRITE(Y2_DIR_PIN, !INVERT_Y2_DIR);
 #endif
         } else {
             WRITE(Y_DIR_PIN, INVERT_Y_DIR);
-#if FEATURE_TWO_YSTEPPER
+#if Y2_YSTEPPER_SUPPORT
             WRITE(Y2_DIR_PIN, INVERT_Y2_DIR);
 #endif
         }
@@ -398,21 +401,27 @@ public:
     static INLINE void setZDirection(bool positive) {
         if(positive) {
 			WRITE(Z_DIR_PIN, !INVERT_Z_DIR);
-#if FEATURE_TWO_ZSTEPPER
+#if Z2_ZSTEPPER_SUPPORT
 			WRITE(Z2_DIR_PIN, !INVERT_Z2_DIR);
 #endif
         } else {
 			WRITE(Z_DIR_PIN, INVERT_Z_DIR);
-#if FEATURE_TWO_ZSTEPPER
+#if Z2_ZSTEPPER_SUPPORT
 			WRITE(Z2_DIR_PIN, INVERT_Z2_DIR);
 #endif
         }
 	}
 	static INLINE void setADirection(bool positive) {
         if(positive) {
-			WRITE(A_DIR_PIN, !INVERT_Z_DIR);
+			WRITE(A_DIR_PIN, !INVERT_A_DIR);
+#if A2_ASTEPPER_SUPPORT
+            WRITE(A2_DIR_PIN, !INVERT_A2_DIR);
+#endif
         } else {
-			WRITE(A_DIR_PIN, INVERT_Z_DIR);
+			WRITE(A_DIR_PIN, INVERT_A_DIR);
+#if A2_ASTEPPER_SUPPORT
+            WRITE(A2_DIR_PIN, INVERT_A2_DIR);
+#endif
         }
 	}
 
@@ -438,14 +447,14 @@ public:
 
     static INLINE void setAllSteppersDiabled() {
         flag0 |= MACHINE_FLAG0_STEPPER_DISABLED;
-#if FEATURE_FAN_CONTROL
+#if FAN_CONTROL_SUPPORT
         FanDriver::setSpeed(0, FAN_BOARD_INDEX);
 #endif
     }
 
     static INLINE void unsetAllSteppersDisabled() {
         flag0 &= ~MACHINE_FLAG0_STEPPER_DISABLED;
-#if FEATURE_FAN_CONTROL
+#if FAN_CONTROL_SUPPORT
         FanDriver::setSpeed(255, FAN_BOARD_INDEX);
 #endif
     }
@@ -580,14 +589,14 @@ public:
         if(Machine::multiXHomeFlags & 1) {
             WRITE(X_STEP_PIN, START_STEP_WITH_HIGH);
         }
-#if FEATURE_TWO_XSTEPPER
+#if X2_XSTEPPER_SUPPORT
         if(Machine::multiXHomeFlags & 2) {
             WRITE(X2_STEP_PIN, START_STEP_WITH_HIGH);
         }
 #endif
 #else // MULTI_XENDSTOP_HOMING
         WRITE(X_STEP_PIN, START_STEP_WITH_HIGH);
-#if FEATURE_TWO_XSTEPPER
+#if X2_XSTEPPER_SUPPORT
         WRITE(X2_STEP_PIN, START_STEP_WITH_HIGH);
 #endif
 #endif
@@ -597,14 +606,14 @@ public:
         if(Machine::multiYHomeFlags & 1) {
             WRITE(Y_STEP_PIN, START_STEP_WITH_HIGH);
         }
-#if FEATURE_TWO_YSTEPPER
+#if Y2_YSTEPPER_SUPPORT
         if(Machine::multiYHomeFlags & 2) {
             WRITE(Y2_STEP_PIN, START_STEP_WITH_HIGH);
         }
 #endif
 #else
         WRITE(Y_STEP_PIN, START_STEP_WITH_HIGH);
-#if FEATURE_TWO_YSTEPPER
+#if Y2_YSTEPPER_SUPPORT
         WRITE(Y2_STEP_PIN, START_STEP_WITH_HIGH);
 #endif
 #endif
@@ -614,35 +623,41 @@ public:
         if(Machine::multiZHomeFlags & 1) {
             WRITE(Z_STEP_PIN, START_STEP_WITH_HIGH);
         }
-#if FEATURE_TWO_ZSTEPPER
+#if Z2_ZSTEPPER_SUPPORT
         if(Machine::multiZHomeFlags & 2) {
             WRITE(Z2_STEP_PIN, START_STEP_WITH_HIGH);
         }
 #endif
 #else
         WRITE(Z_STEP_PIN, START_STEP_WITH_HIGH);
-#if FEATURE_TWO_ZSTEPPER
+#if Z2_ZSTEPPER_SUPPORT
         WRITE(Z2_STEP_PIN, START_STEP_WITH_HIGH);
 #endif
 #endif
 	}
 	static INLINE void startAStep() {
 		WRITE(A_STEP_PIN, START_STEP_WITH_HIGH);
+#if A2_ASTEPPER_SUPPORT
+        WRITE(A2_STEP_PIN, START_STEP_WITH_HIGH);
+#endif
 	}
 	static INLINE void endXYZASteps() {
         WRITE(X_STEP_PIN, !START_STEP_WITH_HIGH);
-#if FEATURE_TWO_XSTEPPER
+#if X2_XSTEPPER_SUPPORT
         WRITE(X2_STEP_PIN, !START_STEP_WITH_HIGH);
 #endif
         WRITE(Y_STEP_PIN, !START_STEP_WITH_HIGH);
-#if FEATURE_TWO_YSTEPPER
+#if Y2_YSTEPPER_SUPPORT
         WRITE(Y2_STEP_PIN, !START_STEP_WITH_HIGH);
 #endif
         WRITE(Z_STEP_PIN, !START_STEP_WITH_HIGH);
-#if FEATURE_TWO_ZSTEPPER
+#if Z2_ZSTEPPER_SUPPORT
         WRITE(Z2_STEP_PIN, !START_STEP_WITH_HIGH);
 #endif
 		WRITE(A_STEP_PIN, !START_STEP_WITH_HIGH);
+#if A2_ASTEPPER_SUPPORT
+        WRITE(A2_STEP_PIN, !START_STEP_WITH_HIGH);
+#endif
     }
     static INLINE speed_t updateStepsPerTimerCall(speed_t vbase) {
 #if MAX_STEPS_PER_CALL >= 8
@@ -801,11 +816,11 @@ public:
     static void homeXAxis();
     static void homeYAxis();
     static void homeZAxis();
-#if TMC_DRIVERS
+#if TMC_DRIVER_SUPPORT
 	static void configTMC5160(TMC5160Stepper* driver, uint8_t intpol, uint16_t rms, float hold_mult, uint8_t hold_delay, uint8_t tpower_down, uint8_t hstart, uint8_t hend, uint8_t toff, uint8_t tbl, uint8_t tpfd, uint8_t pwm_freq, uint16_t tpwmthrs, uint16_t tcoolthrs, uint16_t thighthrs, uint8_t semin, uint8_t semax, int8_t sgt, uint8_t s2vs, uint8_t s2g, uint8_t sfilter, uint16_t microsteps, uint8_t pwm_grad, uint8_t pwm_ofs, uint8_t pwm_lim, uint8_t mode);
 	static void CheckTMCDrivers();
 #endif
-#if DISTORTION_CORRECTION
+#if DISTORTION_CORRECTION_SUPPORT
     static void measureDistortion(float maxDistance, int repetitions);
 #endif
 

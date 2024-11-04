@@ -1,7 +1,7 @@
 #include "SwitchCNC.h"
 #include "ZProbe.h"
 
-#if FEATURE_Z_PROBE
+#if Z_PROBE_SUPPORT
 
 bool ZProbe::start() {
 	// 1. Ensure we are homed so positions make sense
@@ -115,7 +115,7 @@ float ZProbe::run(uint8_t axisDirection, float maxDistance, uint8_t repeat) {
 
 	float distance = static_cast<float>(sum) * Machine::invAxisStepsPerMM[axisDirection] / static_cast<float>(repeat);
 
-#if DISTORTION_CORRECTION
+#if DISTORTION_CORRECTION_SUPPORT
     float zCorr = 0;
 	if(Distortion::isEnabled() && axisDirection == Z_AXIS) {
         zCorr = Distortion::correct(Machine::currentPositionSteps[X_AXIS], Machine::currentPositionSteps[Y_AXIS], Machine::axisMinSteps[Z_AXIS]) * Machine::invAxisStepsPerMM[Z_AXIS];
@@ -125,7 +125,7 @@ float ZProbe::run(uint8_t axisDirection, float maxDistance, uint8_t repeat) {
 
     Com::printF(Com::tZProbe, distance, 3);
     Com::printF(Com::tSpaceXColon, Machine::realXPosition());
-#if DISTORTION_CORRECTION
+#if DISTORTION_CORRECTION_SUPPORT
 	if(Distortion::isEnabled() && axisDirection == Z_AXIS) {
         Com::printF(Com::tSpaceYColon, Machine::realYPosition());
         Com::printFLN(PSTR(" zCorr:"), zCorr, 3);

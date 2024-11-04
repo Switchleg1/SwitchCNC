@@ -1,7 +1,7 @@
 #include "SwitchCNC.h"
 #include "Memory.h"
 
-#if SDSUPPORT
+#if SDCARD_SUPPORT
 
 char tempLongFilename[LONG_FILENAME_LENGTH + 1];
 char fullName[LONG_FILENAME_LENGTH * SD_MAX_FOLDER_DEPTH + SD_MAX_FOLDER_DEPTH + 1];
@@ -12,7 +12,6 @@ SDCard::SDCard() {
     sdmode = 0;
     sdactive = false;
     savetosd = false;
-    Machine::setAutomount(false);
 }
 
 void SDCard::automount() {
@@ -98,7 +97,6 @@ void SDCard::unmount() {
     sdmode = 0;
     sdactive = false;
     savetosd = false;
-    Machine::setAutomount(false);
 	Com::printFLN(PSTR("SD Card unmounted"));
 }
 
@@ -116,7 +114,7 @@ void SDCard::pausePrint(bool intern) {
         if(intern) {
             Commands::waitUntilEndOfAllBuffers();
             //sdmode = 0; // why ?
-            Machine::MemoryPosition();
+            Machine::SetMemoryPosition();
             Machine::lastCmdPos[X_AXIS] = Machine::currentPosition[X_AXIS];
             Machine::lastCmdPos[Y_AXIS] = Machine::currentPosition[Y_AXIS];
             Machine::lastCmdPos[Z_AXIS] = Machine::currentPosition[Z_AXIS];

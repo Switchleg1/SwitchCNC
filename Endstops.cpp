@@ -43,7 +43,7 @@ void Endstops::update() {
     if(READ(Z2_MINMAX_PIN) != ENDSTOP_Z2_MINMAX_INVERTING)
         newRead |= ENDSTOP_Z2_MINMAX_ID;
 #endif
-#if FEATURE_Z_PROBE
+#if Z_PROBE_SUPPORT
 #if Z_PROBE_PIN == Z_MIN_PIN && MIN_HARDWARE_ENDSTOP_Z
     if(newRead & ENDSTOP_Z_MIN_ID) // prevent different results causing confusion
         newRead |= ENDSTOP_Z_PROBE_ID;
@@ -161,7 +161,7 @@ void Endstops::report() {
     Com::printF(PSTR("z2_minmax:"));
     Com::printF(z2MinMax() ? Com::tHSpace : Com::tLSpace);
 #endif
-#if FEATURE_Z_PROBE
+#if Z_PROBE_SUPPORT
     Com::printF(Com::tZProbeState);
     Com::printF(zProbe() ? Com::tHSpace : Com::tLSpace);
 #endif

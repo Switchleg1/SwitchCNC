@@ -5,7 +5,7 @@
 #define FAN2_INDEX		1
 #define FAN_BOARD_INDEX	2
 
-#if FEATURE_FAN_CONTROL
+#if FAN_CONTROL_SUPPORT
 
 class FanDriver {
 public:

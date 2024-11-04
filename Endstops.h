@@ -117,7 +117,7 @@ public:
 #endif
     }
     static INLINE bool zProbe() {
-#if FEATURE_Z_PROBE
+#if Z_PROBE_SUPPORT
         return (lastState & ENDSTOP_Z_PROBE_ID) != 0;
 #else
         return false;

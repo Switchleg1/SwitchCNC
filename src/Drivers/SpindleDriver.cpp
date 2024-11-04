@@ -1,6 +1,6 @@
 #include "../../SwitchCNC.h"
 
-#if SUPPORT_SPINDLE
+#if SPINDLE_SUPPORT
 
 /**
 The CNC driver differs a bit from laser driver. Here only M3,M4,M5 have an influence on the spindle.

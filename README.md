@@ -8,4 +8,4 @@ Modified version of Repetier focusing soley on CNC (Laser/Spindle).
 * Adds TMC driver control
 * Adds high speed/resolution PWM channel for laser control on D45
 * Adds vacuum/coolant control (M7/M8/M9/M10/M11)
-* Adds partial gcode for movements support for laserGRBL files (M901 S<0/1)
+* Adds partial gcode for movements support for laserGRBL files (M901 S<0/1>)

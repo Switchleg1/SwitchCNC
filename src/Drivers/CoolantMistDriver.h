@@ -1,7 +1,7 @@
 #ifndef COOLANTMISTDRIVER_H
 #define COOLANTMISTDRIVER_H
 
-#if SUPPORT_COOLANT && COOLANT_MIST_PIN > -1
+#if COOLANT_SUPPORT && COOLANT_MIST_PIN > -1
 
 class CoolantMistDriver {
 public:

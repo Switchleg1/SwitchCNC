@@ -30,10 +30,10 @@ public:
     volatile ufast8_t flags;
     
     uint8_t toolFlags;
-#if SUPPORT_LASER
+#if LASER_SUPPORT
     uint8_t laserIntensity;
 #endif
-#if FEATURE_FAN_CONTROL
+#if FAN_CONTROL_SUPPORT
     uint8_t fanSpeed;
 #endif
 private:
@@ -188,7 +188,7 @@ public:
                 else if(isYPositiveMove() && Endstops::yMax())
                     setYMoveFinished();
 #endif
-#if FEATURE_Z_PROBE
+#if Z_PROBE_SUPPORT
 				if(Machine::isZProbingActive() /*&& isZNegativeMove()*/ && Endstops::zProbe()) {
 					if(isXMove())
 						setXMoveFinished();
@@ -222,7 +222,7 @@ public:
                             }
                         }
                     } else {
-#if !(Z_MIN_PIN == Z_PROBE_PIN && FEATURE_Z_PROBE)
+#if !(Z_MIN_PIN == Z_PROBE_PIN && Z_PROBE_SUPPORT)
                         if(isZNegativeMove() && Endstops::zMin()) {
                             setZMoveFinished();
                         } else
@@ -238,7 +238,7 @@ public:
                 }
 #else  // Multi endstop homing
                     if(isZNegativeMove() && Endstops::zMin()
-#if Z_MIN_PIN == Z_PROBE_PIN && FEATURE_Z_PROBE
+#if Z_MIN_PIN == Z_PROBE_PIN && Z_PROBE_SUPPORT
 						&& Machine::isHoming()
 #endif
 					) {
@@ -251,7 +251,7 @@ public:
                     }
 #endif
             }
-#if FEATURE_Z_PROBE
+#if SUPPORT_Z_PROBE
 			else if(Machine::isZProbingActive()/* && isZNegativeMove()*/) {
                 Endstops::update();
                 if(Endstops::zProbe()) {

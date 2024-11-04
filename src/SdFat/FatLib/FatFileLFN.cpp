@@ -1,6 +1,6 @@
 #include "../../../SwitchCNC.h"
 #include "FatFile.h"
-#if SDSUPPORT
+#if SDCARD_SUPPORT
 //------------------------------------------------------------------------------
 //
 uint8_t FatFile::lfnChecksum(uint8_t* name) {

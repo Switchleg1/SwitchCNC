@@ -10,7 +10,7 @@
 #define WAITING_IDENTIFIER						"wait"
 #define ECHO_ON_EXECUTE							1
 #define EEPROM_MODE								1
-#define FEATURE_WATCHDOG						1
+#define WATCHDOG_SUPPORT						1
 #define BLUETOOTH_SERIAL						-1
 #define BLUETOOTH_BAUD							250000
 #define PAUSE_START_COMMANDS					""
@@ -28,16 +28,16 @@
 #define PS_ON_PIN								10
 
 //Vacuum settings
-#define SUPPORT_VACUUM							1
+#define VACUUM_SUPPORT							1
 #define VACUUM_PIN								9
 
 //Coolant settings
-#define SUPPORT_COOLANT							1
+#define COOLANT_SUPPORT							1
 #define COOLANT_MIST_PIN						-1
 #define COOLANT_FLOOD_PIN						-1
 
 //Spindle settings
-#define SUPPORT_SPINDLE							1
+#define SPINDLE_SUPPORT							1
 #define SPINDLE_WAIT_ON_START					5
 #define SPINDLE_WAIT_ON_STOP					3
 #define SPINDLE_ON_PIN							12
@@ -50,7 +50,7 @@
 #define SPINDLE_RPM_MAX							24000
 
 //Laser settings
-#define SUPPORT_LASER							0
+#define LASER_SUPPORT							0
 #define LASER_ON_HIGH							1
 #define LASER_WARMUP_TIME						0
 #define LASER_PWM_MAX							255
@@ -58,7 +58,7 @@
 #define LASER_TEMP_SENSOR_TYPE					0
 
 //Fan settings
-#define FEATURE_FAN_CONTROL						1
+#define FAN_CONTROL_SUPPORT						1
 #define FAN_KICKSTART_TIME						200
 #define FAN_PIN									-1
 #define FAN2_KICKSTART_TIME						200
@@ -76,14 +76,14 @@
 #define PAUSE_INVERTING							1
 
 //speed dial
-#define SPEED_DIAL								1
+#define SPEED_DIAL_SUPPORT						1
 #define SPEED_DIAL_PIN							14
 #define SPEED_DIAL_INVERT						0
 #define SPEED_DIAL_MIN_PERCENT					50
 #define SPEED_DIAL_BITS							6
 
 //Servo support
-#define FEATURE_SERVO							0
+#define SERVO_SUPPORT							0
 #define SERVO0_PIN								-1
 #define SERVO1_PIN								-1
 #define SERVO2_PIN								-1
@@ -94,7 +94,7 @@
 #define SERVO3_NEUTRAL_POS						-1
 
 //SD Support
-#define SDSUPPORT								0
+#define SDCARD_SUPPORT							0
 #define SDPOWER									-1
 #define SDSS									53
 #define SDCARDDETECT							49
@@ -105,7 +105,7 @@
 #define SD_STOP_MOTORS_ON_STOP					1
 
 //Distortion settings
-#define DISTORTION_CORRECTION					1
+#define DISTORTION_CORRECTION_SUPPORT			1
 #define DISTORTION_CORRECTION_POINTS			10
 #define DISTORTION_LIMIT_TO						0
 #define DISTORTION_CORRECTION_R					100
@@ -121,7 +121,7 @@
 #define DISTORTION_YMAX							290
 
 //Z probe settings
-#define FEATURE_Z_PROBE							1 //SL
+#define Z_PROBE_SUPPORT							1
 #define Z_PROBE_PIN								Z_MIN_PIN
 #define Z_PROBE_PULLUP							1
 #define Z_PROBE_ON_HIGH							0
@@ -161,6 +161,7 @@
 #define INVERT_Z_DIR							0
 #define INVERT_Z2_DIR							0
 #define INVERT_A_DIR							0
+#define INVERT_A2_DIR							0
 #define X_HOME_DIR								-1
 #define Y_HOME_DIR								-1
 #define Z_HOME_DIR								1
@@ -217,7 +218,7 @@
 #define ARC_ANGULAR_TRAVEL_EPSILON				5E-7
 
 //Backlash settings
-#define ENABLE_BACKLASH_COMPENSATION			0
+#define BACKLASH_COMPENSATION_SUPPORT			0
 #define X_BACKLASH								0
 #define Y_BACKLASH								0
 #define Z_BACKLASH								0
@@ -300,28 +301,34 @@
 #define A_DIR_PIN								37
 #define A_ENABLE_PIN							41
 
-#define FEATURE_TWO_XSTEPPER					0
+#define X2_XSTEPPER_SUPPORT						0
 #define X2_MIN_PIN								-1
 #define X2_MAX_PIN								-1
 #define X2_STEP_PIN								-1
 #define X2_DIR_PIN								-1
 #define X2_ENABLE_PIN							-1
 
-#define FEATURE_TWO_YSTEPPER					0
+#define Y2_YSTEPPER_SUPPORT						0
 #define Y2_MIN_PIN								-1
 #define Y2_MAX_PIN								-1
 #define Y2_STEP_PIN								-1
 #define Y2_DIR_PIN								-1
 #define Y2_ENABLE_PIN							-1
 
-#define FEATURE_TWO_ZSTEPPER					1
+#define Z2_ZSTEPPER_SUPPORT						1
 #define Z2_STEP_PIN								55
 #define Z2_DIR_PIN								54
 #define Z2_ENABLE_PIN							59
 #define Z2_MINMAX_PIN							-1
 
+#define A2_ASTEPPER_SUPPORT						0
+#define A2_STEP_PIN								-1
+#define A2_DIR_PIN								-1
+#define A2_ENABLE_PIN							-1
+#define A2_MINMAX_PIN							-1
+
 //TMC support
-#define TMC_DRIVERS								1
+#define TMC_DRIVER_SUPPORT						1
 
 #define TMC_X_TYPE								TMC_5160
 #define TMC_X_CS								49

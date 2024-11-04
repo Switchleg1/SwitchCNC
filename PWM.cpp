@@ -8,7 +8,7 @@ PWM::PWM() {
 #if SPINDLE_PWM_PIN > -1
 	SET_OUTPUT(SPINDLE_PWM_PIN);
 #endif
-#if FEATURE_FAN_CONTROL
+#if FAN_CONTROL_SUPPORT
 #if FAN_PIN > -1
 	SET_OUTPUT(FAN_PIN);
 #endif
@@ -25,10 +25,10 @@ PWM::PWM() {
 
 void PWM::doPWM(bool deincrementKickStart) {
 	if (softwarePosition++ == 0) {
-#if SUPPORT_SPINDLE && SPINDLE_PWM_PIN > -1
+#if SPINDLE_SUPPORT && SPINDLE_PWM_PIN > -1
 		WRITE(SPINDLE_PWM_PIN, softwareValues[SPINDLE_PWM_INDEX] ? HIGH : LOW);
 #endif
-#if FEATURE_FAN_CONTROL
+#if FAN_CONTROL_SUPPORT
 #if FAN_PIN > -1
 		WRITE(FAN_PIN, softwareValues[FAN_PWM_INDEX] ? HIGH : LOW);
 #endif
@@ -40,11 +40,11 @@ void PWM::doPWM(bool deincrementKickStart) {
 #endif
 #endif
 	} else {
-#if SUPPORT_SPINDLE && SPINDLE_PWM_PIN > -1
+#if SPINDLE_SUPPORT && SPINDLE_PWM_PIN > -1
 		if (deincrementKickStart && softwareKickstartValue[SPINDLE_PWM_INDEX]) softwareKickstartValue[SPINDLE_PWM_INDEX]--;
 		if (softwareKickstartValue[SPINDLE_PWM_INDEX] == 0 && softwareValues[SPINDLE_PWM_INDEX] == softwarePosition) WRITE(SPINDLE_PWM_PIN, LOW);
 #endif
-#if FEATURE_FAN_CONTROL
+#if FAN_CONTROL_SUPPORT
 #if FAN_PIN > -1
 		if (deincrementKickStart && softwareKickstartValue[FAN_PWM_INDEX]) softwareKickstartValue[FAN_PWM_INDEX]--;
 		if (softwareKickstartValue[FAN_PWM_INDEX] == 0 && softwareValues[FAN_PWM_INDEX] == softwarePosition) WRITE(FAN_PIN, LOW);
@@ -70,7 +70,7 @@ void PWM::clear() {
 #if SPINDLE_PWM_PIN > -1
 	WRITE(SPINDLE_PWM_PIN, LOW);
 #endif
-#if FEATURE_FAN_CONTROL
+#if FAN_CONTROL_SUPPORT
 #if FAN_BOARD_PIN > -1
 	WRITE(FAN_BOARD_PIN, LOW);
 #endif

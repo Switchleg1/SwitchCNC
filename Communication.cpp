@@ -154,7 +154,7 @@ FSTRINGVALUE(Com::tDBGConstFullSpeedMoveTime, "Constant full speed move time:")
 #ifdef DEBUG_STEPCOUNT
 FSTRINGVALUE(Com::tDBGMissedSteps, "Missed steps:")
 #endif // DEBUG_STEPCOUNT
-#if FEATURE_Z_PROBE
+#if Z_PROBE_SUPPORT
 FSTRINGVALUE(Com::tZProbe, "Z-probe:")
 FSTRINGVALUE(Com::tZProbeState, "Z-probe state:")
 FSTRINGVALUE(Com::tZProbeZReset, "Reset Z height")
@@ -164,7 +164,7 @@ FSTRINGVALUE(Com::tSpaceXOffset, " X_OFFSET:")
 FSTRINGVALUE(Com::tSpaceYOffset, " Y_OFFSET:")
 FSTRINGVALUE(Com::tSpaceZOffset, " Z_OFFSET:")
 #endif
-#if DISTORTION_CORRECTION
+#if DISTORTION_CORRECTION_SUPPORT
 FSTRINGVALUE(Com::tDistortionXMIN, "Distortion XMIN:") //SL
 FSTRINGVALUE(Com::tDistortionXMAX, "Distortion XMAX:") //SL
 FSTRINGVALUE(Com::tDistortionYMIN, "Distortion YMIN:") //SL
@@ -185,7 +185,7 @@ FSTRINGVALUE(Com::tWait, WAITING_IDENTIFIER)
 #if EEPROM_MODE == 0
 FSTRINGVALUE(Com::tNoEEPROMSupport, "No EEPROM support compiled.\r\n")
 #else
-#if FEATURE_Z_PROBE
+#if Z_PROBE_SUPPORT
 FSTRINGVALUE(Com::tZProbeHeight, "Z-probe height [mm]")
 FSTRINGVALUE(Com::tZProbeSpeed, "Z-probe speed [mm/s]")
 FSTRINGVALUE(Com::tZProbeSpeedXY, "Z-probe x-y-speed [mm/s]")
@@ -233,7 +233,7 @@ FSTRINGVALUE(Com::tEPRZAcceleration, "Z-axis acceleration [mm/s^2]")
 FSTRINGVALUE(Com::tEPRAAcceleration, "A-axis acceleration [mm/s^2]")
 FSTRINGVALUE(Com::tEPROPSMode, "OPS operation mode [0=Off,1=Classic,2=Fast]")
 #endif
-#if SDSUPPORT
+#if SDCARD_SUPPORT
 FSTRINGVALUE(Com::tSDInitFail, "SD init fail")
 FSTRINGVALUE(Com::tErrorWritingToFile, "error writing to file")
 FSTRINGVALUE(Com::tBeginFileList, "Begin file list")
@@ -252,8 +252,9 @@ FSTRINGVALUE(Com::tDeletionFailed, "Deletion failed")
 FSTRINGVALUE(Com::tDirectoryCreated, "Directory created")
 FSTRINGVALUE(Com::tCreationFailed, "Creation failed")
 FSTRINGVALUE(Com::tSDErrorCode, "SD errorCode:")
-#endif // SDSUPPORT
-#if DISTORTION_CORRECTION
+FSTRINGVALUE(Com::tAPIDFinished, "PID Autotune finished ! Place the Kp, Ki and Kd constants in the Configuration.h or EEPROM")
+#endif
+#if DISTORTION_CORRECTION_SUPPORT
 FSTRINGVALUE(Com::tZCorrectionEnabled, "Z correction enabled")
 FSTRINGVALUE(Com::tZCorrectionDisabled, "Z correction disabled")
 #endif
@@ -261,11 +262,11 @@ FSTRINGVALUE(Com::tConfig, "Config:")
 FSTRINGVALUE(Com::tExtrDot, "Extr.")
 FSTRINGVALUE(Com::tMachineModeLaser, "MachineMode: Laser")
 FSTRINGVALUE(Com::tMachineModeCNC, "MachineMode: Spindle")
-#if SUPPORT_SPINDLE
+#if SPINDLE_SUPPORT
 FSTRINGVALUE(Com::tSpindleState, "Spindle:");
 FSTRINGVALUE(Com::tSpaceRpm, " RPM:");
 #endif
-#if SUPPORT_LASER
+#if LASER_SUPPORT
 FSTRINGVALUE(Com::tLaserState, "Laser:");
 FSTRINGVALUE(Com::tSpaceMinimumIntensity, " Minimum Intensity:");
 #endif

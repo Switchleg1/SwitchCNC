@@ -1,6 +1,6 @@
 #include "../../SwitchCNC.h"
 
-#if SUPPORT_COOLANT && COOLANT_FLOOD_PIN > -1
+#if COOLANT_SUPPORT && COOLANT_FLOOD_PIN > -1
 
 uint8_t CoolantFloodDriver::nextState;
 uint8_t CoolantFloodDriver::currentState;

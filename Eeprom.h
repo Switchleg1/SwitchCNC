@@ -80,15 +80,20 @@ public:
     static void writeSettings();
     static void update(GCode *com);
     static uint8_t computeChecksum();
-#if FEATURE_Z_PROBE
+
+    static void setVersion(uint8_t version);
+    static uint8_t getVersion();
+#if Z_PROBE_SUPPORT
     static void setZProbeHeight(float mm);
     static float zProbeSpeed();
     static float zProbeXYSpeed();
     static float zProbeHeight();
 #endif
-#if DISTORTION_CORRECTION && EEPROM_MODE
-    static void setZCorrection(uint8_t* data, uint16_t count);
-    static void getZCorrection(uint8_t* data, uint16_t count);
+#if DISTORTION_CORRECTION_SUPPORT && EEPROM_MODE
+    static void setZCorrectionPoints(uint8_t count);
+    static void setZCorrectionMinMax(int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax);
+    static void setZCorrection(int32_t* data, uint16_t count);
+    static void getZCorrection(int32_t* data, uint16_t count);
     static void setZCorrectionEnabled(int8_t on);
     static int8_t isZCorrectionEnabled();
 #endif
@@ -96,6 +101,7 @@ public:
     static void setAllowPartialGCode(uint8_t allow);
     static uint8_t getAllowPartialGCode();
 #endif
+
 private:
     static void initalizeUncached();
     static void updateChecksum();

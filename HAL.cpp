@@ -1,7 +1,7 @@
 #include "SwitchCNC.h"
 #include <compat/twi.h>
 
-#if FEATURE_WATCHDOG
+#if WATCHDOG_SUPPORT
 bool HAL::wdPinged = false;
 #endif
 //extern "C" void __cxa_pure_virtual() { }
@@ -226,7 +226,7 @@ void HAL::setupTimer() {
     TCCR1B  =  (_BV(WGM12) | _BV(CS10)); // no prescaler == 0.0625 usec tick | 001 = clk/1
     OCR1A   = 65500; //start off with a slow frequency.
     TIMSK1  |= (1 << OCIE1A); // Enable interrupt
-#if FEATURE_SERVO
+#if SERVO_SUPPORT
 #if SERVO0_PIN>-1
     SET_OUTPUT(SERVO0_PIN);
     WRITE(SERVO0_PIN, LOW);
@@ -447,7 +447,7 @@ unsigned char HAL::i2cReadNak(void) {
     return TWDR;
 }
 
-#if FEATURE_SERVO
+#if SERVO_SUPPORT
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_AT90USB646__) || defined(__AVR_AT90USB1286__) || defined(__AVR_ATmega128__) || defined(__AVR_ATmega1281__) || defined(__AVR_ATmega1284P__) || defined(__AVR_ATmega2561__)
 #define SERVO2500US F_CPU/3200
 #define SERVO5000US F_CPU/1600
@@ -535,7 +535,7 @@ SIGNAL (TIMER3_COMPA_vect) {
         servoIndex = 0;
 }
 #else
-#error No servo support for your board, please diable FEATURE_SERVO
+#error No servo support for your board, please diable SERVO_SUPPORT
 #endif
 #endif
 
@@ -657,7 +657,7 @@ ISR(TIMER0_COMPB_vect)
 
     Machine::timerInterrupt();
 
-#if FEATURE_WATCHDOG
+#if WATCHDOG_SUPPORT
     HAL::resetWatchdog();
 #endif
 }

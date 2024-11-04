@@ -2,7 +2,7 @@
 #include <math.h>
 #include "FatFile.h"
 #include "FmtNumber.h"
-#if SDSUPPORT
+#if SDCARD_SUPPORT
 //------------------------------------------------------------------------------
 // print uint8_t with width 2
 static void print2u(uint8_t v) {

@@ -4,7 +4,7 @@
 extern char tempLongFilename[LONG_FILENAME_LENGTH + 1];
 extern char fullName[LONG_FILENAME_LENGTH * SD_MAX_FOLDER_DEPTH + SD_MAX_FOLDER_DEPTH + 1];
 
-#if SDSUPPORT
+#if SDCARD_SUPPORT
 #define SHORT_FILENAME_LENGTH 14
 #include "src/SdFat/SdFat.h"
 

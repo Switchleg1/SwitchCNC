@@ -975,7 +975,7 @@ void GCode::printCommand()
 void GCode::fatalError(FSTRINGPARAM(message)) {
 	fatalErrorMsg = message;
 	flashSource.close(); // stop flash printing if busy
-#if SDSUPPORT
+#if SDCARD_SUPPORT
 	sd.stopPrint();
 #endif
 	GCodeSource::printAllFLN(PSTR("RequestStop:"));

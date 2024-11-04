@@ -415,7 +415,7 @@ public:
 	{
 		for(unsigned int i=delayS; i!=0; i--)
 		{
-#if FEATURE_WATCHDOG
+#if WATCHDOG_SUPPORT
 			wdt_reset();
 #endif
 			::delay(1000);
@@ -639,11 +639,11 @@ public:
     }
     inline static void pingWatchdog()
     {
-#if FEATURE_WATCHDOG
+#if WATCHDOG_SUPPORT
       wdPinged = true;
 #endif
     };
-#if FEATURE_WATCHDOG
+#if WATCHDOG_SUPPORT
     static void resetWatchdog()
     {
         if (wdPinged) {
@@ -653,13 +653,13 @@ public:
     }
 #endif
     
-#if FEATURE_SERVO
+#if SERVO_SUPPORT
     static unsigned int servoTimings[4];
     static void servoMicroseconds(uint8_t servo,int ms, uint16_t autoOff);
 #endif
 protected:
 private:
-#if FEATURE_WATCHDOG
+#if WATCHDOG_SUPPORT
     static bool wdPinged;
 #endif
 };

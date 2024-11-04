@@ -157,7 +157,7 @@ public:
 #ifdef DEBUG_STEPCOUNT
     FSTRINGVAR(tDBGMissedSteps)
 #endif
-#if FEATURE_Z_PROBE
+#if Z_PROBE_SUPPORT
     FSTRINGVAR(tZProbe)
     FSTRINGVAR(tZProbeState)
     FSTRINGVAR(tZProbeZReset)
@@ -166,9 +166,8 @@ public:
     FSTRINGVAR(tSpaceXOffset)
     FSTRINGVAR(tSpaceYOffset)
     FSTRINGVAR(tSpaceZOffset)
-        
 #endif
-#if DISTORTION_CORRECTION
+#if DISTORTION_CORRECTION_SUPPORT
     FSTRINGVAR(tDistortionXMIN)
     FSTRINGVAR(tDistortionXMAX)
     FSTRINGVAR(tDistortionYMIN)
@@ -189,7 +188,7 @@ public:
 #if EEPROM_MODE==0
     FSTRINGVAR(tNoEEPROMSupport)
 #else
-#if FEATURE_Z_PROBE
+#if Z_PROBE_SUPPORT
     FSTRINGVAR(tZProbeHeight)
     FSTRINGVAR(tZProbeSpeed)
     FSTRINGVAR(tZProbeSpeedXY)
@@ -239,7 +238,7 @@ public:
     FSTRINGVAR(tEPROPSMoveAfter)
     FSTRINGVAR(tEPROPSMinDistance)
 #endif
-#if SDSUPPORT
+#if SDCARD_SUPPORT
     //FSTRINGVAR(tSDRemoved)
     //FSTRINGVAR(tSDInserted)
     FSTRINGVAR(tSDInitFail)
@@ -260,8 +259,9 @@ public:
     FSTRINGVAR(tDirectoryCreated)
     FSTRINGVAR(tCreationFailed)
     FSTRINGVAR(tSDErrorCode)
-#endif // SDSUPPORT
-#if DISTORTION_CORRECTION
+    FSTRINGVAR(tAPIDFinished)
+#endif
+#if DISTORTION_CORRECTION_SUPPORT
     FSTRINGVAR(tZCorrectionEnabled)
     FSTRINGVAR(tZCorrectionDisabled)
 #endif
@@ -269,11 +269,11 @@ public:
     FSTRINGVAR(tExtrDot)
     FSTRINGVAR(tMachineModeLaser)
     FSTRINGVAR(tMachineModeCNC)
-#if SUPPORT_SPINDLE
+#if SPINDLE_SUPPORT
     FSTRINGVAR(tSpindleState)
     FSTRINGVAR(tSpaceRpm)
 #endif
-#if SUPPORT_LASER
+#if LASER_SUPPORT
     FSTRINGVAR(tLaserState)
     FSTRINGVAR(tSpaceMinimumIntensity)
 #endif

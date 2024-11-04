@@ -1,6 +1,6 @@
 #include "../../SwitchCNC.h"
 
-#if FEATURE_FAN_CONTROL
+#if FAN_CONTROL_SUPPORT
 
 uint8_t FanDriver::nextSpeed;
 uint8_t FanDriver::currentSpeed;

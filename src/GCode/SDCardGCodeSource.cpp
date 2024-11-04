@@ -1,7 +1,7 @@
 #include "../../SwitchCNC.h"
 
 // ----- SD card source -----
-#if SDSUPPORT
+#if SDCARD_SUPPORT
 bool SDCardGCodeSource::isOpen() {
     return (sd.sdmode > 0 && sd.sdmode < 100);
 }

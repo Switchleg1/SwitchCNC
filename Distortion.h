@@ -1,7 +1,7 @@
 #ifndef _DISTORTION_H
 #define _DISTORTION_H
 
-#if DISTORTION_CORRECTION
+#if DISTORTION_CORRECTION_SUPPORT
 /** \brief Handle distortion related stuff.
 
 Distortion correction can be used to solve problems resulting from an uneven build plate.
@@ -51,10 +51,10 @@ public:
 
 private:
     static int16_t matrixIndex(fast8_t x, fast8_t y);
-    static bool    isCorner(fast8_t i, fast8_t j);
-    static INLINE  int32_t extrapolatePoint(fast8_t x1, fast8_t y1, fast8_t x2, fast8_t y2);
-    static void    extrapolateCorner(fast8_t x, fast8_t y, fast8_t dx, fast8_t dy);
-    static void    extrapolateCorners();
+    static bool isCorner(fast8_t i, fast8_t j);
+    static INLINE int32_t extrapolatePoint(fast8_t x1, fast8_t y1, fast8_t x2, fast8_t y2);
+    static void extrapolateCorner(fast8_t x, fast8_t y, fast8_t dx, fast8_t dy);
+    static void extrapolateCorners();
 
 	// attributes
     static int32_t xCorrectionSteps, xOffsetSteps;
@@ -64,6 +64,6 @@ private:
     static uint8_t points;
     static bool    enabled;
 };
-#endif //DISTORTION_CORRECTION
+#endif
 
 #endif

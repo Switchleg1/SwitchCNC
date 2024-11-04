@@ -15,7 +15,7 @@ void Commands::commandLoop() {
 	GCode::readFromSource();
 	GCode *code = GCode::peekCurrentCommand();
 	if(code) {
-#if SDSUPPORT
+#if SDCARD_SUPPORT
 		if(sd.savetosd) {
 			if(!(code->hasM() && code->M == 29))   // still writing to file
 				sd.writeCommand(code);
@@ -58,7 +58,7 @@ void Commands::waitUntilEndOfAllBuffers() {
         //GCode::readFromSource();
 		code = GCode::peekCurrentCommand();
         if(code) {
-#if SDSUPPORT
+#if SDCARD_SUPPORT
             if(sd.savetosd) {
                 if(!(code->hasM() && code->M == 29))   // still writing to file
                     sd.writeCommand(code);
@@ -172,7 +172,7 @@ void Commands::executeGCode(GCode* com) {
 }
 
 void Commands::processMove(GCode* com, uint8_t linear) {
-#if SUPPORT_LASER
+#if LASER_SUPPORT
     if (Machine::mode == MACHINE_MODE_LASER) {
         // disable laser for G0 moves
         if (!com->G) LaserDriver::setNextIntensity(0);
@@ -221,7 +221,7 @@ void Commands::processMove(GCode* com, uint8_t linear) {
 */
 #if ARC_SUPPORT
 void Commands::processArc(GCode *com) {
-#if SUPPORT_LASER
+#if LASER_SUPPORT
     if (com->hasS()) {
         LaserDriver::setNextIntensity(constrain(com->E, 0, LASER_PWM_MAX));
     }
@@ -391,7 +391,7 @@ void Commands::processGCode(GCode *com) {
             Machine::homeAxis(homeAllAxis || com->hasX(), homeAllAxis || com->hasY(), homeAllAxis || com->hasZ());
     }
 	break;
-#if FEATURE_Z_PROBE
+#if Z_PROBE_SUPPORT
 	case 31:  // G31 display hall sensor output
 		Endstops::update();
 		Endstops::update();
@@ -399,7 +399,7 @@ void Commands::processGCode(GCode *com) {
 		Com::printF(Endstops::zProbe() ? Com::tHSpace : Com::tLSpace);
 		Com::println();
 		break;
-#if DISTORTION_CORRECTION
+#if DISTORTION_CORRECTION_SUPPORT
 	case 33:
 		if(com->hasE())
 		{	// G33 E(x) enable
@@ -413,11 +413,9 @@ void Commands::processGCode(GCode *com) {
             Distortion::resetCorrection();
 		} else if(com->hasX() || com->hasY() || com->hasZ())
 		{ // G33 X<xpos> Y<ypos> Z<zCorrection> - Set correction for nearest point
-			if(com->hasX() && com->hasY() && com->hasZ())
-			{
+			if(com->hasX() && com->hasY() && com->hasZ()) {
                 Distortion::set(com->X, com->Y, com->Z);
-			} else
-			{
+			} else {
 				Com::printErrorFLN(PSTR("You need to define X, Y and Z to set a point!"));
 			}
 		} else if(com->hasF() && com->F > 0)
@@ -430,8 +428,7 @@ void Commands::processGCode(GCode *com) {
 		{ //G33 P<x> - Do distortion measurements
 			Endstops::update();
 			Endstops::update(); // need to call twice for full update!
-			if(Endstops::zProbe())
-			{
+			if(Endstops::zProbe()) {
 				Com::printErrorFLN(PSTR("probe triggered before starting G33."));
 			} else {
 				if(com->hasT() && com->T > 0) {
@@ -439,17 +436,17 @@ void Commands::processGCode(GCode *com) {
                     Distortion::resetCorrection();
                     Distortion::disable(true);
 					if(com->T > 1) {
-						HAL::eprSetInt16(EPR_DISTORTION_POINTS, com->T);
                         Distortion::setPoints(com->T);
+
+                        EEPROM::setZCorrectionPoints(com->T);
 					}
-					HAL::eprSetInt16(EPR_DISTORTION_XMIN, -Machine::coordinateOffset[X_AXIS]);
-					HAL::eprSetInt16(EPR_DISTORTION_XMAX, Machine::currentPosition[X_AXIS]);
-					HAL::eprSetInt16(EPR_DISTORTION_YMIN, -Machine::coordinateOffset[Y_AXIS]);
-					HAL::eprSetInt16(EPR_DISTORTION_YMAX, Machine::currentPosition[Y_AXIS]);
+                    
                     Distortion::XMIN = -Machine::coordinateOffset[X_AXIS];
-                    Distortion::XMAX = Machine::currentPosition[X_AXIS]; //SL
+                    Distortion::XMAX = Machine::currentPosition[X_AXIS];
                     Distortion::YMIN = -Machine::coordinateOffset[Y_AXIS];
-                    Distortion::YMAX = Machine::currentPosition[Y_AXIS]; //SL
+                    Distortion::YMAX = Machine::currentPosition[Y_AXIS];
+
+                    EEPROM::setZCorrectionMinMax(Distortion::XMIN, Distortion::YMIN, Distortion::XMAX, Distortion::YMAX);
 				}
 
 				float md = -10;
@@ -509,7 +506,7 @@ void Commands::processGCode(GCode *com) {
                     Machine::coordinateOffset[Z_AXIS] = zp - Machine::currentPosition[Z_AXIS];
                     Com::printF(Com::tToolOffset, zp, 3);
                     Com::printFLN(Com::tSpaceZOffset, Machine::coordinateOffset[Z_AXIS], 3);
-#if DISTORTION_CORRECTION
+#if DISTORTION_CORRECTION_SUPPORT
                     Distortion::SetStartEnd(Distortion::start, Distortion::end);
 #endif
                 }
@@ -520,7 +517,7 @@ void Commands::processGCode(GCode *com) {
         }
 	    break;
 #endif
-#if TMC_DRIVERS
+#if TMC_DRIVER_SUPPORT
 	case 41:
 		Com::printF(PSTR("X Grad:"), Machine::tmcStepperX.pwm_grad_auto(), 3);
 		Com::printFLN(PSTR(" X OFS:"), Machine::tmcStepperX.pwm_ofs_auto(), 3);
@@ -555,7 +552,7 @@ void Commands::processGCode(GCode *com) {
 			Com::printF(PSTR(" Y_OFFSET:"), Machine::coordinateOffset[Y_AXIS], 3);
 			Com::printFLN(PSTR(" Z_OFFSET:"), Machine::coordinateOffset[Z_AXIS], 3);
 		}
-#if DISTORTION_CORRECTION
+#if DISTORTION_CORRECTION_SUPPORT
         Distortion::SetStartEnd(Distortion::start, Distortion::end);
 #endif
 	    break;
@@ -609,40 +606,40 @@ void Commands::processMCode(GCode *com) {
     switch (com->M) {
     case 3: // Spindle CW
     case 4: // Spindle CCW
-#if SUPPORT_LASER
+#if LASER_SUPPORT
         if (Machine::mode == MACHINE_MODE_LASER) {
             LaserDriver::turnOn(constrain(com->hasS() ? com->S : 0, 0, LASER_PWM_MAX));
         }
 #endif // defined
-#if SUPPORT_SPINDLE
+#if SPINDLE_SUPPORT
         if (Machine::mode == MACHINE_MODE_SPINDLE) {
             SpindleDriver::turnOn(com->M == 3 ? SPINDLE_CW : SPINDLE_CCW, com->hasS() ? com->S : SPINDLE_RPM_MAX);
         }
 #endif // defined
         break;
     case 5: // Spindle
-#if SUPPORT_LASER
+#if LASER_SUPPORT
         if (Machine::mode == MACHINE_MODE_LASER) {
             LaserDriver::turnOff(true);
         }
 #endif // defined
-#if SUPPORT_SPINDLE
+#if SPINDLE_SUPPORT
         if (Machine::mode == MACHINE_MODE_SPINDLE) {
             SpindleDriver::turnOff();
         }
 #endif // defined
         break;
-#if SUPPORT_COOLANT && COOLANT_MIST_PIN > -1
+#if COOLANT_SUPPORT && COOLANT_MIST_PIN > -1
     case 7: //M7: Mist Coolant On
         CoolantMistDriver::setNextState(true);
         break;
 #endif
-#if SUPPORT_COOLANT && COOLANT_FLOOD_PIN > -1
+#if COOLANT_SUPPORT && COOLANT_FLOOD_PIN > -1
     case 8: //M8: Flood Coolant On
         CoolantFloodDriver::setNextState(true);
         break;
 #endif
-#if SUPPORT_COOLANT
+#if COOLANT_SUPPORT
     case 9: //M9: Coolant Off
 #if COOLANT_MIST_PIN > -1
         CoolantMistDriver::setNextState(false);
@@ -652,7 +649,7 @@ void Commands::processMCode(GCode *com) {
 #endif
         break;
 #endif
-#if SUPPORT_VACUUM
+#if VACUUM_SUPPORT
     case 10: //M10: Vacuum On
         VacuumDriver::setNextState(true);
         break;
@@ -712,7 +709,7 @@ void Commands::processMCode(GCode *com) {
             Machine::setAllSteppersDiabled();
         }
         break;
-#if SDSUPPORT
+#if SDCARD_SUPPORT
     case 20: // M20 - list SD card
         sd.ls();
         break;
@@ -851,24 +848,24 @@ void Commands::processMCode(GCode *com) {
         if (com->hasA()) Machine::enableAStepper();
         break;
     case 105: // M105  get speed. Always returns the speed or laser temp
-#if SUPPORT_LASER
+#if LASER_SUPPORT
         if (Machine::mode == MACHINE_MODE_LASER) {
             //print temperature
             Com::printF(Com::tTColon, LaserDriver::temperature());
         }
 #endif
-#if SUPPORT_SPINDLE
+#if SPINDLE_SUPPORT
         if (Machine::mode == MACHINE_MODE_SPINDLE) {
             //print rpm
             Com::printF(Com::tTColon, SpindleDriver::spindleRpm());
         }
 #endif
-#if SPEED_DIAL && SPEED_DIAL_PIN > -1
+#if SPEED_DIAL_SUPPORT && SPEED_DIAL_PIN > -1
         Com::printF(Com::tSpaceBColon, (Machine::speed_dial * 100) >> SPEED_DIAL_BITS);
 #endif
         Com::println();
         break;
-#if FEATURE_FAN_CONTROL
+#if FAN_CONTROL_SUPPORT
     case 106: // M106 Fan On
         if(com->hasI()) {
             if (com->I != 0) Machine::setIgnoreFanCommand(true);
@@ -959,12 +956,12 @@ void Commands::processMCode(GCode *com) {
         Machine::changeFeedrateMultiply(constrain(com->getS(100), 25, 300));
         break;
     case 221: // M221 S<Extrusion flow multiplier in percent>
-#if SUPPORT_LASER
-        if (SUPPORT_LASER && Machine::mode == MACHINE_MODE_LASER) {
+#if LASER_SUPPORT
+        if (LASER_SUPPORT && Machine::mode == MACHINE_MODE_LASER) {
             LaserDriver::setIntensityMultiplier(constrain(com->getS(100), 0, 255));
         }
 #endif
-#if SUPPORT_SPINDLE
+#if SPINDLE_SUPPORT
         if (Machine::mode == MACHINE_MODE_SPINDLE) {
             SpindleDriver::setRpmMultiplier(constrain(com->getS(100), 0, 255));
         }
@@ -1000,7 +997,7 @@ void Commands::processMCode(GCode *com) {
         break;
 #endif
     case 281: // Trigger watchdog
-#if FEATURE_WATCHDOG
+#if WATCHDOG_SUPPORT
         if(com->hasX()) {
             HAL::stopWatchdog();
             Com::printFLN(PSTR("Watchdog disabled"));
@@ -1014,7 +1011,7 @@ void Commands::processMCode(GCode *com) {
 #endif
         while(1) {} // Endless loop
 #else
-        Com::printInfoFLN(PSTR("Watchdog feature was not compiled into this version!"));
+        Com::printInfoFLN(PSTR("Watchdog support was not compiled into this version!"));
 #endif
         break;
 #if defined(BEEPER_PIN) && BEEPER_PIN>=0
@@ -1029,7 +1026,7 @@ void Commands::processMCode(GCode *com) {
 
         break;
 #endif
-#if FEATURE_SERVO
+#if SERVO_SUPPORT
     case 340: // M340
         if(com->hasP() && com->P < 4 && com->P >= 0) {
 			ENSURE_POWER
@@ -1042,7 +1039,7 @@ void Commands::processMCode(GCode *com) {
             HAL::servoMicroseconds(com->P, s, r);
         }
         break;
-#endif // FEATURE_SERVO
+#endif
     case 355: // M355 S<0/1> - Turn case light on/off, no S = report status
         if(com->hasS()) Machine::setCaseLight(com->S);
         else Machine::reportCaseLightStatus();
@@ -1064,9 +1061,9 @@ void Commands::processMCode(GCode *com) {
         Machine::reportPrinterMode();
         break;
     case 452: //Change mode to LASER
-#if SUPPORT_LASER
+#if LASER_SUPPORT
         waitUntilEndOfAllMoves();
-#if SUPPORT_SPINDLE
+#if SPINDLE_SUPPORT
         SpindleDriver::turnOff();
 #endif
         Machine::mode = MACHINE_MODE_LASER;
@@ -1074,9 +1071,9 @@ void Commands::processMCode(GCode *com) {
         Machine::reportPrinterMode();
         break;
     case 453: //Change mode to SPINDLE
-#if SUPPORT_SPINDLE
+#if SPINDLE_SUPPORT
         waitUntilEndOfAllMoves();
-#if SUPPORT_LASER
+#if LASER_SUPPORT
         if (Machine::mode == MACHINE_MODE_LASER) {
             LaserDriver::turnOff();
         }
@@ -1142,19 +1139,20 @@ void Commands::processMCode(GCode *com) {
             Machine::maxRealJerk = 0;
         break;
 #endif
-    case 670:
+    case 670: // M670 S<0-255> - Set EEPROM Version
 #if EEPROM_MODE != 0
         if(com->hasS()) {
-            HAL::eprSetByte(EPR_VERSION, static_cast<uint8_t>(com->S));
-            HAL::eprSetByte(EPR_INTEGRITY_BYTE, EEPROM::computeChecksum());
+            EEPROM::setVersion(com->S);
         }
+
+        Com::printFLN(PSTR("EEPROM Version:"), (int)EEPROM::getVersion());
 #endif
 		break;
-    case 900: // Check if sending Binary
+    case 900: // M900 - Check if sending Binary
         Com::printFLN(PSTR("Sending Binary:"), (int)com->isSendingBinary());
         break;
 #if ALLOW_PARTIAL_GCODE_AS_MOVE
-    case 901: // M901 (S<0/1>)
+    case 901: // M901 (S<0/1>) - Allow partial GCode move commands
         if (com->hasS()) {
             allowPartialGCode = com->S ? 1 : 0;
 #if EEPROM_MODE
@@ -1165,11 +1163,9 @@ void Commands::processMCode(GCode *com) {
         Com::printFLN(PSTR("Allowing Partial GCode:"), (int)allowPartialGCode);
         break;
 #endif
-    case 999: // Stop fatal error take down
-        if(com->hasS())
-            GCode::fatalError(PSTR("Testing fatal error"));
-        else
-            GCode::resetFatalError();
+    case 999: // M999 (S<test>) - Stop fatal error take down
+        if(com->hasS()) GCode::fatalError(PSTR("Testing fatal error"));
+        else GCode::resetFatalError();
         break;
     default:
         if(Machine::debugErrors()) {

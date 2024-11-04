@@ -1,7 +1,7 @@
 #ifndef VACUUMDRIVER_H
 #define VACUUMDRIVER_H
 
-#if SUPPORT_VACUUM
+#if VACUUM_SUPPORT
 
 class VacuumDriver {
 public:

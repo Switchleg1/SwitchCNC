@@ -32,7 +32,7 @@ fast8_t Machine::stepsSinceLastCalc = 1;
 uint32_t Machine::interval = 30000;                 ///< Last step duration in ticks.
 uint32_t Machine::timer;                            ///< used for acceleration/deceleration timing
 uint32_t Machine::stepNumber;                       ///< Step number in current move.
-#if FEATURE_Z_PROBE || MAX_HARDWARE_ENDSTOP_Z
+#if Z_PROBE_SUPPORT || MAX_HARDWARE_ENDSTOP_Z
 int32_t Machine::stepsRemainingAtZHit;
 #endif
 int32_t Machine::axisMaxSteps[Z_AXIS_ARRAY];        ///< For software endstops, limit of move in positive direction.
@@ -43,7 +43,7 @@ float Machine::feedrate;                            ///< Last requested feedrate
 int Machine::feedrateMultiply;                      ///< Multiplier for feedrate in percent (factor 1 = 100)
 float Machine::maxJerk[A_AXIS_ARRAY];               ///< Maximum allowed jerk in mm/s
 speed_t Machine::vMaxReached;                       ///< Maximum reached speed
-#if ENABLE_BACKLASH_COMPENSATION
+#if BACKLASH_COMPENSATION_SUPPORT
 float Machine::backlash[A_AXIS_ARRAY];
 uint8_t Machine::backlashDir;
 #endif
@@ -52,7 +52,7 @@ float Machine::memoryF = -1;
 #ifdef DEBUG_REAL_JERK
 float Machine::maxRealJerk = 0;
 #endif
-#if TMC_DRIVERS
+#if TMC_DRIVER_SUPPORT
 #if TMC_X_TYPE==TMC_5160
 TMC5160Stepper Machine::tmcStepperX(TMC_X_CS, TMC_X_RSENSE);
 #endif
@@ -73,7 +73,7 @@ int16_t Machine::pauseSteps = 0;
 int8_t Machine::pauseSteps = 0;
 #endif
 #endif //PAUSE
-#if SPEED_DIAL && SPEED_DIAL_PIN > -1
+#if SPEED_DIAL_SUPPORT && SPEED_DIAL_PIN > -1
 uint8_t Machine::speed_dial = SPEED_DIAL_MIN_PERCENT;
 #endif
 #if MULTI_XENDSTOP_HOMING
@@ -197,7 +197,7 @@ void Machine::checkForPeriodicalActions(bool allowNewMoves)
     }
 #endif //PAUSE_PIN
 
-#if SPEED_DIAL && SPEED_DIAL_PIN > -1
+#if SPEED_DIAL_SUPPORT && SPEED_DIAL_PIN > -1
     uint8 maxSpeedValue = 1 << SPEED_DIAL_BITS;
     uint8 minSpeedValue = (uint)maxSpeedValue * SPEED_DIAL_MIN_PERCENT / 100;
     uint8 speedDivisor = (ANALOG_MAX_VALUE >> SPEED_DIAL_BITS) * 100 / (100 - SPEED_DIAL_MIN_PERCENT);
@@ -211,9 +211,9 @@ void Machine::checkForPeriodicalActions(bool allowNewMoves)
     }
 
     speed_dial = value;
-#endif //SPEED_DIAL
+#endif
 
-#if SUPPORT_LASER && LASER_TEMP_PIN > -1
+#if LASER_SUPPORT && LASER_TEMP_PIN > -1
     LaserDriver::updateTemperature();
 #endif //LASER_TEMP_PIN
 
@@ -234,10 +234,10 @@ void Machine::checkForPeriodicalActions(bool allowNewMoves)
     if (--counter500ms == 0) {
         counter500ms = 5;
         EVENT_TIMER_500MS;
-#if TMC_DRIVERS
+#if TMC_DRIVER_SUPPORT
         CheckTMCDrivers();
 #endif
-#if FEATURE_WATCHDOG
+#if WATCHDOG_SUPPORT
         HAL::pingWatchdog();
 #endif
     }
@@ -281,7 +281,7 @@ void Machine::updateDerivedParameter() {
 	}
 
     // For which directions do we need backlash compensation
-#if ENABLE_BACKLASH_COMPENSATION
+#if BACKLASH_COMPENSATION_SUPPORT
     backlashDir &= XYZA_DIRPOS;
 	if(backlash[X_AXIS] != 0) backlashDir |= 16;
 	if(backlash[Y_AXIS] != 0) backlashDir |= 32;
@@ -320,9 +320,9 @@ void Machine::updateDerivedParameter() {
 		maxJerk[A_AXIS] = 2 * minimumSpeedA;
 		Com::printFLN(PSTR("A jerk was too low, setting to "), maxJerk[A_AXIS]);
 	}
-#if DISTORTION_CORRECTION
+#if DISTORTION_CORRECTION_SUPPORT
     Distortion::updateDerived();
-#endif // DISTORTION_CORRECTION
+#endif
     EVENT_UPDATE_DERIVED;
 }
 #if AUTOMATIC_POWERUP
@@ -365,7 +365,7 @@ void Machine::kill(uint8_t onlySteppers) {
 #endif
         setAllKilled(true);
 	}
-#if FEATURE_FAN_CONTROL
+#if FAN_CONTROL_SUPPORT
     FanDriver::setSpeed(0, FAN_BOARD_INDEX);
 #endif
 }
@@ -447,7 +447,7 @@ uint8_t Machine::setDestinationStepsFromGCode(GCode *com) {
 #endif
     }
 #endif
-#if DISTORTION_CORRECTION == 0
+#if DISTORTION_CORRECTION_SUPPORT == 0
 	if(!com->hasNoXYZA()) {
 #endif
         if(!isRelativeCoordinateMode()) {
@@ -462,7 +462,7 @@ uint8_t Machine::setDestinationStepsFromGCode(GCode *com) {
 			if(com->hasA()) currentPosition[A_AXIS] = (lastCmdPos[A_AXIS] += convertToMM(com->A));
 		}
 		posAllowed = com->hasNoXYZA() || isPositionAllowed(lastCmdPos[X_AXIS], lastCmdPos[Y_AXIS], lastCmdPos[Z_AXIS]);
-#if DISTORTION_CORRECTION == 0
+#if DISTORTION_CORRECTION_SUPPORT == 0
     }
 #endif
 
@@ -528,7 +528,7 @@ void Machine::setup() {
     setPowerOn(true);
 #endif
 #endif
-#if SDSUPPORT
+#if SDCARD_SUPPORT
     //power to SD reader
 #if SDPOWER > -1
     SET_OUTPUT(SDPOWER);
@@ -571,7 +571,7 @@ void Machine::setup() {
 	WRITE(A_ENABLE_PIN, !A_ENABLE_ON);
 #endif
 
-#if FEATURE_TWO_XSTEPPER || DUAL_X_AXIS
+#if X2_XSTEPPER_SUPPORT
     SET_OUTPUT(X2_STEP_PIN);
     SET_OUTPUT(X2_DIR_PIN);
 #if X2_ENABLE_PIN > -1
@@ -580,7 +580,7 @@ void Machine::setup() {
 #endif
 #endif
 
-#if FEATURE_TWO_YSTEPPER
+#if Y2_YSTEPPER_SUPPORT
     SET_OUTPUT(Y2_STEP_PIN);
     SET_OUTPUT(Y2_DIR_PIN);
 #if Y2_ENABLE_PIN > -1
@@ -589,7 +589,7 @@ void Machine::setup() {
 #endif
 #endif
 
-#if FEATURE_TWO_ZSTEPPER
+#if Z2_ZSTEPPER_SUPPORT
     SET_OUTPUT(Z2_STEP_PIN);
     SET_OUTPUT(Z2_DIR_PIN);
 #if Z2_ENABLE_PIN > -1
@@ -598,13 +598,22 @@ void Machine::setup() {
 #endif
 #endif
 
+#if A2_ASTEPPER_SUPPORT
+    SET_OUTPUT(A2_STEP_PIN);
+    SET_OUTPUT(A2_DIR_PIN);
+#if A2_ENABLE_PIN > -1
+    SET_OUTPUT(A2_ENABLE_PIN);
+    WRITE(A2_ENABLE_PIN, !A_ENABLE_ON);
+#endif
+#endif
+
 	Endstops::setup();
-#if FEATURE_Z_PROBE && Z_PROBE_PIN>-1
+#if Z_PROBE_SUPPORT && Z_PROBE_PIN >- 1
     SET_INPUT(Z_PROBE_PIN);
 #if Z_PROBE_PULLUP
     PULLUP(Z_PROBE_PIN, HIGH);
 #endif
-#endif // FEATURE_FEATURE_Z_PROBE
+#endif
 #if defined(PAUSE_PIN) && PAUSE_PIN > -1
 	SET_INPUT(PAUSE_PIN);
 #if defined(PAUSE_PULLUP) && PAUSE_PULLUP
@@ -617,16 +626,16 @@ void Machine::setup() {
     WRITE(CASE_LIGHTS_PIN, CASE_LIGHT_DEFAULT_ON);
 #endif // CASE_LIGHTS_PIN
 
-#if SUPPORT_SPINDLE
+#if SPINDLE_SUPPORT
 	SpindleDriver::initialize();
 #endif
-#if SUPPORT_LASER
+#if LASER_SUPPORT
     LaserDriver::initialize();
 #endif
-#if SUPPORT_VACUUM
+#if VACUUM_SUPPORT
     VacuumDriver::initialize();
 #endif
-#if FEATURE_FAN_CONTROL
+#if FAN_CONTROL_SUPPORT
     FanDriver::initialize();
 #endif
 
@@ -656,7 +665,7 @@ void Machine::setup() {
 	axisMin[X_AXIS] = X_MIN_POS;
 	axisMin[Y_AXIS] = Y_MIN_POS;
 	axisMin[Z_AXIS] = Z_MIN_POS;
-#if ENABLE_BACKLASH_COMPENSATION
+#if BACKLASH_COMPENSATION_SUPPORT
 	backlash[X_AXIS] = X_BACKLASH;
 	backlash[Y_AXIS] = Y_BACKLASH;
 	backlash[Z_AXIS] = Z_BACKLASH;
@@ -674,23 +683,23 @@ void Machine::setup() {
 		currentPosition[i] = 0;
     }
 
-#if DISTORTION_CORRECTION
+#if DISTORTION_CORRECTION_SUPPORT
     Distortion::init();
-#endif // DISTORTION_CORRECTION
+#endif
 
     updateDerivedParameter();
     Commands::checkFreeMemory();
     Commands::writeLowestFreeRAM();
     HAL::setupTimer();
 
-#if FEATURE_WATCHDOG
+#if WATCHDOG_SUPPORT
     HAL::startWatchdog();
-#endif // FEATURE_WATCHDOG
-#if SDSUPPORT
+#endif
+#if SDCARD_SUPPORT
     sd.mount();
 #endif
 
-#if FEATURE_SERVO                   // set servos to neutral positions at power_up
+#if SERVO_SUPPORT                   // set servos to neutral positions at power_up
 #if defined(SERVO0_NEUTRAL_POS) && SERVO0_NEUTRAL_POS >= 500
     HAL::servoMicroseconds(0, SERVO0_NEUTRAL_POS, 1000);
 #endif
@@ -708,7 +717,7 @@ void Machine::setup() {
 #ifdef STARTUP_GCODE
     GCode::executeFString(Com::tStartupGCode);
 #endif
-#if TMC_DRIVERS
+#if TMC_DRIVER_SUPPORT
 #if TMC_X_TYPE==TMC_5160
 	configTMC5160(&tmcStepperX, TMC_X_INTPOL, TMC_X_RMS, TMC_X_HOLD, TMC_X_HOLDDELAY, TMC_X_TPWRDOWN, TMC_X_HSTART, TMC_X_HEND, TMC_X_TOFF, TMC_X_TBL, TMC_X_TPFD, TMC_X_PWM_FREQ, TMC_X_TPWMTHRS, TMC_X_TCOOLTHRS, TMC_X_THIGHTHRS, TMC_X_SEMIN, TMC_X_SEMAX, TMC_X_SGT, TMC_X_S2VS, TMC_X_S2G, TMC_X_SFILTER, TMC_X_MICROSTEP, TMC_X_PWM_GRAD, TMC_X_PWM_OFS, TMC_X_PWM_LIM, TMC_X_MODE);
 #endif
@@ -743,7 +752,7 @@ void Machine::defaultLoopActions() {
             kill(true);
         }
     }
-#if SDCARDDETECT > -1 && SDSUPPORT
+#if SDCARDDETECT > -1 && SDCARD_SUPPORT
     sd.automount();
 #endif
 #if defined(EEPROM_AVAILABLE) && EEPROM_AVAILABLE == EEPROM_SDCARD
@@ -877,7 +886,7 @@ this result is wrong and we need to correct by the z change between origin and c
 void Machine::homeZAxis() { // Cartesian homing
     long steps;
     if ((MIN_HARDWARE_ENDSTOP_Z && Z_MIN_PIN > -1 && Z_HOME_DIR == -1) || (MAX_HARDWARE_ENDSTOP_Z && Z_MAX_PIN > -1 && Z_HOME_DIR == 1)) {
-#if Z_HOME_DIR < 0 && Z_PROBE_PIN == Z_MIN_PIN && FEATURE_Z_PROBE
+#if Z_HOME_DIR < 0 && Z_PROBE_PIN == Z_MIN_PIN && Z_PROBE_SUPPORT
         ZProbe::start();
 #endif
         coordinateOffset[Z_AXIS] = 0; // G92 Z offset
@@ -896,18 +905,18 @@ void Machine::homeZAxis() { // Cartesian homing
 #if defined(Z_PROBE_DELAY) && Z_PROBE_DELAY > 0 && Z_MIN_PIN == Z_PROBE_PIN && Z_HOME_DIR == -1
         HAL::delayMilliseconds(Z_PROBE_DELAY);
 #endif
-#if Z_HOME_DIR < 0 && Z_PROBE_PIN == Z_MIN_PIN && FEATURE_Z_PROBE
+#if Z_HOME_DIR < 0 && Z_PROBE_PIN == Z_MIN_PIN && Z_PROBE_SUPPORT
 #ifdef Z_PROBE_RUN_AFTER_EVERY_PROBE
 GCode::executeFString(PSTR(Z_PROBE_RUN_AFTER_EVERY_PROBE));
 #endif
 #endif
         MachineLine::moveRelativeDistanceInSteps(0, 0, axisStepsPerMM[Z_AXIS] * 2 * ENDSTOP_Z_BACK_MOVE * Z_HOME_DIR, 0, homingFeedrate[Z_AXIS] / ENDSTOP_Z_RETEST_REDUCTION_FACTOR, true, true);
-#if Z_HOME_DIR < 0 && Z_PROBE_PIN == Z_MIN_PIN && FEATURE_Z_PROBE
+#if Z_HOME_DIR < 0 && Z_PROBE_PIN == Z_MIN_PIN && Z_PROBE_SUPPORT
         ZProbe::finish();
 #endif
         setHoming(false);
         int32_t zCorrection = 0;
-#if Z_HOME_DIR < 0 && MIN_HARDWARE_ENDSTOP_Z && FEATURE_Z_PROBE && Z_PROBE_PIN == Z_MIN_PIN
+#if Z_HOME_DIR < 0 && MIN_HARDWARE_ENDSTOP_Z && Z_PROBE_SUPPORT && Z_PROBE_PIN == Z_MIN_PIN
         // Fix error from z probe testing
         zCorrection -= axisStepsPerMM[Z_AXIS] * EEPROM::zProbeHeight();
         // Correct from bed rotation
@@ -923,7 +932,7 @@ GCode::executeFString(PSTR(Z_PROBE_RUN_AFTER_EVERY_PROBE));
         //Com::printFLN(PSTR("Z-Correction-Steps:"),zCorrection); // TEST
 		MachineLine::moveRelativeDistanceInSteps(0, 0, zCorrection, 0, homingFeedrate[Z_AXIS], true, false);
 		currentPositionSteps[Z_AXIS] = ((Z_HOME_DIR == -1) ? axisMinSteps[Z_AXIS] : axisMaxSteps[Z_AXIS]);
-#if DISTORTION_CORRECTION && Z_HOME_DIR < 0 && Z_PROBE_PIN == Z_MIN_PIN && FEATURE_Z_PROBE
+#if DISTORTION_CORRECTION_SUPPORT && Z_HOME_DIR < 0 && Z_PROBE_PIN == Z_MIN_PIN && Z_PROBE_SUPPORT
 // Special case where z probe is z min end stop and distortion correction is enabled
         if(Distortion::isEnabled()) {
             zCorrectionStepsIncluded = Distortion::correct(currentPositionSteps[X_AXIS], currentPositionSteps[Y_AXIS], currentPositionSteps[Z_AXIS]);
@@ -931,7 +940,7 @@ GCode::executeFString(PSTR(Z_PROBE_RUN_AFTER_EVERY_PROBE));
         }
 #endif
         updateCurrentPosition(true);
-#if Z_HOME_DIR < 0 && Z_PROBE_PIN == Z_MIN_PIN && FEATURE_Z_PROBE
+#if Z_HOME_DIR < 0 && Z_PROBE_PIN == Z_MIN_PIN && Z_PROBE_SUPPORT
         // If we have software leveling enabled and are not at 0,0 z position is not zero, but we measured
         // for z = 0, so we need to correct for rotation.
         currentPositionSteps[Z_AXIS] -= (axisStepsPerMM[Z_AXIS] * currentPosition[Z_AXIS] - axisMinSteps[Z_AXIS]);
@@ -954,7 +963,7 @@ void Machine::homeAxis(bool xaxis, bool yaxis, bool zaxis) { // home non-delta p
     bool nocheck = isNoDestinationCheck();
     setNoDestinationCheck(true);
 
-#if SUPPORT_LASER
+#if LASER_SUPPORT
     uint8_t wasLaserOn = LaserDriver::isOn();
     if (mode == MACHINE_MODE_LASER) {
         LaserDriver::turnOff();
@@ -975,7 +984,7 @@ void Machine::homeAxis(bool xaxis, bool yaxis, bool zaxis) { // home non-delta p
         MachineLine::moveRelativeDistanceInSteps(0, 0, ZHOME_PRE_RAISE_DISTANCE * axisStepsPerMM[Z_AXIS], 0, homingFeedrate[Z_AXIS], true, true);
 #endif
 #endif
-#if Z_HOME_DIR < 0 && Z_PROBE_PIN == Z_MIN_PIN && FEATURE_Z_PROBE
+#if Z_HOME_DIR < 0 && Z_PROBE_PIN == Z_MIN_PIN && Z_PROBE_SUPPORT
 #if HOMING_ORDER != HOME_ORDER_XYZ && HOMING_ORDER != HOME_ORDER_YXZ
 #error Illegal homing order for z probe based homing!
 #endif
@@ -1038,7 +1047,7 @@ void Machine::homeAxis(bool xaxis, bool yaxis, bool zaxis) { // home non-delta p
 	updateCurrentPosition(true);
     updateHomedAll();
 	Commands::printCurrentPosition();
-#if SUPPORT_LASER
+#if LASER_SUPPORT
     if (wasLaserOn) {
         LaserDriver::turnOn();
     }
@@ -1076,16 +1085,16 @@ void Machine::showCapabilities() {
     Com::writeToAll = false;
     Com::printFLN(Com::tFirmware);
     Com::cap(Com::tCapEeprom, EEPROM_MODE != 0);
-    Com::cap(Com::tCapZProbe, FEATURE_Z_PROBE);
+    Com::cap(Com::tCapZProbe, Z_PROBE_SUPPORT);
     Com::cap(Com::tCapSoftwarePower, PS_ON_PIN > -1);
     Com::cap(Com::tCapToggleLights, CASE_LIGHTS_PIN > -1);
-    Com::cap(Com::tCapCoolantMist, SUPPORT_COOLANT && COOLANT_MIST_PIN > -1);
-    Com::cap(Com::tCapCoolantFlood, SUPPORT_COOLANT && COOLANT_FLOOD_PIN > -1);
-    Com::cap(Com::tCapDistortionCorrection, DISTORTION_CORRECTION);
-    Com::cap(Com::tCapVacuum, SUPPORT_VACUUM);
-    Com::cap(Com::tCapSDCard, SDSUPPORT);
-    Com::cap(Com::tCapFanControl, FEATURE_FAN_CONTROL);
-    if (FEATURE_FAN_CONTROL) {
+    Com::cap(Com::tCapCoolantMist, COOLANT_SUPPORT && COOLANT_MIST_PIN > -1);
+    Com::cap(Com::tCapCoolantFlood, COOLANT_SUPPORT && COOLANT_FLOOD_PIN > -1);
+    Com::cap(Com::tCapDistortionCorrection, DISTORTION_CORRECTION_SUPPORT);
+    Com::cap(Com::tCapVacuum, VACUUM_SUPPORT);
+    Com::cap(Com::tCapSDCard, SDCARD_SUPPORT);
+    Com::cap(Com::tCapFanControl, FAN_CONTROL_SUPPORT);
+    if (FAN_CONTROL_SUPPORT) {
         Com::cap(Com::tCapFan, FAN_PIN > -1);
         Com::cap(Com::tCapFan2, FAN2_PIN > -1);
     }
@@ -1123,12 +1132,11 @@ void Machine::showConfiguration() {
 	Com::config(Com::tCfgAAccel, maxAccelerationMMPerSquareSecond[A_AXIS]);
 }
 
-#if TMC_DRIVERS
+#if TMC_DRIVER_SUPPORT
 void Machine::configTMC5160(TMC5160Stepper* driver, uint8_t intpol, uint16_t rms, float hold_mult, uint8_t hold_delay, uint8_t tpower_down,
 							uint8_t hstart, uint8_t hend, uint8_t toff, uint8_t tbl, uint8_t tpfd, uint8_t pwm_freq, uint16_t tpwmthrs,
 							uint16_t tcoolthrs, uint16_t thighthrs, uint8_t semin, uint8_t semax, int8_t sgt, uint8_t s2vs, uint8_t s2g,
-							uint8_t sfilter, uint16_t microsteps, uint8_t pwm_grad, uint8_t pwm_ofs, uint8_t pwm_lim, uint8_t mode)
-{
+							uint8_t sfilter, uint16_t microsteps, uint8_t pwm_grad, uint8_t pwm_ofs, uint8_t pwm_lim, uint8_t mode) {
 	wdt_reset();
 	driver->begin();
 	driver->intpol(intpol);
@@ -1187,7 +1195,7 @@ void Machine::CheckTMCDrivers()
 }
 #endif
 
-#if DISTORTION_CORRECTION
+#if DISTORTION_CORRECTION_SUPPORT
 void Machine::measureDistortion(float maxDistance, int repetitions) {
     float oldFeedrate   = feedrate;
     float oldOffsetX    = coordinateOffset[X_AXIS];
