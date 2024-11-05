@@ -11,4 +11,4 @@ Modified version of Repetier focusing solely on CNC (Laser/Spindle).
 * Adds partial gcode for movements support for laserGRBL files (M901 S<0/1>)
 * Adds pause switch with user defined acceleration/deceleration
 * Adds real time feed rate dial
-* User defined area and point count for distortion correction is able to be set real time (set to contour of current work piece)
+* Distortion correction area can be defined in real time which allows the user to probe the current work piece like a PCB board.

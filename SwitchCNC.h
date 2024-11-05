@@ -146,10 +146,6 @@ usage or for searching for memory induced errors. Switch it off for production, 
 #define MOVE_Z_WHEN_HOMED           0
 #endif
 
-#ifndef BOARD_FAN_SPEED
-#define BOARD_FAN_SPEED
-#endif
-
 #if Z_PROBE_SUPPORT && Z_PROBE_PIN < 0
 #error You need to define Z_PROBE_PIN to use z probe!
 #endif
@@ -208,10 +204,6 @@ usage or for searching for memory induced errors. Switch it off for production, 
 /**  \brief Horizontal distance bridged by the diagonal push rod when the end effector is in the center. It is pretty close to 50% of the push rod length (250 mm).
 */
 
-#ifdef Z_PROBE_SUPPORT
-#define MANUAL_CONTROL              1
-#endif
-
 #ifndef START_STEP_WITH_HIGH
 #define START_STEP_WITH_HIGH        1
 #endif
@@ -238,14 +230,6 @@ usage or for searching for memory induced errors. Switch it off for production, 
 #define LONG_FILENAME_LENGTH        (13 * MAX_VFAT_ENTRIES + 1)
 #define SD_MAX_FOLDER_DEPTH         2
 
-#ifndef SDCARDDETECT
-#define SDCARDDETECT                -1
-#endif
-
-#ifndef SDCARD_SUPPORT
-#define SDCARD_SUPPORT				0
-#endif
-
 #define DELAY1MICROSECOND           __asm__("nop\n\t""nop\n\t""nop\n\t""nop\n\t""nop\n\t""nop\n\t")
 #define DELAY2MICROSECOND           __asm__("nop\n\t""nop\n\t""nop\n\t""nop\n\t""nop\n\t""nop\n\tnop\n\t""nop\n\t""nop\n\t""nop\n\t""nop\n\t""nop\n\t")
 
@@ -270,6 +254,7 @@ usage or for searching for memory induced errors. Switch it off for production, 
 #include "Commands.h"
 #include "Eeprom.h"
 #include "src/Drivers/MotorDrivers.h"
+#include "src/Drivers/TMCDrivers.h"
 #include "src/Tools/Laser.h"
 #include "src/Tools/Spindle.h"
 #include "src/Features/Vacuum.h"
@@ -282,6 +267,7 @@ usage or for searching for memory induced errors. Switch it off for production, 
 #include "src/Features/Distortion.h"
 #include "src/Features/FeedDial.h"
 #include "motion.h"
+#include "src/Features/Backlash.h"
 #include "Events.h"
 
 #if SDCARD_SUPPORT

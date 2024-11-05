@@ -21,19 +21,6 @@ Level 5: Nonlinear motor step position, only for nonlinear drive systems
 #ifndef MACHINE_H_INCLUDED
 #define MACHINE_H_INCLUDED
 
-#if TMC_DRIVER_SUPPORT
-#include <TMCStepper.h>
-#endif
-
-//TMC Driver modes
-#define TMC_STEALTH	    1
-#define TMC_SPREAD	    2
-
-//TMC Driver types
-#define TMC_5160	    1
-#define TMC_DRV_STATUS  0b00011010000000000011000000000000
-
-
 #if defined(AUTOMATIC_POWERUP) && AUTOMATIC_POWERUP && PS_ON_PIN > -1
 #define ENSURE_POWER {Machine::enablePowerIfNeeded();}
 #else
@@ -191,10 +178,6 @@ public:
     static int feedrateMultiply;                                ///< Multiplier for feedrate in percent (factor 1 = 100)
 	static float maxJerk[A_AXIS_ARRAY];                         ///< Maximum allowed jerk in mm/s
 	static speed_t vMaxReached;                                 ///< Maximum reached speed
-#if BACKLASH_COMPENSATION_SUPPORT
-	static float backlash[A_AXIS_ARRAY];
-    static uint8_t backlashDir;
-#endif
 #if MULTI_XENDSTOP_HOMING
     static fast8_t multiXHomeFlags;                             // 1 = move X0, 2 = move X1
 #endif
@@ -208,20 +191,6 @@ public:
 	static float memoryF;
 #ifdef DEBUG_REAL_JERK
     static float maxRealJerk;
-#endif
-#if TMC_DRIVER_SUPPORT
-#if TMC_X_TYPE==TMC_5160
-	static TMC5160Stepper tmcStepperX;
-#endif
-#if TMC_Y_TYPE==TMC_5160
-	static TMC5160Stepper tmcStepperY;
-#endif
-#if TMC_Z_TYPE==TMC_5160
-	static TMC5160Stepper tmcStepperZ;
-#endif
-#if TMC_2_TYPE==TMC_5160
-	static TMC5160Stepper tmcStepper2;
-#endif
 #endif
 #ifdef DEBUG_MACHINE
     static int debugWaitLoop;
@@ -786,13 +755,6 @@ public:
     static void homeXAxis();
     static void homeYAxis();
     static void homeZAxis();
-#if TMC_DRIVER_SUPPORT
-	static void configTMC5160(TMC5160Stepper* driver, uint8_t intpol, uint16_t rms, float hold_mult, uint8_t hold_delay, uint8_t tpower_down, uint8_t hstart, uint8_t hend, uint8_t toff, uint8_t tbl, uint8_t tpfd, uint8_t pwm_freq, uint16_t tpwmthrs, uint16_t tcoolthrs, uint16_t thighthrs, uint8_t semin, uint8_t semax, int8_t sgt, uint8_t s2vs, uint8_t s2g, uint8_t sfilter, uint16_t microsteps, uint8_t pwm_grad, uint8_t pwm_ofs, uint8_t pwm_lim, uint8_t mode);
-	static void CheckTMCDrivers();
-#endif
-#if DISTORTION_CORRECTION_SUPPORT
-    static void measureDistortion(float maxDistance, int repetitions);
-#endif
 
 private:
     static uint8_t          debugLevel;

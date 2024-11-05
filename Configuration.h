@@ -418,6 +418,35 @@
 #define TMC_Z_PWM_LIM							12
 #define TMC_Z_MODE								TMC_SPREAD
 
+#define TMC_A_TYPE								TMC_NONE
+#define TMC_A_CS								-1
+#define	TMC_A_RSENSE							0.075
+#define TMC_A_INTPOL							1
+#define TMC_A_RMS								2200
+#define TMC_A_HOLD								0.3
+#define TMC_A_HOLDDELAY							1
+#define TMC_A_TPWRDOWN							0
+#define TMC_A_HSTART							4
+#define TMC_A_HEND								6
+#define TMC_A_TOFF								5
+#define TMC_A_TBL								2
+#define TMC_A_TPFD								0
+#define TMC_A_PWM_FREQ							0
+#define TMC_A_TPWMTHRS							0
+#define TMC_A_TCOOLTHRS							0
+#define TMC_A_THIGHTHRS							0
+#define TMC_A_SEMIN								0
+#define TMC_A_SEMAX								0
+#define TMC_A_SGT								0
+#define TMC_A_S2VS								12
+#define TMC_A_S2G								12
+#define TMC_A_SFILTER							2
+#define TMC_A_MICROSTEP							16
+#define TMC_A_PWM_GRAD							45
+#define TMC_A_PWM_OFS							80
+#define TMC_A_PWM_LIM							12
+#define TMC_A_MODE								TMC_SPREAD
+
 #define TMC_2_TYPE								TMC_5160
 #define TMC_2_CS								43
 #define	TMC_2_RSENSE							0.075
@@ -446,7 +475,6 @@
 #define TMC_2_PWM_OFS							80
 #define TMC_2_PWM_LIM							12
 #define TMC_2_MODE								TMC_SPREAD
-
 
 //Poorly written stepper driver support
 #define NUM_MOTOR_DRIVERS						0

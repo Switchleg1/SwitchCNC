@@ -63,6 +63,9 @@ private:
 #ifdef DEBUG_STEPCOUNT
     int32_t totalStepsRemaining;
 #endif
+
+    static void queueCartesianSegmentTo(int32_t* segmentSteps, uint8_t addDistortion, uint8_t checkEndstops, uint8_t pathOptimize);
+
 public:
     int32_t stepsRemaining;            ///< Remaining steps, until move is finished
     static MachineLine *cur;
@@ -413,8 +416,7 @@ public:
     static void updateTrapezoids();
     static uint8_t insertWaitMovesIfNeeded(uint8_t pathOptimize, uint8_t waitExtraLines);
 	static void queueCartesianMove(int32_t *destinationSteps, uint8_t checkEndstops, uint8_t pathOptimize);
-    static void queueCartesianSegmentTo(int32_t *segmentSteps, uint8_t addDistortion, uint8_t checkEndstops, uint8_t pathOptimize);
-	static void moveRelativeDistanceInSteps(int32_t x, int32_t y, int32_t z, int32_t a, float feedrate, bool waitEnd, bool check_endstop, bool pathOptimize = true);
+    static void moveRelativeDistanceInSteps(int32_t x, int32_t y, int32_t z, int32_t a, float feedrate, bool waitEnd, bool check_endstop, bool pathOptimize = true);
 	static void moveRelativeDistanceInStepsReal(int32_t x, int32_t y, int32_t z, int32_t a, float feedrate, bool waitEnd, bool pathOptimize = true);
 #if ARC_SUPPORT
     static void queueArc(float *position, float *target, float *offset, float radius, uint8_t isclockwise);

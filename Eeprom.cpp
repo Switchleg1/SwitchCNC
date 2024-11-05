@@ -68,10 +68,10 @@ void EEPROM::restoreEEPROMSettingsFromConfiguration() {
 	Machine::axisMin[Y_AXIS] = Y_MIN_POS;
 	Machine::axisMin[Z_AXIS] = Z_MIN_POS;
 #if BACKLASH_COMPENSATION_SUPPORT
-	Machine::backlash[X_AXIS] = X_BACKLASH;
-	Machine::backlash[Y_AXIS] = Y_BACKLASH;
-	Machine::backlash[Z_AXIS] = Z_BACKLASH;
-	Machine::backlash[A_AXIS] = A_BACKLASH;
+	Backlash::backlash[X_AXIS] = X_BACKLASH;
+	Backlash::backlash[Y_AXIS] = Y_BACKLASH;
+	Backlash::backlash[Z_AXIS] = Z_BACKLASH;
+	Backlash::backlash[A_AXIS] = A_BACKLASH;
 #endif
 #if DISTORTION_CORRECTION_SUPPORT
 	Distortion::XMIN		= DISTORTION_XMIN;
@@ -128,10 +128,10 @@ void EEPROM::storeDataIntoEEPROM(uint8_t corrupted) {
 	HAL::eprSetFloat(EPR_Y_LENGTH,Machine::axisLength[Y_AXIS]);
 	HAL::eprSetFloat(EPR_Z_LENGTH,Machine::axisLength[Z_AXIS]);
 #if BACKLASH_COMPENSATION_SUPPORT
-	HAL::eprSetFloat(EPR_BACKLASH_X,Machine::backlash[X_AXIS]);
-	HAL::eprSetFloat(EPR_BACKLASH_Y,Machine::backlash[Y_AXIS]);
-	HAL::eprSetFloat(EPR_BACKLASH_Z,Machine::backlash[Z_AXIS]);
-	HAL::eprSetFloat(EPR_BACKLASH_Z,Machine::backlash[A_AXIS]);
+	HAL::eprSetFloat(EPR_BACKLASH_X, Backlash::backlash[X_AXIS]);
+	HAL::eprSetFloat(EPR_BACKLASH_Y, Backlash::backlash[Y_AXIS]);
+	HAL::eprSetFloat(EPR_BACKLASH_Z, Backlash::backlash[Z_AXIS]);
+	HAL::eprSetFloat(EPR_BACKLASH_Z, Backlash::backlash[A_AXIS]);
 #endif
 #if DISTORTION_CORRECTION_SUPPORT
 	HAL::eprSetInt16(EPR_DISTORTION_XMIN, Distortion::XMIN);
@@ -198,10 +198,10 @@ void EEPROM::readDataFromEEPROM() {
 	Machine::axisLength[Y_AXIS] = HAL::eprGetFloat(EPR_Y_LENGTH);
 	Machine::axisLength[Z_AXIS] = HAL::eprGetFloat(EPR_Z_LENGTH);
 #if BACKLASH_COMPENSATION_SUPPORT
-	Machine::backlash[X_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_X);
-	Machine::backlash[Y_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_Y);
-	Machine::backlash[Z_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_Z);
-	Machine::backlash[A_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_A);
+	Backlash::backlash[X_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_X);
+	Backlash::backlash[Y_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_Y);
+	Backlash::backlash[Z_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_Z);
+	Backlash::backlash[A_AXIS] = HAL::eprGetFloat(EPR_BACKLASH_A);
 #endif
 #if DISTORTION_CORRECTION_SUPPORT
 	Distortion::XMIN		= HAL::eprGetInt16(EPR_DISTORTION_XMIN);
