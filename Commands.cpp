@@ -175,8 +175,8 @@ void Commands::processMove(GCode* com, uint8_t linear) {
 #if LASER_SUPPORT
     if (Machine::mode == MACHINE_MODE_LASER) {
         // disable laser for G0 moves
-        if (!com->G) LaserDriver::setNextIntensity(0);
-        else if (com->hasS()) LaserDriver::setNextIntensity(constrain(com->S, 0, LASER_PWM_MAX));
+        if (!com->G) Laser::setNextIntensity(0);
+        else if (com->hasS()) Laser::setNextIntensity(constrain(com->S, 0, LASER_PWM_MAX));
     }
     else {
         if (com->hasS()) {
@@ -223,7 +223,7 @@ void Commands::processMove(GCode* com, uint8_t linear) {
 void Commands::processArc(GCode *com) {
 #if LASER_SUPPORT
     if (com->hasS()) {
-        LaserDriver::setNextIntensity(constrain(com->E, 0, LASER_PWM_MAX));
+        Laser::setNextIntensity(constrain(com->E, 0, LASER_PWM_MAX));
     }
 #endif
 	float position[A_AXIS_ARRAY];
@@ -608,53 +608,53 @@ void Commands::processMCode(GCode *com) {
     case 4: // Spindle CCW
 #if LASER_SUPPORT
         if (Machine::mode == MACHINE_MODE_LASER) {
-            LaserDriver::turnOn(constrain(com->hasS() ? com->S : 0, 0, LASER_PWM_MAX));
+            Laser::turnOn(constrain(com->hasS() ? com->S : 0, 0, LASER_PWM_MAX));
         }
 #endif // defined
 #if SPINDLE_SUPPORT
         if (Machine::mode == MACHINE_MODE_SPINDLE) {
-            SpindleDriver::turnOn(com->M == 3 ? SPINDLE_CW : SPINDLE_CCW, com->hasS() ? com->S : SPINDLE_RPM_MAX);
+            Spindle::turnOn(com->M == 3 ? SPINDLE_CW : SPINDLE_CCW, com->hasS() ? com->S : SPINDLE_RPM_MAX);
         }
 #endif // defined
         break;
     case 5: // Spindle
 #if LASER_SUPPORT
         if (Machine::mode == MACHINE_MODE_LASER) {
-            LaserDriver::turnOff(true);
+            Laser::turnOff(true);
         }
 #endif // defined
 #if SPINDLE_SUPPORT
         if (Machine::mode == MACHINE_MODE_SPINDLE) {
-            SpindleDriver::turnOff();
+            Spindle::turnOff();
         }
 #endif // defined
         break;
 #if COOLANT_SUPPORT && COOLANT_MIST_PIN > -1
     case 7: //M7: Mist Coolant On
-        CoolantMistDriver::setNextState(true);
+        CoolantMist::setNextState(true);
         break;
 #endif
 #if COOLANT_SUPPORT && COOLANT_FLOOD_PIN > -1
     case 8: //M8: Flood Coolant On
-        CoolantFloodDriver::setNextState(true);
+        CoolantFlood::setNextState(true);
         break;
 #endif
 #if COOLANT_SUPPORT
     case 9: //M9: Coolant Off
 #if COOLANT_MIST_PIN > -1
-        CoolantMistDriver::setNextState(false);
+        CoolantMist::setNextState(false);
 #endif
 #if COOLANT_FLOOD_PIN > -1
-        CoolantFloodDriver::setNextState(false);
+        CoolantFlood::setNextState(false);
 #endif
         break;
 #endif
 #if VACUUM_SUPPORT
     case 10: //M10: Vacuum On
-        VacuumDriver::setNextState(true);
+        Vacuum::setNextState(true);
         break;
     case 11: //M11: Vacuum Off
-        VacuumDriver::setNextState(false);
+        Vacuum::setNextState(false);
         break;
 #endif
     case 17: //M17 is to enable named axis
@@ -851,17 +851,17 @@ void Commands::processMCode(GCode *com) {
 #if LASER_SUPPORT
         if (Machine::mode == MACHINE_MODE_LASER) {
             //print temperature
-            Com::printF(Com::tTColon, LaserDriver::temperature());
+            Com::printF(Com::tTColon, Laser::temperature());
         }
 #endif
 #if SPINDLE_SUPPORT
         if (Machine::mode == MACHINE_MODE_SPINDLE) {
             //print rpm
-            Com::printF(Com::tTColon, SpindleDriver::spindleRpm());
+            Com::printF(Com::tTColon, Spindle::spindleRpm());
         }
 #endif
-#if SPEED_DIAL_SUPPORT && SPEED_DIAL_PIN > -1
-        Com::printF(Com::tSpaceBColon, (Machine::speed_dial * 100) >> SPEED_DIAL_BITS);
+#if FEED_DIAL_SUPPORT
+        Com::printF(Com::tSpaceBColon, FeedDial::value() * 100 / FEED_DIAL_MAX_VALUE);
 #endif
         Com::println();
         break;
@@ -872,14 +872,14 @@ void Commands::processMCode(GCode *com) {
             else Machine::setIgnoreFanCommand(false);
         }
 		if(!Machine::isIgnoreFanCommand()) {
-            if (com->hasP() && com->P == 1) FanDriver::setSpeed(com->hasS() ? com->S : 255, 1);
-            else FanDriver::setNextSpeed(com->hasS() ? constrain(com->S, 0, 255) : 255);
+            if (com->hasP() && com->P == 1) FanControl::setSpeed(com->hasS() ? com->S : 255, 1);
+            else FanControl::setNextSpeed(com->hasS() ? constrain(com->S, 0, 255) : 255);
         }
         break;
     case 107: // M107 Fan Off
 		if(!Machine::isIgnoreFanCommand()) {
-            if (com->hasP() && com->P == 1) FanDriver::setSpeed(0, 1);
-            else FanDriver::setNextSpeed(0);
+            if (com->hasP() && com->P == 1) FanControl::setSpeed(0, 1);
+            else FanControl::setNextSpeed(0);
         }
         break;
 #endif
@@ -958,12 +958,12 @@ void Commands::processMCode(GCode *com) {
     case 221: // M221 S<Extrusion flow multiplier in percent>
 #if LASER_SUPPORT
         if (LASER_SUPPORT && Machine::mode == MACHINE_MODE_LASER) {
-            LaserDriver::setIntensityMultiplier(constrain(com->getS(100), 0, 255));
+            Laser::setIntensityMultiplier(constrain(com->getS(100), 0, 255));
         }
 #endif
 #if SPINDLE_SUPPORT
         if (Machine::mode == MACHINE_MODE_SPINDLE) {
-            SpindleDriver::setRpmMultiplier(constrain(com->getS(100), 0, 255));
+            Spindle::setRpmMultiplier(constrain(com->getS(100), 0, 255));
         }
 #endif
         break;
@@ -1064,7 +1064,7 @@ void Commands::processMCode(GCode *com) {
 #if LASER_SUPPORT
         waitUntilEndOfAllMoves();
 #if SPINDLE_SUPPORT
-        SpindleDriver::turnOff();
+        Spindle::turnOff();
 #endif
         Machine::mode = MACHINE_MODE_LASER;
 #endif
@@ -1075,7 +1075,7 @@ void Commands::processMCode(GCode *com) {
         waitUntilEndOfAllMoves();
 #if LASER_SUPPORT
         if (Machine::mode == MACHINE_MODE_LASER) {
-            LaserDriver::turnOff();
+            Laser::turnOff();
         }
 #endif // defined
         Machine::mode = MACHINE_MODE_SPINDLE;

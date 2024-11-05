@@ -66,16 +66,6 @@ TMC5160Stepper Machine::tmcStepperZ(TMC_Z_CS, TMC_Z_RSENSE);
 TMC5160Stepper Machine::tmcStepper2(TMC_2_CS, TMC_2_RSENSE);
 #endif
 #endif
-#if defined(PAUSE_PIN) && PAUSE_PIN > -1
-#if PAUSE_STEPS > 120
-int16_t Machine::pauseSteps = 0;
-#else
-int8_t Machine::pauseSteps = 0;
-#endif
-#endif //PAUSE
-#if SPEED_DIAL_SUPPORT && SPEED_DIAL_PIN > -1
-uint8_t Machine::speed_dial = SPEED_DIAL_MIN_PERCENT;
-#endif
 #if MULTI_XENDSTOP_HOMING
 fast8_t Machine::multiXHomeFlags;  // 1 = move X0, 2 = move X1
 #endif
@@ -108,7 +98,7 @@ void Machine::constrainDestinationCoords(int32_t* destinationSteps) {
 	if (destinationSteps[Y_AXIS] < axisMinSteps[Y_AXIS]) destinationSteps[Y_AXIS] = axisMinSteps[Y_AXIS];
 #endif
 #if min_software_endstop_z
-	if (destinationSteps[Z_AXIS] < axisMinSteps[Z_AXIS] && !isZProbingActive()) destinationSteps[Z_AXIS] = axisMinSteps[Z_AXIS];
+	if (destinationSteps[Z_AXIS] < axisMinSteps[Z_AXIS] && !ZProbe::isActive()) destinationSteps[Z_AXIS] = axisMinSteps[Z_AXIS];
 #endif
 
 #if max_software_endstop_x
@@ -118,7 +108,7 @@ void Machine::constrainDestinationCoords(int32_t* destinationSteps) {
 	if (destinationSteps[Y_AXIS] > axisMaxSteps[Y_AXIS]) destinationSteps[Y_AXIS] = axisMaxSteps[Y_AXIS];
 #endif
 #if max_software_endstop_z
-	if (destinationSteps[Z_AXIS] > axisMaxSteps[Z_AXIS] && !isZProbingActive()) destinationSteps[Z_AXIS] = axisMaxSteps[Z_AXIS];
+	if (destinationSteps[Z_AXIS] > axisMaxSteps[Z_AXIS] && !ZProbe::isActive()) destinationSteps[Z_AXIS] = axisMaxSteps[Z_AXIS];
 #endif
 	EVENT_CONTRAIN_DESTINATION_COORDINATES
 }
@@ -172,8 +162,7 @@ bool Machine::isPositionAllowed(float x, float y, float z) {
     return allowed;
 }
 
-void Machine::checkForPeriodicalActions(bool allowNewMoves)
-{
+void Machine::checkForPeriodicalActions(bool allowNewMoves) {
     EVENT_PERIODICAL;
 
     // gets true every 100ms from timerInterrupt()
@@ -182,40 +171,17 @@ void Machine::checkForPeriodicalActions(bool allowNewMoves)
     }
     executePeriodical = 0;
 
-#if defined(PAUSE_PIN) && PAUSE_PIN>-1
-    bool getPaused = (READ(PAUSE_PIN) != !PAUSE_INVERTING);
-    if (isPaused() != getPaused) {
-        if (!MachineLine::hasLines()) {
-            if (getPaused) pauseSteps = PAUSE_STEPS;
-            else pauseSteps = 0;
-        }
-
-        if (getPaused) Com::printFLN(Com::tPaused);
-        else Com::printFLN(Com::tUnpaused);
-
-        setPaused(getPaused);
-    }
-#endif //PAUSE_PIN
-
-#if SPEED_DIAL_SUPPORT && SPEED_DIAL_PIN > -1
-    uint8 maxSpeedValue = 1 << SPEED_DIAL_BITS;
-    uint8 minSpeedValue = (uint)maxSpeedValue * SPEED_DIAL_MIN_PERCENT / 100;
-    uint8 speedDivisor = (ANALOG_MAX_VALUE >> SPEED_DIAL_BITS) * 100 / (100 - SPEED_DIAL_MIN_PERCENT);
-#if SPEED_DIAL_INVERT
-    uint8 value = (ANALOG_MAX_VALUE - analog.values[SPEED_DIAL_ANALOG_INDEX]) / speedDivisor + minSpeedValue;
-#else
-    uint8 value = analog.values[SPEED_DIAL_ANALOG_INDEX] / speedDivisor + minSpeedValue;
-#endif
-    if (value > maxSpeedValue) {
-        value = maxSpeedValue;
-    }
-
-    speed_dial = value;
+#if PAUSE_SUPPORT
+    Pause::checkPeriodic();
 #endif
 
-#if LASER_SUPPORT && LASER_TEMP_PIN > -1
-    LaserDriver::updateTemperature();
-#endif //LASER_TEMP_PIN
+#if FEED_DIAL_SUPPORT
+    FeedDial::checkPeriodic();
+#endif
+
+#if LASER_SUPPORT
+    Laser::updateTemperature();
+#endif
 
     //print machine current position when it comes to a complete stop
     if (MachineLine::hasLines()) {
@@ -366,7 +332,7 @@ void Machine::kill(uint8_t onlySteppers) {
         setAllKilled(true);
 	}
 #if FAN_CONTROL_SUPPORT
-    FanDriver::setSpeed(0, FAN_BOARD_INDEX);
+    FanControl::setSpeed(0, FAN_BOARD_INDEX);
 #endif
 }
 
@@ -606,19 +572,12 @@ void Machine::setup() {
     WRITE(A2_ENABLE_PIN, !A_ENABLE_ON);
 #endif
 #endif
-
 	Endstops::setup();
-#if Z_PROBE_SUPPORT && Z_PROBE_PIN >- 1
-    SET_INPUT(Z_PROBE_PIN);
-#if Z_PROBE_PULLUP
-    PULLUP(Z_PROBE_PIN, HIGH);
+#if Z_PROBE_SUPPORT
+    ZProbe::initialize();
 #endif
-#endif
-#if defined(PAUSE_PIN) && PAUSE_PIN > -1
-	SET_INPUT(PAUSE_PIN);
-#if defined(PAUSE_PULLUP) && PAUSE_PULLUP
-    PULLUP(PAUSE_PIN, HIGH);
-#endif
+#if PAUSE_SUPPORT
+    Pause::initialize();
 #endif
     HAL::delayMilliseconds(1);
 #if CASE_LIGHTS_PIN >= 0
@@ -627,16 +586,16 @@ void Machine::setup() {
 #endif // CASE_LIGHTS_PIN
 
 #if SPINDLE_SUPPORT
-	SpindleDriver::initialize();
+    Spindle::initialize();
 #endif
 #if LASER_SUPPORT
-    LaserDriver::initialize();
+    Laser::initialize();
 #endif
 #if VACUUM_SUPPORT
-    VacuumDriver::initialize();
+    Vacuum::initialize();
 #endif
 #if FAN_CONTROL_SUPPORT
-    FanDriver::initialize();
+    FanControl::initialize();
 #endif
 
 #ifdef RED_BLUE_STATUS_LEDS
@@ -964,9 +923,9 @@ void Machine::homeAxis(bool xaxis, bool yaxis, bool zaxis) { // home non-delta p
     setNoDestinationCheck(true);
 
 #if LASER_SUPPORT
-    uint8_t wasLaserOn = LaserDriver::isOn();
+    uint8_t wasLaserOn = Laser::isOn();
     if (mode == MACHINE_MODE_LASER) {
-        LaserDriver::turnOff();
+        Laser::turnOff();
     }
 #endif
 
@@ -1049,7 +1008,7 @@ void Machine::homeAxis(bool xaxis, bool yaxis, bool zaxis) { // home non-delta p
 	Commands::printCurrentPosition();
 #if LASER_SUPPORT
     if (wasLaserOn) {
-        LaserDriver::turnOn();
+        Laser::turnOn();
     }
 #endif
     setNoDestinationCheck(nocheck);

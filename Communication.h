@@ -177,7 +177,7 @@ public:
     FSTRINGVAR(tDistortionEnd)
     FSTRINGVAR(tDistortionUseOffset)
 #endif
-#if defined(PAUSE_PIN) && PAUSE_PIN>-1
+#if PAUSE_SUPPORT
     FSTRINGVAR(tPaused)
     FSTRINGVAR(tUnpaused)
 #endif

@@ -52,11 +52,9 @@ union floatLong {
 
 #define MACHINE_FLAG0_STEPPER_DISABLED      1
 #define MACHINE_FLAG0_HAS_LINES             2
-#define MACHINE_FLAG0_ZPROBEING             4
-#define MACHINE_FLAG0_PAUSED         		8
-#define MACHINE_FLAG0_ALLKILLED             16
-#define MACHINE_FLAG0_RELATIVE_COORD        32
-#define MACHINE_FLAG0_UNIT_IS_INCH          64
+#define MACHINE_FLAG0_ALLKILLED             4
+#define MACHINE_FLAG0_RELATIVE_COORD        8
+#define MACHINE_FLAG0_UNIT_IS_INCH          16
 
 #define MACHINE_FLAG1_HOMED_ALL             1
 #define MACHINE_FLAG1_X_HOMED               2
@@ -72,13 +70,11 @@ union floatLong {
 #define HOME_DISTANCE_STEPS (Machine::zMaxSteps - Machine::axisMinSteps[Z_AXIS] + 1000)
 #define HOME_DISTANCE_MM (HOME_DISTANCE_STEPS * invAxisStepsPerMM[Z_AXIS])
 
-#include "Distortion.h"
 #include "Endstops.h"
 #include "Analog.h"
 #include "PWM.h"
 #include "Temperature.h"
-#include "ZProbe.h"
-#include "src/Drivers/FanDriver.h"
+#include "src/Features/FanControl.h"
 
 /**
 The Printer class is the main class for the control of the 3d printer. Here all
@@ -226,16 +222,6 @@ public:
 #if TMC_2_TYPE==TMC_5160
 	static TMC5160Stepper tmcStepper2;
 #endif
-#endif
-#if defined(PAUSE_PIN) && PAUSE_PIN>-1
-#if PAUSE_STEPS > 120
-	static int16_t pauseSteps;
-#else
-	static int8_t pauseSteps;
-#endif
-#endif //PAUSE
-#if SPEED_DIAL_SUPPORT && SPEED_DIAL_PIN > -1
-    static uint8_t speed_dial;
 #endif
 #ifdef DEBUG_MACHINE
     static int debugWaitLoop;
@@ -448,14 +434,14 @@ public:
     static INLINE void setAllSteppersDiabled() {
         flag0 |= MACHINE_FLAG0_STEPPER_DISABLED;
 #if FAN_CONTROL_SUPPORT
-        FanDriver::setSpeed(0, FAN_BOARD_INDEX);
+        FanControl::setSpeed(0, FAN_BOARD_INDEX);
 #endif
     }
 
     static INLINE void unsetAllSteppersDisabled() {
         flag0 &= ~MACHINE_FLAG0_STEPPER_DISABLED;
 #if FAN_CONTROL_SUPPORT
-        FanDriver::setSpeed(255, FAN_BOARD_INDEX);
+        FanControl::setSpeed(255, FAN_BOARD_INDEX);
 #endif
     }
 
@@ -465,22 +451,6 @@ public:
 
     static INLINE bool lastHasLines() {
         return (flag0 & MACHINE_FLAG0_HAS_LINES);
-    }
-
-    static INLINE void setZProbingActive(bool on) {
-        flag0 = (on ? flag0 | MACHINE_FLAG0_ZPROBEING : flag0 & ~MACHINE_FLAG0_ZPROBEING);
-    }
-
-    static INLINE bool isZProbingActive() {
-        return (flag0 & MACHINE_FLAG0_ZPROBEING);
-    }
-
-    static INLINE uint8_t isPaused() {
-        return flag0 & MACHINE_FLAG0_PAUSED;
-    }
-
-    static INLINE void setPaused(uint8_t pause) {
-        flag0 = (pause ? flag0 | MACHINE_FLAG0_PAUSED : flag0 & ~MACHINE_FLAG0_PAUSED);
     }
 
     static INLINE uint8_t isAllKilled() {

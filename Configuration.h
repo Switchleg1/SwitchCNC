@@ -69,18 +69,19 @@
 #define FAN_BOARD_PIN 							11
 
 //Pause settings
+#define PAUSE_SUPPORT							1
 #define PAUSE_STEPS								400
 #define PAUSE_SLOPE								100
 #define PAUSE_PIN								5
 #define PAUSE_PULLUP							1
 #define PAUSE_INVERTING							1
 
-//speed dial
-#define SPEED_DIAL_SUPPORT						1
-#define SPEED_DIAL_PIN							14
-#define SPEED_DIAL_INVERT						0
-#define SPEED_DIAL_MIN_PERCENT					50
-#define SPEED_DIAL_BITS							6
+//Feed rate dial
+#define FEED_DIAL_SUPPORT						1
+#define FEED_DIAL_PIN							14
+#define FEED_DIAL_INVERT						0
+#define FEED_DIAL_MIN_PERCENT					50
+#define FEED_DIAL_BITS							6
 
 //Servo support
 #define SERVO_SUPPORT							0

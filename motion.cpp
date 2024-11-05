@@ -57,7 +57,7 @@ void MachineLine::moveRelativeDistanceInSteps(int32_t x, int32_t y, int32_t z, i
             y = 0;
 #endif
 #if MOVE_Z_WHEN_HOMED
-        if(!Machine::isZHomed() && !Machine::isZProbingActive())
+        if(!Machine::isZHomed() && !ZProbe::isActive())
             z = 0;
 #endif
     }
@@ -107,7 +107,7 @@ void MachineLine::moveRelativeDistanceInStepsReal(int32_t x, int32_t y, int32_t 
             y = 0;
 #endif
 #if MOVE_Z_WHEN_HOMED
-        if(!Machine::isZHomed() && !Machine::isZProbingActive())
+        if(!Machine::isZHomed() && !ZProbe::isActive())
             z = 0;
 #endif
     }
@@ -164,27 +164,26 @@ void MachineLine::queueCartesianSegmentTo(int32_t *segmentSteps, uint8_t addDist
     }
 
 #if LASER_SUPPORT
-    p->laserIntensity = LaserDriver::next();
+    p->laserIntensity = Laser::next();
 #endif
 #if FAN_CONTROL_SUPPORT
-    p->fanSpeed = FanDriver::next();
+    p->fanSpeed = FanControl::next();
 #endif
 
+    //build toolFlags
     p->toolFlags = 0;
 #if VACUUM_SUPPORT
-    if (VacuumDriver::next()) {
+    if (Vacuum::next()) {
         p->toolFlags |= FLAG_TOOL_VACUUM_ON;
     }
 #endif
-
 #if COOLANT_SUPPORT && COOLANT_MIST_PIN > -1
-    if (CoolantMistDriver::next()) {
+    if (CoolantMist::next()) {
         p->toolFlags |= FLAG_TOOL_MIST_ON;
     }
 #endif
-
 #if COOLANT_SUPPORT && COOLANT_FLOOD_PIN > -1
-    if (CoolantFloodDriver::next()) {
+    if (CoolantFlood::next()) {
         p->toolFlags |= FLAG_TOOL_FLOOD_ON;
     }
 #endif
@@ -306,7 +305,7 @@ void MachineLine::queueCartesianMove(int32_t *destinationSteps, uint8_t checkEnd
 #endif
 
 #if DISTORTION_CORRECTION_SUPPORT
-	if(Distortion::isEnabled() && (destinationSteps[Z_AXIS] < Distortion::zMaxSteps()) && !Machine::isZProbingActive() && !Machine::isHoming()) {
+	if(Distortion::isEnabled() && (destinationSteps[Z_AXIS] < Distortion::zMaxSteps()) && !ZProbe::isActive() && !Machine::isHoming()) {
         Machine::currentPositionSteps[Z_AXIS] -= Machine::zCorrectionStepsIncluded;
 
 #if ALWAYS_SPLIT_LINES == 0
@@ -392,7 +391,7 @@ void MachineLine::calculateMove(float* axisDistanceMM, fast8_t drivingAxis) {
 	long axisInterval[A_AXIS_ARRAY];
     //float timeForMove = (float)(F_CPU)*distance / (isXOrYMove() ? RMath::max(Machine::minimumSpeed, Machine::feedrate) : Machine::feedrate); // time is in ticks
     float timeForMove = (float)(F_CPU) * distance / Machine::feedrate; // time is in ticks
-    //bool critical = Machine::isZProbingActive();
+    //bool critical = ZProbe::isActive();
     if(linesCount < MOVE_CACHE_LOW && timeForMove < LOW_TICKS_PER_MOVE) { // Limit speed to keep cache full.
         //Com::printF(PSTR("L:"),(int)linesCount);
         //Com::printF(PSTR(" Old "),timeForMove);
@@ -1065,22 +1064,21 @@ uint32_t MachineLine::bresenhamStep() {
 
 #if LASER_SUPPORT
         if (Machine::mode == MACHINE_MODE_LASER) {
-            LaserDriver::setIntensity(cur->laserIntensity);
+            Laser::setIntensity(cur->laserIntensity);
         }
 #endif
 #if FAN_CONTROL_SUPPORT
-        FanDriver::setSpeed(cur->fanSpeed);
+        FanControl::setSpeed(cur->fanSpeed);
 #endif
 #if VACUUM_SUPPORT
-        VacuumDriver::setState(cur->toolFlags & FLAG_TOOL_VACUUM_ON);
+        Vacuum::setState(cur->toolFlags & FLAG_TOOL_VACUUM_ON);
 #endif
 #if COOLANT_SUPPORT && COOLANT_MIST_PIN > -1
-        CoolantMistDriver::setState(cur->toolFlags & FLAG_TOOL_MIST_ON);
+        CoolantMist::setState(cur->toolFlags & FLAG_TOOL_MIST_ON);
 #endif
 #if COOLANT_SUPPORT && COOLANT_FLOOD_PIN > -1
-        CoolantFloodDriver::setState(cur->toolFlags & FLAG_TOOL_FLOOD_ON);
+        CoolantFlood::setState(cur->toolFlags & FLAG_TOOL_FLOOD_ON);
 #endif
-
 
 #if MULTI_XENDSTOP_HOMING
 		Machine::multiXHomeFlags = MULTI_XENDSTOP_ALL;  // move all x motors until endstop says differently
@@ -1099,9 +1097,9 @@ uint32_t MachineLine::bresenhamStep() {
 
     /////////////// Step //////////////////////////
 
-#if defined(PAUSE_PIN) && PAUSE_PIN > -1
-	if(!Machine::isPaused() || Machine::pauseSteps < PAUSE_STEPS) {
-#endif // PAUSE
+#if PAUSE_SUPPORT
+	if(!Pause::isActive() || Pause::steps() < PAUSE_STEPS) {
+#endif
 #if QUICK_STEP
         for (fast8_t loop = 0; loop < Machine::stepsSinceLastCalc; loop++) {
 #else
@@ -1152,11 +1150,11 @@ uint32_t MachineLine::bresenhamStep() {
             Machine::stepsTillNextCalc--;
             Machine::endXYZASteps();
         }
-#if defined(PAUSE_PIN) && PAUSE_PIN > -1
+#if PAUSE_SUPPORT
     }
 #if LASER_SUPPORT
     else {
-        LaserDriver::setIntensity(0);
+        Laser::setIntensity(0);
     }
 #endif
 #endif
@@ -1174,22 +1172,12 @@ uint32_t MachineLine::bresenhamStep() {
     //check endstops
     cur->checkEndstops();
 
-#if defined(PAUSE_PIN) && PAUSE_PIN > -1
-	if(Machine::isPaused()) {
-		Machine::pauseSteps += Machine::stepsSinceLastCalc;
-	} else {
-		Machine::pauseSteps -= Machine::stepsSinceLastCalc;
-
-        if (Machine::pauseSteps < 0) {
-            Machine::pauseSteps = 0;
-        }
+#if PAUSE_SUPPORT
+    uint8_t ret = Pause::calculateSteps(Machine::stepsSinceLastCalc);
 #if LASER_SUPPORT
-        else {
-            LaserDriver::setIntensity(cur->laserIntensity);
-        }
+    if(ret) Laser::setIntensity(cur->laserIntensity);
 #endif
-	}
-#endif // PAUSE
+#endif
 
 #if RAMP_ACCELERATION
 	//If acceleration is enabled on this move and we are in the acceleration segment, calculate the current interval
@@ -1230,11 +1218,11 @@ uint32_t MachineLine::bresenhamStep() {
     }
     Machine::stepsSinceLastCalc = Machine::stepsTillNextCalc;
 
-#if defined(PAUSE_PIN) && PAUSE_PIN > -1
-	if(Machine::pauseSteps) Machine::interval += Machine::interval * Machine::pauseSteps / PAUSE_SLOPE;
+#if PAUSE_SUPPORT
+	if(Pause::steps()) Machine::interval += Machine::interval * Pause::steps() / PAUSE_SLOPE;
 #endif
-#if SPEED_DIAL_SUPPORT && SPEED_DIAL_PIN > -1
-    if (Machine::speed_dial != (1 << SPEED_DIAL_BITS)) Machine::interval = (Machine::interval << SPEED_DIAL_BITS) / Machine::speed_dial;
+#if FEED_DIAL_SUPPORT
+    if (FeedDial::value() != FEED_DIAL_MAX_VALUE) Machine::interval = (Machine::interval << FEED_DIAL_BITS) / FeedDial::value();
 #endif
 	if(cur->stepsRemaining <= 0 || cur->isNoMove()) { // line finished
 #ifdef DEBUG_STEPCOUNT
@@ -1246,14 +1234,24 @@ uint32_t MachineLine::bresenhamStep() {
         uint32_t interval = Machine::interval;
         removeCurrentLineForbidInterrupt();
         Machine::disableAllowedStepper();
+        //At the end of all moves set all drivers to current state except the laser we want set to minimum intensity
 		if(linesCount == 0) {
 #if LASER_SUPPORT
-            if (Machine::mode == MACHINE_MODE_LASER) { // Last move disables laser for safety!
-                LaserDriver::setIntensity(0);
+            if (Machine::mode == MACHINE_MODE_LASER) {
+                Laser::setIntensity(0);
             }
 #endif
 #if FAN_CONTROL_SUPPORT
-            FanDriver::setSpeed(FanDriver::next());
+            FanControl::setSpeed(FanControl::next());
+#endif
+#if VACUUM_SUPPORT
+            Vacuum::setState(Vacuum::next());
+#endif
+#if COOLANT_SUPPORT && COOLANT_MIST_PIN > -1
+            CoolantMist::setState(CoolantMistDriver::next());
+#endif
+#if COOLANT_SUPPORT && COOLANT_FLOOD_PIN > -1
+            CoolantFlood::setState(CoolantFloodDriver::next());
 #endif
         }
 

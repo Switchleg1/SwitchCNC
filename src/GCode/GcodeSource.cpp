@@ -3,8 +3,8 @@
 #if BLUETOOTH_SERIAL > 0
 fast8_t GCodeSource::numSources = 2; ///< Number of data sources available
 fast8_t GCodeSource::numWriteSources = 2;
-GCodeSource* GCodeSource::sources[MAX_DATA_SOURCES] = { &serial0Source,&serial1Source };
-GCodeSource* GCodeSource::writeableSources[MAX_DATA_SOURCES] = { &serial0Source,&serial1Source };
+GCodeSource* GCodeSource::sources[MAX_DATA_SOURCES] = { &serial0Source, &serial1Source };
+GCodeSource* GCodeSource::writeableSources[MAX_DATA_SOURCES] = { &serial0Source, &serial1Source };
 #else
 fast8_t GCodeSource::numSources = 1; ///< Number of data sources available
 fast8_t GCodeSource::numWriteSources = 1;

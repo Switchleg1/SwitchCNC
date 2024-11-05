@@ -151,7 +151,7 @@ void EEPROM::storeDataIntoEEPROM(uint8_t corrupted) {
     }
     // Save version and build checksum
     HAL::eprSetByte(EPR_VERSION,EEPROM_PROTOCOL_VERSION);
-    HAL::eprSetByte(EPR_INTEGRITY_BYTE,computeChecksum());
+    HAL::eprSetByte(EPR_INTEGRITY_BYTE, computeChecksum());
 #endif
 }
 

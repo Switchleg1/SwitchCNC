@@ -189,7 +189,7 @@ public:
                     setYMoveFinished();
 #endif
 #if Z_PROBE_SUPPORT
-				if(Machine::isZProbingActive() /*&& isZNegativeMove()*/ && Endstops::zProbe()) {
+				if(ZProbe::isActive() /*&& isZNegativeMove()*/ && Endstops::zProbe()) {
 					if(isXMove())
 						setXMoveFinished();
 					if(isYMove())
@@ -252,7 +252,7 @@ public:
 #endif
             }
 #if SUPPORT_Z_PROBE
-			else if(Machine::isZProbingActive()/* && isZNegativeMove()*/) {
+			else if(ZProbe::isActive()/* && isZNegativeMove()*/) {
                 Endstops::update();
                 if(Endstops::zProbe()) {
                     if(isXMove())

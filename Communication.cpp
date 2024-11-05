@@ -165,17 +165,17 @@ FSTRINGVALUE(Com::tSpaceYOffset, " Y_OFFSET:")
 FSTRINGVALUE(Com::tSpaceZOffset, " Z_OFFSET:")
 #endif
 #if DISTORTION_CORRECTION_SUPPORT
-FSTRINGVALUE(Com::tDistortionXMIN, "Distortion XMIN:") //SL
-FSTRINGVALUE(Com::tDistortionXMAX, "Distortion XMAX:") //SL
-FSTRINGVALUE(Com::tDistortionYMIN, "Distortion YMIN:") //SL
-FSTRINGVALUE(Com::tDistortionYMAX, "Distortion YMAX:") //SL
-FSTRINGVALUE(Com::tDistortionPoints, "Distortion Grid Points:") //SL
-FSTRINGVALUE(Com::tDistortionStart, "Distortion Degrade Start:") //SL
-FSTRINGVALUE(Com::tDistortionEnd, "Distortion Degrade Length:") //SL
-FSTRINGVALUE(Com::tDistortionUseOffset, "Distortion Use Z Offset:") //SL
+FSTRINGVALUE(Com::tDistortionXMIN, "Distortion XMIN:")
+FSTRINGVALUE(Com::tDistortionXMAX, "Distortion XMAX:")
+FSTRINGVALUE(Com::tDistortionYMIN, "Distortion YMIN:")
+FSTRINGVALUE(Com::tDistortionYMAX, "Distortion YMAX:")
+FSTRINGVALUE(Com::tDistortionPoints, "Distortion Grid Points:")
+FSTRINGVALUE(Com::tDistortionStart, "Distortion Degrade Start:")
+FSTRINGVALUE(Com::tDistortionEnd, "Distortion Degrade Length:")
+FSTRINGVALUE(Com::tDistortionUseOffset, "Distortion Use Z Offset:")
 #endif
-#if defined(PAUSE_PIN) && PAUSE_PIN>-1
-FSTRINGVALUE(Com::tPaused, "-PAUSED-") //SL
+#if PAUSE_SUPPORT
+FSTRINGVALUE(Com::tPaused, "-PAUSED-")
 FSTRINGVALUE(Com::tUnpaused, "-UNPAUSED-")
 #endif
 //FSTRINGVALUE(Com::,"")
