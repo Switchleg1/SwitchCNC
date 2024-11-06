@@ -332,7 +332,9 @@
 #define TMC_DRIVER_SUPPORT						1
 
 #define TMC_X_TYPE								TMC_5160
-#define TMC_X_CS								49
+#define TMC_X_CS_PIN							49
+#define TMC_X_RX_PIN							-1
+#define TMC_X_TX_PIN							-1
 #define	TMC_X_RSENSE							0.075
 #define TMC_X_INTPOL							1
 #define TMC_X_RMS								1900
@@ -361,7 +363,9 @@
 #define TMC_X_MODE								TMC_SPREAD
 
 #define TMC_Y_TYPE								TMC_5160
-#define TMC_Y_CS								47
+#define TMC_Y_CS_PIN							47
+#define TMC_Y_RX_PIN							-1
+#define TMC_Y_TX_PIN							-1
 #define	TMC_Y_RSENSE							0.075
 #define TMC_Y_INTPOL							1
 #define TMC_Y_RMS								1900
@@ -390,7 +394,9 @@
 #define TMC_Y_MODE								TMC_SPREAD
 
 #define TMC_Z_TYPE								TMC_5160
-#define TMC_Z_CS								45
+#define TMC_Z_CS_PIN							45
+#define TMC_Z_RX_PIN							-1
+#define TMC_Z_TX_PIN							-1
 #define	TMC_Z_RSENSE							0.075
 #define TMC_Z_INTPOL							1
 #define TMC_Z_RMS								2200
@@ -419,7 +425,9 @@
 #define TMC_Z_MODE								TMC_SPREAD
 
 #define TMC_A_TYPE								TMC_NONE
-#define TMC_A_CS								-1
+#define TMC_A_CS_PIN							-1
+#define TMC_A_RX_PIN							-1
+#define TMC_A_TX_PIN							-1
 #define	TMC_A_RSENSE							0.075
 #define TMC_A_INTPOL							1
 #define TMC_A_RMS								2200
@@ -448,7 +456,9 @@
 #define TMC_A_MODE								TMC_SPREAD
 
 #define TMC_2_TYPE								TMC_5160
-#define TMC_2_CS								43
+#define TMC_2_CS_PIN							43
+#define TMC_2_RX_PIN							-1
+#define TMC_2_TX_PIN							-1
 #define	TMC_2_RSENSE							0.075
 #define TMC_2_INTPOL							1
 #define TMC_2_RMS								2200

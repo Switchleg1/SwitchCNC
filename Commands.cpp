@@ -534,23 +534,23 @@ void Commands::processGCode(GCode *com) {
 #endif
 #if TMC_DRIVER_SUPPORT
 	case 41:
-#if TMC_X_TYPE==TMC_5160
+#if TMC_X_TYPE == TMC_2208 || TMC_X_TYPE == TMC_2209 ||TMC_X_TYPE == TMC_5160
 		Com::printF(PSTR("X Grad:"), TMC::stepperX.pwm_grad_auto(), 3);
 		Com::printFLN(PSTR(" X OFS:"), TMC::stepperX.pwm_ofs_auto(), 3);
 #endif
-#if TMC_Y_TYPE==TMC_5160
+#if TMC_Y_TYPE == TMC_2208 || TMC_Y_TYPE == TMC_2209 ||TMC_Y_TYPE == TMC_5160
 		Com::printF(PSTR("Y Grad:"), TMC::stepperY.pwm_grad_auto(), 3);
 		Com::printFLN(PSTR(" Y OFS:"), TMC::stepperY.pwm_ofs_auto(), 3);
 #endif
-#if TMC_Z_TYPE==TMC_5160
+#if TMC_Z_TYPE == TMC_2208 || TMC_Z_TYPE == TMC_2209 ||TMC_Z_TYPE == TMC_5160
 		Com::printF(PSTR("Z Grad:"), TMC::stepperZ.pwm_grad_auto(), 3);
 		Com::printFLN(PSTR(" Z OFS:"), TMC::stepperZ.pwm_ofs_auto(), 3);
 #endif
-#if TMC_A_TYPE==TMC_5160
+#if TMC_A_TYPE == TMC_2208 || TMC_A_TYPE == TMC_2209 ||TMC_A_TYPE == TMC_5160
         Com::printF(PSTR("A Grad:"), TMC::stepperA.pwm_grad_auto(), 3);
         Com::printFLN(PSTR(" A OFS:"), TMC::stepperA.pwm_ofs_auto(), 3);
 #endif
-#if TMC_2_TYPE==TMC_5160
+#if TMC_2_TYPE == TMC_2208 || TMC_2_TYPE == TMC_2209 ||TMC_2_TYPE == TMC_5160
 		Com::printF(PSTR("2 Grad:"), TMC::stepper2.pwm_grad_auto(), 3);
 		Com::printFLN(PSTR(" 2 OFS:"), TMC::stepper2.pwm_ofs_auto(), 3);
 #endif
