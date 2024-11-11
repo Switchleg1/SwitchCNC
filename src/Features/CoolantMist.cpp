@@ -9,8 +9,8 @@ void CoolantMist::initialize() {
 	nextState = 0;
 	currentState = 0;
 
-	SET_OUTPUT(COOLANT_MIST_PIN);
-	WRITE(COOLANT_MIST_PIN, LOW);
+	HAL::pinMode(COOLANT_MIST_PIN, OUTPUT);
+	HAL::digitalWrite(COOLANT_MIST_PIN, LOW);
 }
 
 void CoolantMist::setNextState(uint8_t state, bool immediately) {
@@ -36,7 +36,7 @@ void CoolantMist::setState(uint8_t state) {
 		return;
 	}
 
-	WRITE(COOLANT_MIST_PIN, state ? HIGH : LOW);
+	HAL::digitalWrite(COOLANT_MIST_PIN, state ? HIGH : LOW);
 
 	currentState = state;
 }

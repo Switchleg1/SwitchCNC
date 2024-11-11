@@ -230,24 +230,31 @@
 #define ENDSTOP_PULLUP_X_MIN					true
 #define ENDSTOP_X_MIN_INVERTING					true
 #define MIN_HARDWARE_ENDSTOP_X					true
+
 #define ENDSTOP_PULLUP_Y_MIN					true
 #define ENDSTOP_Y_MIN_INVERTING					true
 #define MIN_HARDWARE_ENDSTOP_Y					true
+
 #define ENDSTOP_PULLUP_Z_MIN					false
 #define ENDSTOP_Z_MIN_INVERTING					false
 #define MIN_HARDWARE_ENDSTOP_Z					false
+
 #define ENDSTOP_PULLUP_Z2_MINMAX				false
 #define ENDSTOP_Z2_MINMAX_INVERTING				false
 #define MINMAX_HARDWARE_ENDSTOP_Z2				false
+
 #define ENDSTOP_PULLUP_X_MAX					false
 #define ENDSTOP_X_MAX_INVERTING					false
 #define MAX_HARDWARE_ENDSTOP_X					false
+
 #define ENDSTOP_PULLUP_Y_MAX					false
 #define ENDSTOP_Y_MAX_INVERTING					false
 #define MAX_HARDWARE_ENDSTOP_Y					false
+
 #define ENDSTOP_PULLUP_Z_MAX					true
 #define ENDSTOP_Z_MAX_INVERTING					true
 #define MAX_HARDWARE_ENDSTOP_Z					true
+
 #define ENDSTOP_PULLUP_X2_MIN					false
 #define ENDSTOP_PULLUP_Y2_MIN					false
 #define ENDSTOP_PULLUP_Z2_MINMAX				false
@@ -495,8 +502,11 @@
 #define MOSI_PIN								51
 
 //Pins that cannot be changed with M42
-#define SENSITIVE_PINS {0, 1, X_STEP_PIN, X_DIR_PIN, X_ENABLE_PIN, X_MIN_PIN, X_MAX_PIN, \
-		Y_STEP_PIN, Y_DIR_PIN, Y_ENABLE_PIN, Y_MIN_PIN, Y_MAX_PIN, Z_STEP_PIN,\
-		Z_DIR_PIN, Z_ENABLE_PIN, Z_MIN_PIN, Z_MAX_PIN, PS_ON_PIN, SDSS }
+#define SENSITIVE_PINS {0, 1, \
+		X_STEP_PIN, X_DIR_PIN, X_ENABLE_PIN, X_MIN_PIN, X_MAX_PIN, \
+		Y_STEP_PIN, Y_DIR_PIN, Y_ENABLE_PIN, Y_MIN_PIN, Y_MAX_PIN, \
+		Z_STEP_PIN, Z_DIR_PIN, Z_ENABLE_PIN, Z_MIN_PIN, Z_MAX_PIN, \
+		A_STEP_PIN, A_DIR_PIN, A_ENABLE_PIN, \
+		PS_ON_PIN, SDSS }
 
 #endif

@@ -280,9 +280,9 @@ void Machine::updateDerivedParameter() {
 #if AUTOMATIC_POWERUP
 void Machine::enablePowerIfNeeded() {
 	if(isPowerOn()) return;
-    SET_OUTPUT(PS_ON_PIN); //GND
+    HAL::pinMode(PS_ON_PIN, OUTPUT);
     setPowerOn(true);
-    WRITE(PS_ON_PIN, (POWER_INVERTING ? HIGH : LOW));
+    HAL::digitalWrite(PS_ON_PIN, (POWER_INVERTING ? HIGH : LOW));
 	HAL::delayMilliseconds(500); // Just to ensure power is up and stable
 }
 #endif
@@ -310,9 +310,8 @@ void Machine::kill(uint8_t onlySteppers) {
     unsetHomedAll();
 	if(!onlySteppers) {
 #if defined(PS_ON_PIN) && PS_ON_PIN>-1 && !defined(NO_POWER_TIMEOUT)
-        //pinMode(PS_ON_PIN,INPUT);
-        SET_OUTPUT(PS_ON_PIN); //GND
-        WRITE(PS_ON_PIN, (POWER_INVERTING ? LOW : HIGH));
+        HAL::pinMode(PS_ON_PIN, OUTPUT);
+        HAL::digitalWrite(PS_ON_PIN, (POWER_INVERTING ? LOW : HIGH));
         setPowerOn(false);
 #endif
         setAllKilled(true);
@@ -434,128 +433,125 @@ void Machine::setup() {
     HAL::spiBegin();
 
     HAL::stopWatchdog();
-#if defined(MB_SETUP)
-    MB_SETUP;
-#endif
     HAL::hwSetup();
     EVENT_INITIALIZE_EARLY
 #ifdef ANALYZER
 // Channel->pin assignments
 #if ANALYZER_CH0>=0
-    SET_OUTPUT(ANALYZER_CH0);
+    HAL::pinMode(ANALYZER_CH0, OUTPUT);
 #endif
 #if ANALYZER_CH1>=0
-    SET_OUTPUT(ANALYZER_CH1);
+    HAL::pinMode(ANALYZER_CH1, OUTPUT);
 #endif
 #if ANALYZER_CH2>=0
-    SET_OUTPUT(ANALYZER_CH2);
+    HAL::pinMode(ANALYZER_CH2, OUTPUT);
 #endif
 #if ANALYZER_CH3>=0
-    SET_OUTPUT(ANALYZER_CH3);
+    HAL::pinMode(ANALYZER_CH3, OUTPUT);
 #endif
 #if ANALYZER_CH4>=0
-    SET_OUTPUT(ANALYZER_CH4);
+    HAL::pinMode(ANALYZER_CH4, OUTPUT);
 #endif
 #if ANALYZER_CH5>=0
-    SET_OUTPUT(ANALYZER_CH5);
+    HAL::pinMode(ANALYZER_CH5, OUTPUT);
 #endif
 #if ANALYZER_CH6>=0
-    SET_OUTPUT(ANALYZER_CH6);
+    HAL::pinMode(ANALYZER_CH6, OUTPUT);
 #endif
 #if ANALYZER_CH7>=0
-    SET_OUTPUT(ANALYZER_CH7);
+    HAL::pinMode(ANALYZER_CH7, OUTPUT);
 #endif
 #endif
 
-#if defined(ENABLE_POWER_ON_STARTUP) && ENABLE_POWER_ON_STARTUP && (PS_ON_PIN>-1)
-    SET_OUTPUT(PS_ON_PIN); //GND
-    WRITE(PS_ON_PIN, (POWER_INVERTING ? HIGH : LOW));
+#if ENABLE_POWER_ON_STARTUP && PS_ON_PIN >- 1
+    HAL::pinMode(PS_ON_PIN, OUTPUT);
+    HAL::digitalWrite(PS_ON_PIN, (POWER_INVERTING ? HIGH : LOW));
     setPowerOn(true);
 #else
 #if PS_ON_PIN > -1
-    SET_OUTPUT(PS_ON_PIN); //GND
-    WRITE(PS_ON_PIN, (POWER_INVERTING ? LOW : HIGH));
+    HAL::pinMode(PS_ON_PIN, OUTPUT);
+    HAL::digitalWrite(PS_ON_PIN, (POWER_INVERTING ? LOW : HIGH));
     setPowerOn(false);
 #else
     setPowerOn(true);
 #endif
 #endif
+
 #if SDCARD_SUPPORT
     //power to SD reader
 #if SDPOWER > -1
-    SET_OUTPUT(SDPOWER);
-    WRITE(SDPOWER, HIGH);
+    HAL::pinMode(SDPOWER, OUTPUT);
+    HAL::digitalWrite(SDPOWER, HIGH);
 #endif
 #if defined(SDCARDDETECT) && SDCARDDETECT > -1
-    SET_INPUT(SDCARDDETECT);
-    PULLUP(SDCARDDETECT, HIGH);
+    HAL::pinMode(SDCARDDETECT, INPUT_PULLUP);
 #endif
 #endif
 
     //Initialize Step Pins
-    SET_OUTPUT(X_STEP_PIN);
-    SET_OUTPUT(Y_STEP_PIN);
-	SET_OUTPUT(Z_STEP_PIN);
-	SET_OUTPUT(A_STEP_PIN);
+    HAL::pinMode(X_STEP_PIN, OUTPUT);
+    HAL::pinMode(Y_STEP_PIN, OUTPUT);
+    HAL::pinMode(Z_STEP_PIN, OUTPUT);
+    HAL::pinMode(A_STEP_PIN, OUTPUT);
 	endXYZASteps();
 
 	//Initialize Dir Pins
-	SET_OUTPUT(X_DIR_PIN);
-	SET_OUTPUT(Y_DIR_PIN);
-	SET_OUTPUT(Z_DIR_PIN);
-	SET_OUTPUT(A_DIR_PIN);
+    HAL::pinMode(X_DIR_PIN, OUTPUT);
+    HAL::pinMode(Y_DIR_PIN, OUTPUT);
+    HAL::pinMode(Z_DIR_PIN, OUTPUT);
+    HAL::pinMode(A_DIR_PIN, OUTPUT);
 
 	//Steppers default to disabled.
 #if X_ENABLE_PIN > -1
-	SET_OUTPUT(X_ENABLE_PIN);
-	WRITE(X_ENABLE_PIN, !X_ENABLE_ON);
+    HAL::pinMode(X_ENABLE_PIN, OUTPUT);
+    HAL::digitalWrite(X_ENABLE_PIN, !X_ENABLE_ON);
 #endif
 #if Y_ENABLE_PIN > -1
-    SET_OUTPUT(Y_ENABLE_PIN);
-	WRITE(Y_ENABLE_PIN, !Y_ENABLE_ON);
+    HAL::pinMode(Y_ENABLE_PIN, OUTPUT);
+    HAL::digitalWrite(Y_ENABLE_PIN, !Y_ENABLE_ON);
 #endif
 #if Z_ENABLE_PIN > -1
-	SET_OUTPUT(Z_ENABLE_PIN);
-	WRITE(Z_ENABLE_PIN, !Z_ENABLE_ON);
+    HAL::pinMode(Z_ENABLE_PIN, OUTPUT);
+    HAL::digitalWrite(Z_ENABLE_PIN, !Z_ENABLE_ON);
 #endif
 #if A_ENABLE_PIN > -1
-	SET_OUTPUT(A_ENABLE_PIN);
-	WRITE(A_ENABLE_PIN, !A_ENABLE_ON);
+    HAL::pinMode(A_ENABLE_PIN, OUTPUT);
+    HAL::digitalWrite(A_ENABLE_PIN, !A_ENABLE_ON);
 #endif
 
 #if X2_XSTEPPER_SUPPORT
-    SET_OUTPUT(X2_STEP_PIN);
-    SET_OUTPUT(X2_DIR_PIN);
+    HAL::pinMode(X2_STEP_PIN, OUTPUT);
+    HAL::pinMode(X2_DIR_PIN, OUTPUT);
 #if X2_ENABLE_PIN > -1
-    SET_OUTPUT(X2_ENABLE_PIN);
-    WRITE(X2_ENABLE_PIN, !X_ENABLE_ON);
+    HAL::pinMode(X2_ENABLE_PIN, OUTPUT);
+    HAL::digitalWrite(X2_ENABLE_PIN, !X_ENABLE_ON);
 #endif
 #endif
 
 #if Y2_YSTEPPER_SUPPORT
-    SET_OUTPUT(Y2_STEP_PIN);
-    SET_OUTPUT(Y2_DIR_PIN);
+    HAL::pinMode(Y2_STEP_PIN, OUTPUT);
+    HAL::pinMode(Y2_DIR_PIN, OUTPUT);
 #if Y2_ENABLE_PIN > -1
-    SET_OUTPUT(Y2_ENABLE_PIN);
-    WRITE(Y2_ENABLE_PIN, !Y_ENABLE_ON);
+    HAL::pinMode(Y2_ENABLE_PIN, OUTPUT);
+    HAL::digitalWrite(Y2_ENABLE_PIN, !Y_ENABLE_ON);
 #endif
 #endif
 
 #if Z2_ZSTEPPER_SUPPORT
-    SET_OUTPUT(Z2_STEP_PIN);
-    SET_OUTPUT(Z2_DIR_PIN);
+    HAL::pinMode(Z2_STEP_PIN, OUTPUT);
+    HAL::pinMode(Z2_DIR_PIN, OUTPUT);
 #if Z2_ENABLE_PIN > -1
-    SET_OUTPUT(Z2_ENABLE_PIN);
-    WRITE(Z2_ENABLE_PIN, !Z_ENABLE_ON);
+    HAL::pinMode(Z2_ENABLE_PIN, OUTPUT);
+    HAL::digitalWrite(Z2_ENABLE_PIN, !Z_ENABLE_ON);
 #endif
 #endif
 
 #if A2_ASTEPPER_SUPPORT
-    SET_OUTPUT(A2_STEP_PIN);
-    SET_OUTPUT(A2_DIR_PIN);
+    HAL::pinMode(A2_STEP_PIN, OUTPUT);
+    HAL::pinMode(A2_DIR_PIN, OUTPUT);
 #if A2_ENABLE_PIN > -1
-    SET_OUTPUT(A2_ENABLE_PIN);
-    WRITE(A2_ENABLE_PIN, !A_ENABLE_ON);
+    HAL::pinMode(A2_ENABLE_PIN, OUTPUT);
+    HAL::digitalWrite(A2_ENABLE_PIN, !A_ENABLE_ON);
 #endif
 #endif
 	Endstops::setup();
@@ -567,8 +563,8 @@ void Machine::setup() {
 #endif
     HAL::delayMilliseconds(1);
 #if CASE_LIGHTS_PIN >= 0
-    SET_OUTPUT(CASE_LIGHTS_PIN);
-    WRITE(CASE_LIGHTS_PIN, CASE_LIGHT_DEFAULT_ON);
+    HAL::pinMode(CASE_LIGHTS_PIN, OUTPUT);
+    HAL::digitalWrite(CASE_LIGHTS_PIN, CASE_LIGHT_DEFAULT_ON);
 #endif // CASE_LIGHTS_PIN
 
 #if SPINDLE_SUPPORT
@@ -583,16 +579,7 @@ void Machine::setup() {
 #if FAN_CONTROL_SUPPORT
     FanControl::initialize();
 #endif
-#if BACKLASH_COMPENSATION_SUPPORT
-    Backlash::initialize();
-#endif
 
-#ifdef RED_BLUE_STATUS_LEDS
-    SET_OUTPUT(RED_STATUS_LED);
-    SET_OUTPUT(BLUE_STATUS_LED);
-    WRITE(BLUE_STATUS_LED, HIGH);
-    WRITE(RED_STATUS_LED, LOW);
-#endif // RED_BLUE_STATUS_LEDS
 #if defined(NUM_MOTOR_DRIVERS) && NUM_MOTOR_DRIVERS > 0
     initializeAllMotorDrivers();
 #endif // defined
@@ -623,6 +610,10 @@ void Machine::setup() {
 		currentPositionSteps[i] = 0;
 		currentPosition[i] = 0;
     }
+
+#if BACKLASH_COMPENSATION_SUPPORT
+    Backlash::initialize();
+#endif
 
 #if DISTORTION_CORRECTION_SUPPORT
     Distortion::init();
@@ -988,14 +979,14 @@ void Machine::homeAxis(bool xaxis, bool yaxis, bool zaxis) { // home non-delta p
 
 void Machine::setCaseLight(bool on) {
 #if CASE_LIGHTS_PIN > -1
-    WRITE(CASE_LIGHTS_PIN, on);
+    HAL::digitalWrite(CASE_LIGHTS_PIN, on);
     reportCaseLightStatus();
 #endif
 }
 
 void Machine::reportCaseLightStatus() {
 #if CASE_LIGHTS_PIN > -1
-    if(READ(CASE_LIGHTS_PIN))
+    if(HAL::digitalRead(CASE_LIGHTS_PIN))
         Com::printInfoFLN(PSTR("Case lights on"));
     else
         Com::printInfoFLN(PSTR("Case lights off"));

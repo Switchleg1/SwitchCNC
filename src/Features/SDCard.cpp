@@ -15,7 +15,7 @@ SDCard::SDCard() {
 
 void SDCard::automount() {
 #if SDCARDDETECT > -1
-    if(READ(SDCARDDETECT) != SDCARDDETECTINVERTED) {
+    if(HAL::digitalRead(SDCARDDETECT) != SDCARDDETECTINVERTED) {
         if(sdactive || sdmode == 100) { // Card removed
 			Com::printFLN(PSTR("SD card removed"));
 			unmount();
@@ -34,7 +34,7 @@ void SDCard::initsd() {
     sdactive = false;
 #if SDSS > -1
 #if SDCARDDETECT > -1
-    if(READ(SDCARDDETECT) != SDCARDDETECTINVERTED)
+    if(HAL::digitalRead(SDCARDDETECT) != SDCARDDETECTINVERTED)
         return;
 #endif
     HAL::pingWatchdog();

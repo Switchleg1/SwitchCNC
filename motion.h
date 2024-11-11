@@ -129,76 +129,49 @@ public:
                 {
                     if(Machine::isHoming()) {
                         if(isXNegativeMove()) {
-                            if(Endstops::xMin())
-                                Machine::multiXHomeFlags &= ~1;
-                            if(Endstops::x2Min())
-                                Machine::multiXHomeFlags &= ~2;
-                            if(Machine::multiXHomeFlags == 0)
-                                setXMoveFinished();
+                            if(Endstops::xMin()) Machine::multiXHomeFlags &= ~1;
+                            if(Endstops::x2Min()) Machine::multiXHomeFlags &= ~2;
+                            if(Machine::multiXHomeFlags == 0) setXMoveFinished();
                         } else if(isXPositiveMove()) {
-                            if(Endstops::xMax())
-                                Machine::multiXHomeFlags &= ~1;
-                            if(Endstops::x2Max())
-                                Machine::multiXHomeFlags &= ~2;
-                            if(Machine::multiXHomeFlags == 0) {
-                                setXMoveFinished();
-                            }
+                            if(Endstops::xMax()) Machine::multiXHomeFlags &= ~1;
+                            if(Endstops::x2Max()) Machine::multiXHomeFlags &= ~2;
+                            if(Machine::multiXHomeFlags == 0) setXMoveFinished();
                         }
                     } else {
-                        if(isXNegativeMove() && Endstops::xMin()) {
-                            setXMoveFinished();
-                        } else if(isXPositiveMove() && Endstops::xMax()) {
-                            setXMoveFinished();
-                        }
+                        if(isXNegativeMove() && Endstops::xMin()) setXMoveFinished();
+                        else if(isXPositiveMove() && Endstops::xMax()) setXMoveFinished();
                     }
                 }
 #else  // Multi endstop homing
-                if(isXNegativeMove() && Endstops::xMin())
-                    setXMoveFinished();
-                else if(isXPositiveMove() && Endstops::xMax())
-                    setXMoveFinished();
+                if(isXNegativeMove() && Endstops::xMin()) setXMoveFinished();
+                else if(isXPositiveMove() && Endstops::xMax()) setXMoveFinished();
 #endif
 #if MULTI_YENDSTOP_HOMING
                 {
                     if(Machine::isHoming()) {
                         if(isYNegativeMove()) {
-                            if(Endstops::yMin())
-                                Machine::multiYHomeFlags &= ~1;
-                            if(Endstops::y2Min())
-                                Machine::multiYHomeFlags &= ~2;
-                            if(Machine::multiYHomeFlags == 0)
-                                setYMoveFinished();
+                            if(Endstops::yMin()) Machine::multiYHomeFlags &= ~1;
+                            if(Endstops::y2Min()) Machine::multiYHomeFlags &= ~2;
+                            if(Machine::multiYHomeFlags == 0) setYMoveFinished();
                         } else if(isYPositiveMove()) {
-                            if(Endstops::yMax())
-                                Machine::multiYHomeFlags &= ~1;
-                            if(Endstops::y2Max())
-                                Machine::multiYHomeFlags &= ~2;
-                            if(Machine::multiYHomeFlags == 0) {
-                                setYMoveFinished();
-                            }
+                            if(Endstops::yMax()) Machine::multiYHomeFlags &= ~1;
+                            if(Endstops::y2Max()) Machine::multiYHomeFlags &= ~2;
+                            if(Machine::multiYHomeFlags == 0) setYMoveFinished();
                         }
                     } else {
-                        if(isYNegativeMove() && Endstops::yMin()) {
-                            setYMoveFinished();
-                        } else if(isYPositiveMove() && Endstops::yMax()) {
-                            setYMoveFinished();
-                        }
+                        if(isYNegativeMove() && Endstops::yMin()) setYMoveFinished();
+                        else if(isYPositiveMove() && Endstops::yMax()) setYMoveFinished();
                     }
                 }
 #else  // Multi endstop homing
-                if(isYNegativeMove() && Endstops::yMin())
-                    setYMoveFinished();
-                else if(isYPositiveMove() && Endstops::yMax())
-                    setYMoveFinished();
+                if(isYNegativeMove() && Endstops::yMin()) setYMoveFinished();
+                else if(isYPositiveMove() && Endstops::yMax()) setYMoveFinished();
 #endif
 #if Z_PROBE_SUPPORT
 				if(ZProbe::isActive() /*&& isZNegativeMove()*/ && Endstops::zProbe()) {
-					if(isXMove())
-						setXMoveFinished();
-					if(isYMove())
-						setYMoveFinished();
-					if(isZMove())
-						setZMoveFinished();
+					if(isXMove()) setXMoveFinished();
+					if(isYMove()) setYMoveFinished();
+					if(isZMove()) setZMoveFinished();
                     Machine::stepsRemainingAtZHit = stepsRemaining;
                 } else
 #endif
@@ -206,17 +179,12 @@ public:
                 {
                     if(Machine::isHoming()) {
                         if(isZNegativeMove()) {
-                            if(Endstops::zMin())
-                                Machine::multiZHomeFlags &= ~1;
-                            if(Endstops::z2MinMax())
-                                Machine::multiZHomeFlags &= ~2;
-                            if(Machine::multiZHomeFlags == 0)
-                                setZMoveFinished();
+                            if(Endstops::zMin()) Machine::multiZHomeFlags &= ~1;
+                            if(Endstops::z2MinMax()) Machine::multiZHomeFlags &= ~2;
+                            if(Machine::multiZHomeFlags == 0) setZMoveFinished();
                         } else if(isZPositiveMove()) {
-                            if(Endstops::zMax())
-                                Machine::multiZHomeFlags &= ~1;
-                            if(Endstops::z2MinMax())
-                                Machine::multiZHomeFlags &= ~2;
+                            if(Endstops::zMax()) Machine::multiZHomeFlags &= ~1;
+                            if(Endstops::z2MinMax()) Machine::multiZHomeFlags &= ~2;
                             if(Machine::multiZHomeFlags == 0) {
 #if MAX_HARDWARE_ENDSTOP_Z
                                 Machine::stepsRemainingAtZHit = stepsRemaining;
@@ -230,7 +198,6 @@ public:
                             setZMoveFinished();
                         } else
 #endif
-						
 						if(isZPositiveMove() && Endstops::zMax()) {
 #if MAX_HARDWARE_ENDSTOP_Z
                             Machine::stepsRemainingAtZHit = stepsRemaining;
@@ -254,16 +221,13 @@ public:
                     }
 #endif
             }
-#if SUPPORT_Z_PROBE
+#if Z_PROBE_SUPPORT
 			else if(ZProbe::isActive()/* && isZNegativeMove()*/) {
                 Endstops::update();
                 if(Endstops::zProbe()) {
-                    if(isXMove())
-						setXMoveFinished();
-					if(isYMove())
-						setYMoveFinished();
-					if(isZMove())
-						setZMoveFinished();
+                    if(isXMove()) setXMoveFinished();
+					if(isYMove()) setYMoveFinished();
+					if(isZMove()) setZMoveFinished();
                     Machine::stepsRemainingAtZHit = stepsRemaining;
                 }
             }

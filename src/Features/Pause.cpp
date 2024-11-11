@@ -14,16 +14,17 @@ void Pause::initialize() {
     pauseSteps = 0;
 
 #if PAUSE_PIN > -1
-    SET_INPUT(PAUSE_PIN);
-#if PAUSE_PULLUP && PAUSE_PIN > -1
-    PULLUP(PAUSE_PIN, HIGH);
+#if PAUSE_PULLUP
+    HAL::pinMode(PAUSE_PIN, INPUT_PULLUP);
+#else
+    HAL::pinMode(PAUSE_PIN, INPUT);
 #endif
 #endif
 }
 
 void Pause::checkPeriodic() {
 #if PAUSE_PIN > -1
-    bool pausePin = (READ(PAUSE_PIN) != !PAUSE_INVERTING);
+    bool pausePin = (HAL::digitalRead(PAUSE_PIN) != !PAUSE_INVERTING);
     if (active != pausePin) {
         if (!MachineLine::hasLines()) {
             if (pausePin) pauseSteps = PAUSE_STEPS;

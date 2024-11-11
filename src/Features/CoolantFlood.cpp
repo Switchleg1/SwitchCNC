@@ -9,8 +9,8 @@ void CoolantFlood::initialize() {
 	nextState = 0;
 	currentState = 0;
 
-	SET_OUTPUT(COOLANT_FLOOD_PIN);
-	WRITE(COOLANT_FLOOD_PIN, LOW);
+	HAL::pinMode(COOLANT_FLOOD_PIN, OUTPUT);
+	HAL::digitalWrite(COOLANT_FLOOD_PIN, LOW);
 }
 
 void CoolantFlood::setNextState(uint8_t state, bool immediately) {
@@ -36,7 +36,7 @@ void CoolantFlood::setState(uint8_t state) {
 		return;
 	}
 
-	WRITE(COOLANT_FLOOD_PIN, state ? HIGH : LOW);
+	HAL::digitalWrite(COOLANT_FLOOD_PIN, state ? HIGH : LOW);
 
 	currentState = state;
 }

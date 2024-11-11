@@ -228,20 +228,20 @@ void HAL::setupTimer() {
     TIMSK1  |= (1 << OCIE1A); // Enable interrupt
 #if SERVO_SUPPORT
 #if SERVO0_PIN>-1
-    SET_OUTPUT(SERVO0_PIN);
-    WRITE(SERVO0_PIN, LOW);
+    HAL::pinMode(SERVO0_PIN, OUTPUT);
+    HAL::digitalWrite(SERVO0_PIN, LOW);
 #endif
 #if SERVO1_PIN>-1
-    SET_OUTPUT(SERVO1_PIN);
-    WRITE(SERVO1_PIN, LOW);
+    HAL::pinMode(SERVO1_PIN, OUTPUT);
+    HAL::digitalWrite(SERVO1_PIN, LOW);
 #endif
 #if SERVO2_PIN>-1
-    SET_OUTPUT(SERVO2_PIN);
-    WRITE(SERVO2_PIN, LOW);
+    HAL::pinMode(SERVO2_PIN, OUTPUT);
+    HAL::digitalWrite(SERVO2_PIN, LOW);
 #endif
 #if SERVO3_PIN>-1
-    SET_OUTPUT(SERVO3_PIN);
-    WRITE(SERVO3_PIN, LOW);
+    HAL::pinMode(SERVO3_PIN, OUTPUT);
+    HAL::digitalWrite(SERVO3_PIN, LOW);
 #endif
     TCCR3A = 0;             // normal counting mode
     TCCR3B = _BV(CS31);     // set prescaler of 8
@@ -466,14 +466,14 @@ SIGNAL (TIMER3_COMPA_vect) {
         TCNT3 = 0;
         if(HAL::servoTimings[0]) {
 #if SERVO0_PIN > -1
-            WRITE(SERVO0_PIN, HIGH);
+            HAL::digitalWrite(SERVO0_PIN, HIGH);
 #endif
             OCR3A = HAL::servoTimings[0];
         } else OCR3A = SERVO2500US;
         break;
     case 1:
 #if SERVO0_PIN > -1
-        WRITE(SERVO0_PIN, LOW);
+        HAL::digitalWrite(SERVO0_PIN, LOW);
 #endif
         OCR3A = SERVO5000US;
         break;
@@ -481,14 +481,14 @@ SIGNAL (TIMER3_COMPA_vect) {
         TCNT3 = 0;
         if(HAL::servoTimings[1]) {
 #if SERVO1_PIN > -1
-            WRITE(SERVO1_PIN, HIGH);
+            HAL::digitalWrite(SERVO1_PIN, HIGH);
 #endif
             OCR3A = HAL::servoTimings[1];
         } else OCR3A = SERVO2500US;
         break;
     case 3:
 #if SERVO1_PIN > -1
-        WRITE(SERVO1_PIN, LOW);
+        HAL::digitalWrite(SERVO1_PIN, LOW);
 #endif
         OCR3A = SERVO5000US;
         break;
@@ -496,14 +496,14 @@ SIGNAL (TIMER3_COMPA_vect) {
         TCNT3 = 0;
         if(HAL::servoTimings[2]) {
 #if SERVO2_PIN > -1
-            WRITE(SERVO2_PIN, HIGH);
+            HAL::digitalWrite(SERVO2_PIN, HIGH);
 #endif
             OCR3A = HAL::servoTimings[2];
         } else OCR3A = SERVO2500US;
         break;
     case 5:
 #if SERVO2_PIN > -1
-        WRITE(SERVO2_PIN, LOW);
+        HAL::digitalWrite(SERVO2_PIN, LOW);
 #endif
         OCR3A = SERVO5000US;
         break;
@@ -511,14 +511,14 @@ SIGNAL (TIMER3_COMPA_vect) {
         TCNT3 = 0;
         if(HAL::servoTimings[3]) {
 #if SERVO3_PIN > -1
-            WRITE(SERVO3_PIN, HIGH);
+            HAL::digitalWrite(SERVO3_PIN, HIGH);
 #endif
             OCR3A = HAL::servoTimings[3];
         } else OCR3A = SERVO2500US;
         break;
     case 7:
 #if SERVO3_PIN > -1
-        WRITE(SERVO3_PIN, LOW);
+        HAL::digitalWrite(SERVO3_PIN, LOW);
 #endif
         OCR3A = SERVO5000US;
         break;
@@ -916,7 +916,7 @@ try_again:
     bit_set(*_ucsrb, _rxcie);
     bit_clear(*_ucsrb, _udrie);
 #if defined(BLUETOOTH_SERIAL) && BLUETOOTH_SERIAL > 0
-    WRITE(RXxPIN, 1);           // Pullup on RXDx
+    HAL::digitalWrite(RXxPIN, 1); // Pullup on RXDx
     UCSRxA  = (1 << U2Xx);
     UBRRxH = (uint8_t)(((F_CPU / 4 / BLUETOOTH_BAUD - 1) / 2) >> 8);
     UBRRxL = (uint8_t)(((F_CPU / 4 / BLUETOOTH_BAUD - 1) / 2) & 0xFF);

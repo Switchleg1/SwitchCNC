@@ -2,8 +2,11 @@
   "ExpandedNodes": [
     "",
     "\\src",
-    "\\src\\Drivers"
+    "\\src\\DigitalPins",
+    "\\src\\Drivers",
+    "\\src\\SdFat",
+    "\\src\\SdFat\\SpiDriver"
   ],
-  "SelectedNode": "\\Machine.cpp",
+  "SelectedNode": "\\src\\Drivers\\MotorDrivers.h",
   "PreviewInSolutionExplorer": false
 }

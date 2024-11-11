@@ -7,11 +7,8 @@ uint8_t FeedDial::currentValue;
 void FeedDial::initialize() {
     currentValue = FEED_DIAL_MIN_PERCENT;
 
-#if PAUSE_PIN > -1
-    SET_INPUT(PAUSE_PIN);
-#if PAUSE_PULLUP && PAUSE_PIN > -1
-    PULLUP(PAUSE_PIN, HIGH);
-#endif
+#if FEED_DIAL_PIN > -1
+    HAL::pinMode(FEED_DIAL_PIN, INPUT);
 #endif
 }
 

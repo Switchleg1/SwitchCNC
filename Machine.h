@@ -256,144 +256,144 @@ public:
     /** \brief Disable stepper motor for x direction. */
     static INLINE void disableXStepper() {
 #if (X_ENABLE_PIN > -1)
-        WRITE(X_ENABLE_PIN, !X_ENABLE_ON);
+        HAL::digitalWrite(X_ENABLE_PIN, !X_ENABLE_ON);
 #endif
 #if X2_XSTEPPER_SUPPORT && (X2_ENABLE_PIN > -1)
-        WRITE(X2_ENABLE_PIN, !X_ENABLE_ON);
+        HAL::digitalWrite(X2_ENABLE_PIN, !X_ENABLE_ON);
 #endif
 	}
     /** \brief Disable stepper motor for y direction. */
     static INLINE void disableYStepper() {
 #if (Y_ENABLE_PIN > -1)
-        WRITE(Y_ENABLE_PIN, !Y_ENABLE_ON);
+        HAL::digitalWrite(Y_ENABLE_PIN, !Y_ENABLE_ON);
 #endif
 #if Y2_YSTEPPER_SUPPORT && (Y2_ENABLE_PIN > -1)
-        WRITE(Y2_ENABLE_PIN, !Y_ENABLE_ON);
+        HAL::digitalWrite(Y2_ENABLE_PIN, !Y_ENABLE_ON);
 #endif
     }
     /** \brief Disable stepper motor for z direction. */
     static INLINE void disableZStepper() {
 #if (Z_ENABLE_PIN > -1)
-        WRITE(Z_ENABLE_PIN, !Z_ENABLE_ON);
+        HAL::digitalWrite(Z_ENABLE_PIN, !Z_ENABLE_ON);
 #endif
 #if Z2_ZSTEPPER_SUPPORT && (Z2_ENABLE_PIN > -1)
-        WRITE(Z2_ENABLE_PIN, !Z_ENABLE_ON);
+        HAL::digitalWrite(Z2_ENABLE_PIN, !Z_ENABLE_ON);
 #endif
     }
     /** \brief Disable stepper motor for y direction. */
 	static INLINE void disableAStepper() {
 #if (Y_ENABLE_PIN > -1)
-		WRITE(A_ENABLE_PIN, !A_ENABLE_ON);
+        HAL::digitalWrite(A_ENABLE_PIN, !A_ENABLE_ON);
 #endif
 #if A2_ASTEPPER_SUPPORT && (A2_ENABLE_PIN > -1)
-		WRITE(A2_ENABLE_PIN, !A_ENABLE_ON);
+        HAL::digitalWrite(A2_ENABLE_PIN, !A_ENABLE_ON);
 #endif
 	}
     /** \brief Enable stepper motor for x direction. */
-    static INLINE void  enableXStepper() {
+    static INLINE void  enableXStepper(uint8_t safe = true) {
 #if (X_ENABLE_PIN > -1)
-        WRITE(X_ENABLE_PIN, X_ENABLE_ON);
+        HAL::digitalWrite(X_ENABLE_PIN, X_ENABLE_ON, safe);
 #endif
 #if X2_XSTEPPER_SUPPORT && (X2_ENABLE_PIN > -1)
-        WRITE(X2_ENABLE_PIN, X_ENABLE_ON);
+        HAL::digitalWrite(X2_ENABLE_PIN, X_ENABLE_ON, safe);
 #endif
     }
 
     /** \brief Enable stepper motor for y direction. */
-    static INLINE void  enableYStepper() {
+    static INLINE void  enableYStepper(uint8_t safe = true) {
 #if (Y_ENABLE_PIN > -1)
-        WRITE(Y_ENABLE_PIN, Y_ENABLE_ON);
+        HAL::digitalWrite(Y_ENABLE_PIN, Y_ENABLE_ON, safe);
 #endif
 #if Y2_YSTEPPER_SUPPORT && (Y2_ENABLE_PIN > -1)
-        WRITE(Y2_ENABLE_PIN, Y_ENABLE_ON);
+        HAL::digitalWrite(Y2_ENABLE_PIN, Y_ENABLE_ON, safe);
 #endif
     }
     /** \brief Enable stepper motor for z direction. */
-    static INLINE void  enableZStepper() {
+    static INLINE void  enableZStepper(uint8_t safe = true) {
 #if (Z_ENABLE_PIN > -1)
-        WRITE(Z_ENABLE_PIN, Z_ENABLE_ON);
+        HAL::digitalWrite(Z_ENABLE_PIN, Z_ENABLE_ON, safe);
 #endif
 #if Z2_ZSTEPPER_SUPPORT && (Z2_ENABLE_PIN > -1)
-        WRITE(Z2_ENABLE_PIN, Z_ENABLE_ON);
+        HAL::digitalWrite(Z2_ENABLE_PIN, Z_ENABLE_ON, safe);
 #endif
     }
 	/** \brief Enable stepper motor for z direction. */
-	static INLINE void  enableAStepper() {
+	static INLINE void  enableAStepper(uint8_t safe = true) {
 #if (A_ENABLE_PIN > -1)
-		WRITE(A_ENABLE_PIN, A_ENABLE_ON);
+        HAL::digitalWrite(A_ENABLE_PIN, A_ENABLE_ON, safe);
 #endif
 #if A2_ASTEPPER_SUPPORT && (A2_ENABLE_PIN > -1)
-        WRITE(A2_ENABLE_PIN, A_ENABLE_ON);
+        HAL::digitalWrite(A2_ENABLE_PIN, A_ENABLE_ON, safe);
 #endif
 	}
-    static INLINE void setXDirection(bool positive) {
+    static INLINE void setXDirection(bool positive, uint8_t safe = true) {
         if(positive) {
-            WRITE(X_DIR_PIN, !INVERT_X_DIR);
+            HAL::digitalWrite(X_DIR_PIN, !INVERT_X_DIR, safe);
 #if X2_XSTEPPER_SUPPORT
-            WRITE(X2_DIR_PIN, !INVERT_X2_DIR);
+            HAL::digitalWrite(X2_DIR_PIN, !INVERT_X2_DIR, safe);
 #endif
         } else {
-            WRITE(X_DIR_PIN, INVERT_X_DIR);
+            HAL::digitalWrite(X_DIR_PIN, INVERT_X_DIR, safe);
 #if X2_XSTEPPER_SUPPORT
-            WRITE(X2_DIR_PIN, INVERT_X2_DIR);
+            HAL::digitalWrite(X2_DIR_PIN, INVERT_X2_DIR, safe);
 #endif
         }
     }
 
-    static INLINE void setYDirection(bool positive) {
+    static INLINE void setYDirection(bool positive, uint8_t safe = true) {
         if(positive) {
-            WRITE(Y_DIR_PIN, !INVERT_Y_DIR);
+            HAL::digitalWrite(Y_DIR_PIN, !INVERT_Y_DIR, safe);
 #if Y2_YSTEPPER_SUPPORT
-            WRITE(Y2_DIR_PIN, !INVERT_Y2_DIR);
+            HAL::digitalWrite(Y2_DIR_PIN, !INVERT_Y2_DIR, safe);
 #endif
         } else {
-            WRITE(Y_DIR_PIN, INVERT_Y_DIR);
+            HAL::digitalWrite(Y_DIR_PIN, INVERT_Y_DIR, safe);
 #if Y2_YSTEPPER_SUPPORT
-            WRITE(Y2_DIR_PIN, INVERT_Y2_DIR);
+            HAL::digitalWrite(Y2_DIR_PIN, INVERT_Y2_DIR, safe);
 #endif
         }
     }
-    static INLINE void setZDirection(bool positive) {
+    static INLINE void setZDirection(bool positive, uint8_t safe = true) {
         if(positive) {
-			WRITE(Z_DIR_PIN, !INVERT_Z_DIR);
+            HAL::digitalWrite(Z_DIR_PIN, !INVERT_Z_DIR, safe);
 #if Z2_ZSTEPPER_SUPPORT
-			WRITE(Z2_DIR_PIN, !INVERT_Z2_DIR);
+            HAL::digitalWrite(Z2_DIR_PIN, !INVERT_Z2_DIR, safe);
 #endif
         } else {
-			WRITE(Z_DIR_PIN, INVERT_Z_DIR);
+            HAL::digitalWrite(Z_DIR_PIN, INVERT_Z_DIR, safe);
 #if Z2_ZSTEPPER_SUPPORT
-			WRITE(Z2_DIR_PIN, INVERT_Z2_DIR);
+            HAL::digitalWrite(Z2_DIR_PIN, INVERT_Z2_DIR, safe);
 #endif
         }
 	}
-	static INLINE void setADirection(bool positive) {
+	static INLINE void setADirection(bool positive, uint8_t safe = true) {
         if(positive) {
-			WRITE(A_DIR_PIN, !INVERT_A_DIR);
+            HAL::digitalWrite(A_DIR_PIN, !INVERT_A_DIR, safe);
 #if A2_ASTEPPER_SUPPORT
-            WRITE(A2_DIR_PIN, !INVERT_A2_DIR);
+            HAL::digitalWrite(A2_DIR_PIN, !INVERT_A2_DIR, safe);
 #endif
         } else {
-			WRITE(A_DIR_PIN, INVERT_A_DIR);
+            HAL::digitalWrite(A_DIR_PIN, INVERT_A_DIR, safe);
 #if A2_ASTEPPER_SUPPORT
-            WRITE(A2_DIR_PIN, INVERT_A2_DIR);
+            HAL::digitalWrite(A2_DIR_PIN, INVERT_A2_DIR, safe);
 #endif
         }
 	}
 
     static INLINE bool getXDirection() {
-        return((READ(X_DIR_PIN) != 0) ^ INVERT_X_DIR);
+        return((HAL::digitalRead(X_DIR_PIN) != 0) ^ INVERT_X_DIR);
 	}
 
 	static INLINE bool getYDirection() {
-		return((READ(Y_DIR_PIN) != 0) ^ INVERT_Y_DIR);
+		return((HAL::digitalRead(Y_DIR_PIN) != 0) ^ INVERT_Y_DIR);
 	}
 
 	static INLINE bool getZDirection() {
-		return ((READ(Z_DIR_PIN) != 0) ^ INVERT_Z_DIR);
+		return ((HAL::digitalRead(Z_DIR_PIN) != 0) ^ INVERT_Z_DIR);
 	}
 
 	static INLINE bool getADirection() {
-		return ((READ(A_DIR_PIN) != 0) ^ INVERT_A_DIR);
+		return ((HAL::digitalRead(A_DIR_PIN) != 0) ^ INVERT_A_DIR);
 	}
 
     static INLINE bool areAllSteppersDisabled() {
@@ -523,79 +523,79 @@ public:
         return (flag1 & MACHINE_FLAG1_IGNORE_FAN_COMMAND);
     }
 
-	static INLINE void startXStep() {
+	static INLINE void startXStep(uint8_t safe = true) {
 #if MULTI_XENDSTOP_HOMING
         if(Machine::multiXHomeFlags & 1) {
-            WRITE(X_STEP_PIN, START_STEP_WITH_HIGH);
+            HAL::digitalWrite(X_STEP_PIN, START_STEP_WITH_HIGH, safe);
         }
 #if X2_XSTEPPER_SUPPORT
         if(Machine::multiXHomeFlags & 2) {
-            WRITE(X2_STEP_PIN, START_STEP_WITH_HIGH);
+            HAL::digitalWrite(X2_STEP_PIN, START_STEP_WITH_HIGH, safe);
         }
 #endif
 #else // MULTI_XENDSTOP_HOMING
-        WRITE(X_STEP_PIN, START_STEP_WITH_HIGH);
+        HAL::digitalWrite(X_STEP_PIN, START_STEP_WITH_HIGH, safe);
 #if X2_XSTEPPER_SUPPORT
-        WRITE(X2_STEP_PIN, START_STEP_WITH_HIGH);
+        HAL::digitalWrite(X2_STEP_PIN, START_STEP_WITH_HIGH, safe);
 #endif
 #endif
     }
-    static INLINE void startYStep() {
+    static INLINE void startYStep(uint8_t safe = true) {
 #if MULTI_YENDSTOP_HOMING
         if(Machine::multiYHomeFlags & 1) {
-            WRITE(Y_STEP_PIN, START_STEP_WITH_HIGH);
+            HAL::digitalWrite(Y_STEP_PIN, START_STEP_WITH_HIGH, safe);
         }
 #if Y2_YSTEPPER_SUPPORT
         if(Machine::multiYHomeFlags & 2) {
-            WRITE(Y2_STEP_PIN, START_STEP_WITH_HIGH);
+            HAL::digitalWrite(Y2_STEP_PIN, START_STEP_WITH_HIGH, safe);
         }
 #endif
 #else
-        WRITE(Y_STEP_PIN, START_STEP_WITH_HIGH);
+        HAL::digitalWrite(Y_STEP_PIN, START_STEP_WITH_HIGH, safe);
 #if Y2_YSTEPPER_SUPPORT
-        WRITE(Y2_STEP_PIN, START_STEP_WITH_HIGH);
+        HAL::digitalWrite(Y2_STEP_PIN, START_STEP_WITH_HIGH, safe);
 #endif
 #endif
     }
-    static INLINE void startZStep() {
+    static INLINE void startZStep(uint8_t safe = true) {
 #if MULTI_ZENDSTOP_HOMING
         if(Machine::multiZHomeFlags & 1) {
-            WRITE(Z_STEP_PIN, START_STEP_WITH_HIGH);
+            HAL::digitalWrite(Z_STEP_PIN, START_STEP_WITH_HIGH, safe);
         }
 #if Z2_ZSTEPPER_SUPPORT
         if(Machine::multiZHomeFlags & 2) {
-            WRITE(Z2_STEP_PIN, START_STEP_WITH_HIGH);
+            HAL::digitalWrite(Z2_STEP_PIN, START_STEP_WITH_HIGH, safe);
         }
 #endif
 #else
-        WRITE(Z_STEP_PIN, START_STEP_WITH_HIGH);
+        HAL::digitalWrite(Z_STEP_PIN, START_STEP_WITH_HIGH, safe);
 #if Z2_ZSTEPPER_SUPPORT
-        WRITE(Z2_STEP_PIN, START_STEP_WITH_HIGH);
+        HAL::digitalWrite(Z2_STEP_PIN, START_STEP_WITH_HIGH, safe);
 #endif
 #endif
 	}
-	static INLINE void startAStep() {
-		WRITE(A_STEP_PIN, START_STEP_WITH_HIGH);
+	static INLINE void startAStep(uint8_t safe = true) {
+        HAL::digitalWrite(A_STEP_PIN, START_STEP_WITH_HIGH, safe);
 #if A2_ASTEPPER_SUPPORT
-        WRITE(A2_STEP_PIN, START_STEP_WITH_HIGH);
+        HAL::digitalWrite(A2_STEP_PIN, START_STEP_WITH_HIGH, safe);
 #endif
 	}
-	static INLINE void endXYZASteps() {
-        WRITE(X_STEP_PIN, !START_STEP_WITH_HIGH);
+	static INLINE void endXYZASteps(uint8_t safe = true) {
+        HAL::digitalWrite(X_STEP_PIN, !START_STEP_WITH_HIGH, safe);
 #if X2_XSTEPPER_SUPPORT
-        WRITE(X2_STEP_PIN, !START_STEP_WITH_HIGH);
+        HAL::digitalWrite(X2_STEP_PIN, !START_STEP_WITH_HIGH, safe);
 #endif
-        WRITE(Y_STEP_PIN, !START_STEP_WITH_HIGH);
+        HAL::digitalWrite(Y_STEP_PIN, !START_STEP_WITH_HIGH, safe);
 #if Y2_YSTEPPER_SUPPORT
-        WRITE(Y2_STEP_PIN, !START_STEP_WITH_HIGH);
+        HAL::digitalWrite(Y2_STEP_PIN, !START_STEP_WITH_HIGH, safe);
 #endif
-        WRITE(Z_STEP_PIN, !START_STEP_WITH_HIGH);
+        HAL::digitalWrite(Z_STEP_PIN, !START_STEP_WITH_HIGH, safe);
 #if Z2_ZSTEPPER_SUPPORT
-        WRITE(Z2_STEP_PIN, !START_STEP_WITH_HIGH);
+        HAL::digitalWrite(Z2_STEP_PIN, !START_STEP_WITH_HIGH, safe);
 #endif
-		WRITE(A_STEP_PIN, !START_STEP_WITH_HIGH);
+        HAL::digitalWrite(A_STEP_PIN, !START_STEP_WITH_HIGH, safe);
 #if A2_ASTEPPER_SUPPORT
-        WRITE(A2_STEP_PIN, !START_STEP_WITH_HIGH);
+        HAL::digitalWrite(A2_STEP_PIN, !START_STEP_WITH_HIGH, safe);
 #endif
     }
     static INLINE speed_t updateStepsPerTimerCall(speed_t vbase) {

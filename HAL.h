@@ -192,8 +192,7 @@ public:
     of a 24 bit and 16 bit dividend, which often, but not always occur in updating the
     interval.
     */
-    static inline int32_t Div4U2U(uint32_t a, uint16_t b)
-    {
+    static inline int32_t Div4U2U(uint32_t a, uint16_t b) {
 		// r14/r15 remainder
         // r16 counter
         __asm__ __volatile__ (
@@ -273,8 +272,8 @@ public:
         );
 		return a;
     }
-    static inline unsigned long U16SquaredToU32(unsigned int val)
-    {
+
+    static inline unsigned long U16SquaredToU32(unsigned int val) {
         long res;
         __asm__ __volatile__ ( // 15 Ticks
             "mul %A1,%A1 \n\t"
@@ -295,8 +294,8 @@ public:
         );
         return res;
     }
-    static inline unsigned int ComputeV(long timer,long accel)
-	{
+
+    static inline unsigned int ComputeV(long timer,long accel) {
         unsigned int res;
         // 38 Ticks
         __asm__ __volatile__ ( // 0 = res, 1 = timer, 2 = accel %D2=0 ,%A1 are unused is free
@@ -337,9 +336,9 @@ public:
         // unsigned int v = ((timer>>8)*cur->accel)>>10;
 		return res;
     }
-// Multiply two 16 bit values and return 32 bit result
-    static inline uint32_t mulu16xu16to32(unsigned int a,unsigned int b)
-    {
+
+    // Multiply two 16 bit values and return 32 bit result
+    static inline uint32_t mulu16xu16to32(unsigned int a,unsigned int b) {
         uint32_t res;
         // 18 Ticks = 1.125 us
         __asm__ __volatile__ ( // 0 = res, 1 = timer, 2 = accel %D2=0 ,%A1 are unused is free
@@ -364,9 +363,9 @@ public:
         // return (long)a*b;
         return res;
     }
-// Multiply two 16 bit values and return 32 bit result
-    static inline unsigned int mulu6xu16shift16(unsigned int a,unsigned int b)
-    {
+
+    // Multiply two 16 bit values and return 32 bit result
+    static inline unsigned int mulu6xu16shift16(unsigned int a,unsigned int b) {
 		unsigned int res;
         // 18 Ticks = 1.125 us
         __asm__ __volatile__ ( // 0 = res, 1 = timer, 2 = accel %D2=0 ,%A1 are unused is free
@@ -390,75 +389,87 @@ public:
             :"r18","r19" );
 		return res;
     }
-    static inline void digitalWrite(uint8_t pin,uint8_t value)
-    {
-        ::digitalWrite(pin,value);
+
+    static inline __attribute__((always_inline))
+    void digitalWrite(uint8_t pin, uint8_t value, uint8_t safe = true) {
+        FastPort::write(pin, value, safe);
     }
-    static inline uint8_t digitalRead(uint8_t pin)
-    {
-        return ::digitalRead(pin);
+
+    static inline __attribute__((always_inline))
+    uint8_t digitalRead(uint8_t pin) {
+        return FastPort::read(pin);
     }
-    static inline void pinMode(uint8_t pin,uint8_t mode)
-    {
-        ::pinMode(pin,mode);
+
+    static inline __attribute__((always_inline))
+    void analogWrite(uint8_t pin, uint8_t value) {
+        ::analogWrite(pin, value);
     }
+
+    static inline __attribute__((always_inline))
+    uint8_t analogRead(uint8_t pin) {
+        ::analogRead(pin);
+    }
+
+    static inline __attribute__((always_inline))
+    void pinMode(uint8_t pin, uint8_t mode, uint8_t safe = true) {
+        FastPort::mode(pin, mode, safe);
+    }
+
     static int32_t CPUDivU2(unsigned int divisor);
-    static inline void delayMicroseconds(unsigned int delayUs)
-    {
+    static inline void delayMicroseconds(unsigned int delayUs) {
         ::delayMicroseconds(delayUs);
     }
-	static inline void delayMilliseconds(unsigned int delayMs)
-	{
+
+	static inline void delayMilliseconds(unsigned int delayMs) {
 		::delay(delayMs);
 	}
-	static inline void delaySeconds(unsigned int delayS)
-	{
-		for(unsigned int i=delayS; i!=0; i--)
-		{
+
+	static inline void delaySeconds(unsigned int delayS) {
+		for(unsigned int i=delayS; i!=0; i--) {
 #if WATCHDOG_SUPPORT
 			wdt_reset();
 #endif
 			::delay(1000);
 		}
 	}
-    static inline void tone(uint8_t pin,int duration)
-    {
+
+    static inline void tone(uint8_t pin,int duration) {
         ::tone(pin,duration);
     }
-    static inline void noTone(uint8_t pin)
-    {
+
+    static inline void noTone(uint8_t pin) {
         ::noTone(pin);
     }
-    static inline void eprSetByte(unsigned int pos,uint8_t value)
-    {
+
+    static inline void eprSetByte(unsigned int pos,uint8_t value) {
         eeprom_write_byte((unsigned char *)(EEPROM_OFFSET + pos), value);
     }
-    static inline void eprSetInt16(unsigned int pos,int16_t value)
-    {
+
+    static inline void eprSetInt16(unsigned int pos,int16_t value) {
         eeprom_write_word((unsigned int*)(EEPROM_OFFSET + pos),value);
     }
-    static inline void eprSetInt32(unsigned int pos,int32_t value)
-    {
+
+    static inline void eprSetInt32(unsigned int pos,int32_t value) {
         eeprom_write_dword((uint32_t*)(EEPROM_OFFSET + pos),value);
     }
-    static inline void eprSetFloat(unsigned int pos,float value)
-    {
+
+    static inline void eprSetFloat(unsigned int pos,float value) {
         eeprom_write_block(&value,(void*)(EEPROM_OFFSET + pos), 4);
     }
-    static inline uint8_t eprGetByte(unsigned int pos)
-    {
+
+    static inline uint8_t eprGetByte(unsigned int pos) {
         return eeprom_read_byte ((unsigned char *)(EEPROM_OFFSET + pos));
     }
-    static inline int16_t eprGetInt16(unsigned int pos)
-    {
+
+    static inline int16_t eprGetInt16(unsigned int pos) {
         return eeprom_read_word((uint16_t *)(EEPROM_OFFSET + pos));
     }
-    static inline int32_t eprGetInt32(unsigned int pos)
-    {
+
+    static inline int32_t eprGetInt32(unsigned int pos) {
         return eeprom_read_dword((uint32_t*)(EEPROM_OFFSET + pos));
     }
-    static inline float eprGetFloat(unsigned int pos)
-    {
+
+    static inline float eprGetFloat(unsigned int pos) {
         float v;
         eeprom_read_block(&v,(void *)(EEPROM_OFFSET + pos),4); // newer gcc have eeprom_read_block but not arduino 22
         return v;
@@ -467,85 +478,82 @@ public:
     // Faster version of InterruptProtectedBlock.
     // For safety it may only be called from within an
     // interrupt handler.
-    static inline void allowInterrupts()
-    {
+    static inline void allowInterrupts() {
         sei();
     }
 
     // Faster version of InterruptProtectedBlock.
     // For safety it may only be called from within an
     // interrupt handler.
-    static inline void forbidInterrupts()
-    {
+    static inline void forbidInterrupts() {
         cli();
     }
-    static inline millis_t timeInMilliseconds()
-    {
+
+    static inline millis_t timeInMilliseconds() {
         return millis();
     }
-    static inline char readFlashByte(PGM_P ptr)
-    {
+
+    static inline char readFlashByte(PGM_P ptr) {
         return pgm_read_byte(ptr);
     }
-    static inline int16_t readFlashWord(PGM_P ptr)
-    {
+
+    static inline int16_t readFlashWord(PGM_P ptr) {
         return pgm_read_word(ptr);
     }
-    static inline void serialSetBaudrate(long baud)
-    {
+
+    static inline void serialSetBaudrate(long baud) {
         RFSERIAL.begin(baud);
     }
-    static inline bool serialByteAvailable()
-    {
+
+    static inline bool serialByteAvailable() {
         return RFSERIAL.available() > 0;
     }
-    static inline uint8_t serialReadByte()
-    {
+
+    static inline uint8_t serialReadByte() {
         return RFSERIAL.read();
     }
-    static inline void serialWriteByte(char b)
-    {
+
+    static inline void serialWriteByte(char b) {
         RFSERIAL.write(b);
     }
-    static inline void serialFlush()
-    {
+
+    static inline void serialFlush() {
         RFSERIAL.flush();
     }
+
     static void setupTimer();
     static void showStartReason();
     static int  getFreeRam();
     static void resetHardware();
 
-
     // SPI related functions
-    static void spiBegin(uint8_t ssPin = 0)
-    {
+    static void spiBegin(uint8_t ssPin = 0) {
 #if SDSS >= 0
-        SET_INPUT(MISO_PIN);
-        SET_OUTPUT(MOSI_PIN);
-        SET_OUTPUT(SCK_PIN);
+        HAL::pinMode(MISO_PIN, INPUT);
+        HAL::pinMode(MOSI_PIN, OUTPUT);
+        HAL::pinMode(SCK_PIN, OUTPUT);
         // SS must be in output mode even it is not chip select
-        SET_OUTPUT(SDSS);
+        HAL::pinMode(SDSS, OUTPUT);
 #if SDSSORIG >- 1
-        SET_OUTPUT(SDSSORIG);
+        HAL::pinMode(SDSSORIG, OUTPUT);
 #endif
         // set SS high - may be chip select for another SPI device
 #if defined(SET_SPI_SS_HIGH) && SET_SPI_SS_HIGH
-        WRITE(SDSS, HIGH);
+        HAL::digitalWrite(SDSS, HIGH);
 #else 
-        WRITE(SDSS, LOW);
+        HAL::digitalWrite(SDSS, LOW);
 #endif  // SET_SPI_SS_HIGH
 #endif
     }
-    static inline void spiInit(uint8_t spiRate)
-    {
+
+    static inline void spiInit(uint8_t spiRate) {
         uint8_t r = 0;
         for (uint8_t b = 2; spiRate > b && r < 6; b <<= 1, r++);
-		SET_OUTPUT(SS);
-		WRITE(SS,HIGH);
-        SET_OUTPUT(SCK);
-        SET_OUTPUT(MOSI_PIN);
-        SET_INPUT(MISO_PIN);
+        HAL::pinMode(SS, OUTPUT);
+        HAL::digitalWrite(SS,HIGH);
+        HAL::pinMode(SCK, OUTPUT);
+        HAL::pinMode(MOSI_PIN, OUTPUT);
+        HAL::pinMode(MISO_PIN, INPUT);
 #ifdef	PRR
         PRR &= ~(1<<PRSPI);
 #elif defined PRR0
@@ -556,14 +564,14 @@ public:
         SPSR = (r & 1 || r == 6 ? 0 : 1) << SPI2X;
 
     }
-    static inline uint8_t spiReceive(uint8_t send=0xff)
-    {
+
+    static inline uint8_t spiReceive(uint8_t send=0xff) {
         SPDR = send;
         while (!(SPSR & (1 << SPIF))) {}
         return SPDR;
     }
-    static inline void spiReadBlock(uint8_t*buf,size_t nbyte)
-    {
+
+    static inline void spiReadBlock(uint8_t*buf,size_t nbyte) {
         if (nbyte-- == 0) return;
         SPDR = 0XFF;
         for (size_t i = 0; i < nbyte; i++)
@@ -575,21 +583,19 @@ public:
         while (!(SPSR & (1 << SPIF))) {}
         buf[nbyte] = SPDR;
     }
-    static inline void spiSend(uint8_t b)
-    {
+
+    static inline void spiSend(uint8_t b) {
         SPDR = b;
         while (!(SPSR & (1 << SPIF))) {}
     }
-    static inline void spiSend(const uint8_t* buf , size_t n)
-    {
+
+    static inline void spiSend(const uint8_t* buf , size_t n) {
         if (n == 0) return;
         SPDR = buf[0];
-        if (n > 1)
-        {
+        if (n > 1) {
             uint8_t b = buf[1];
             size_t i = 2;
-            while (1)
-            {
+            while (1) {
                 while (!(SPSR & (1 << SPIF))) {}
                 SPDR = b;
                 if (i == n) break;
@@ -600,8 +606,7 @@ public:
     }
 
     static inline __attribute__((always_inline))
-    void spiSendBlock(uint8_t token, const uint8_t* buf)
-    {
+    void spiSendBlock(uint8_t token, const uint8_t* buf) {
         SPDR = token;
         for (uint16_t i = 0; i < 512; i += 2)
         {
@@ -624,8 +629,7 @@ public:
     static uint8_t  i2cReadNak(void);
 
     // Watchdog support
-    inline static void startWatchdog()
-    {
+    inline static void startWatchdog() {
 #if defined (__AVR_ATmega1280__) || defined (__AVR_ATmega2560__)
         WDTCSR = (1<<WDCE) | (1<<WDE);								// wdt FIX for arduino mega boards
         WDTCSR = (1<<WDIE) | (1<<WDP3);
@@ -633,19 +637,19 @@ public:
         wdt_enable(WDTO_4S);
 #endif
     };
-    inline static void stopWatchdog()
-    {
+
+    inline static void stopWatchdog() {
         wdt_disable();
     }
-    inline static void pingWatchdog()
-    {
+
+    inline static void pingWatchdog() {
 #if WATCHDOG_SUPPORT
       wdPinged = true;
 #endif
     };
+
 #if WATCHDOG_SUPPORT
-    static void resetWatchdog()
-    {
+    static void resetWatchdog() {
         if (wdPinged) {
             wdt_reset();
             wdPinged = false;

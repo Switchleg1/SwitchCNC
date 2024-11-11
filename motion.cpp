@@ -989,7 +989,7 @@ void MachineLine::queueArc(float *position, float *target, float *offset, float 
   Normal linear algorithm
 */
 uint32_t MachineLine::bresenhamStep() {
-	if(cur == NULL) {
+	if(!cur) {
         setCurrentLine();
         if(cur->isBlocked()) { // This step is in computation - shouldn't happen
 			cur = NULL;
@@ -1015,23 +1015,25 @@ uint32_t MachineLine::bresenhamStep() {
             return(wait); // waste some time for path optimization to fill up
         } // End if WARMUP
 
+        HAL::forbidInterrupts();
+
         //Only enable axis that are moving. If the axis doesn't need to move then it can stay disabled depending on configuration.
         //Determine direction of movement,check if endstop was hit
         if (cur->isXMove()) {
-            Machine::enableXStepper();
-            Machine::setXDirection(cur->isXPositiveMove());
+            Machine::enableXStepper(false);
+            Machine::setXDirection(cur->isXPositiveMove(), false);
         }
         if (cur->isYMove()) {
-            Machine::enableYStepper();
-            Machine::setYDirection(cur->isYPositiveMove());
+            Machine::enableYStepper(false);
+            Machine::setYDirection(cur->isYPositiveMove(), false);
         }
         if (cur->isZMove()) {
-            Machine::enableZStepper();
-            Machine::setZDirection(cur->isZPositiveMove());
+            Machine::enableZStepper(false);
+            Machine::setZDirection(cur->isZPositiveMove(), false);
         }
         if (cur->isAMove()) {
-            Machine::enableAStepper();
-            Machine::setADirection(cur->isAPositiveMove());
+            Machine::enableAStepper(false);
+            Machine::setADirection(cur->isAPositiveMove(), false);
         }
 
 		cur->fixStartAndEndSpeed();
@@ -1076,26 +1078,28 @@ uint32_t MachineLine::bresenhamStep() {
         Machine::stepsSinceLastCalc = 1;
 
         return Machine::interval; // Wait an other 50% from last step to make the 100% full
-	} // End cur=0
+    } // End !cur
 
     /////////////// Step //////////////////////////
 
 #if PAUSE_SUPPORT
 	if(!Pause::isActive() || Pause::steps() < PAUSE_STEPS) {
 #endif
+#if STEPPER_HIGH_DELAY > 0
+        uint8_t doHighDelay = false;
+#endif
 #if QUICK_STEP
-        for (fast8_t loop = 0; loop < Machine::stepsSinceLastCalc; loop++) {
+        while(Machine::stepsTillNextCalc) {
 #else
-        HAL::forbidInterrupts();
         if (Machine::stepsTillNextCalc) {
 #endif
 #if STEPPER_HIGH_DELAY > 0
-            if (loop)
-                HAL::delayMicroseconds(STEPPER_HIGH_DELAY);
+            if (doHighDelay) HAL::delayMicroseconds(STEPPER_HIGH_DELAY);
+            else doHighDelay = true;
 #endif
             if (cur->isXMove())
                 if ((cur->error[X_AXIS] -= cur->delta[X_AXIS]) < 0) {
-                    Machine::startXStep();
+                    Machine::startXStep(false);
                     cur->error[X_AXIS] += MachineLine::cur_errupd;
 #ifdef DEBUG_STEPCOUNT
                     cur->totalStepsRemaining--;
@@ -1103,7 +1107,7 @@ uint32_t MachineLine::bresenhamStep() {
                 }
             if (cur->isYMove())
                 if ((cur->error[Y_AXIS] -= cur->delta[Y_AXIS]) < 0) {
-                    Machine::startYStep();
+                    Machine::startYStep(false);
                     cur->error[Y_AXIS] += MachineLine::cur_errupd;
 #ifdef DEBUG_STEPCOUNT
                     cur->totalStepsRemaining--;
@@ -1111,7 +1115,7 @@ uint32_t MachineLine::bresenhamStep() {
                 }
             if (cur->isZMove())
                 if ((cur->error[Z_AXIS] -= cur->delta[Z_AXIS]) < 0) {
-                    Machine::startZStep();
+                    Machine::startZStep(false);
                     cur->error[Z_AXIS] += MachineLine::cur_errupd;
 #ifdef DEBUG_STEPCOUNT
                     cur->totalStepsRemaining--;
@@ -1119,7 +1123,7 @@ uint32_t MachineLine::bresenhamStep() {
                 }
             if (cur->isAMove())
                 if ((cur->error[A_AXIS] -= cur->delta[A_AXIS]) < 0) {
-                    Machine::startAStep();
+                    Machine::startAStep(false);
                     cur->error[A_AXIS] += MachineLine::cur_errupd;
 #ifdef DEBUG_STEPCOUNT
                     cur->totalStepsRemaining--;
@@ -1129,9 +1133,10 @@ uint32_t MachineLine::bresenhamStep() {
 #if STEPPER_HIGH_DELAY > 0
             HAL::delayMicroseconds(STEPPER_HIGH_DELAY);
 #endif
+            Machine::endXYZASteps(false);
+
             cur->stepsRemaining--;
             Machine::stepsTillNextCalc--;
-            Machine::endXYZASteps();
         }
 #if PAUSE_SUPPORT
     }
@@ -1142,8 +1147,6 @@ uint32_t MachineLine::bresenhamStep() {
 #endif
 #endif
 
-    HAL::allowInterrupts(); // Allow interrupts for other types, timer1 is still disabled
-
 #if QUICK_STEP == 0
     if (Machine::stepsTillNextCalc) {
         return Machine::interval;
@@ -1152,8 +1155,10 @@ uint32_t MachineLine::bresenhamStep() {
 
     /////////// main calculation interval //////////////
 
-    //check endstops
     cur->checkEndstops();
+
+    // Allow interrupts for other types, timer1 is still disabled
+    HAL::allowInterrupts();
 
 #if PAUSE_SUPPORT
     uint8_t ret = Pause::calculateSteps(Machine::stepsSinceLastCalc);

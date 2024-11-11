@@ -107,7 +107,6 @@ void Commands::emergencyStop() {
 #if defined(KILL_METHOD) && KILL_METHOD == 1
     HAL::resetHardware();
 #else
-    //HAL::forbidInterrupts(); // Don't allow interrupts to do their work
     Machine::kill(false);
     Machine::pwm.clear();
     HAL::delayMilliseconds(200);
@@ -798,17 +797,18 @@ void Commands::processMCode(GCode *com) {
             if (pin_number > -1) {
                 if (com->hasS()) {
                     if (com->S >= 0 && com->S <= 255) {
-                        pinMode(pin_number, OUTPUT);
-                        digitalWrite(pin_number, com->S);
-                        analogWrite(pin_number, com->S);
+                        HAL::pinMode(pin_number, OUTPUT);
+                        HAL::digitalWrite(pin_number, com->S);
+                        HAL::analogWrite(pin_number, com->S);
                         Com::printF(Com::tSetOutputSpace, pin_number);
                         Com::printFLN(Com::tSpaceToSpace, (int)com->S);
                     }
-                    else
+                    else {
                         Com::printErrorFLN(PSTR("Illegal S value for M42"));
+                    }
                 }
                 else {
-                    pinMode(pin_number, INPUT_PULLUP);
+                    HAL::pinMode(pin_number, INPUT_PULLUP);
                     Com::printF(Com::tSpaceToSpace, pin_number);
                     Com::printFLN(Com::tSpaceIsSpace, digitalRead(pin_number));
                 }
@@ -821,16 +821,15 @@ void Commands::processMCode(GCode *com) {
 #if PS_ON_PIN > -1
     case 80: // M80 - ATX Power On
         waitUntilEndOfAllMoves();
-        Machine::previousMillisCmd = HAL::timeInMilliseconds();
-        SET_OUTPUT(PS_ON_PIN); //GND
+        HAL::pinMode(PS_ON_PIN, OUTPUT);
         Machine::setPowerOn(true);
-        WRITE(PS_ON_PIN, (POWER_INVERTING ? HIGH : LOW));
+        HAL::digitalWrite(PS_ON_PIN, (POWER_INVERTING ? HIGH : LOW));
         break;
     case 81: // M81 - ATX Power Off
         waitUntilEndOfAllMoves();
-        SET_OUTPUT(PS_ON_PIN); //GND
+        HAL::pinMode(PS_ON_PIN, OUTPUT);
         Machine::setPowerOn(false);
-        WRITE(PS_ON_PIN, (POWER_INVERTING ? LOW : HIGH));
+        HAL::digitalWrite(PS_ON_PIN, (POWER_INVERTING ? LOW : HIGH));
         break;
 #endif
     case 84: // M84
@@ -1006,7 +1005,7 @@ void Commands::processMCode(GCode *com) {
         do {
             Machine::checkForPeriodicalActions(true);
             GCode::keepAlive(Waiting);
-        } while(HAL::digitalRead(com->P) != flag0);
+        } while (HAL::digitalRead(com->P) != flag0);
 
 		break;
 #if Z_HOME_DIR > 0 && MAX_HARDWARE_ENDSTOP_Z

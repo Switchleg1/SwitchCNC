@@ -10,8 +10,8 @@ void Vacuum::initialize() {
 	currentState = 0;
 
 #if VACUUM_PIN >- 1
-	SET_OUTPUT(VACUUM_PIN);
-	WRITE(VACUUM_PIN, LOW);
+	HAL::pinMode(VACUUM_PIN, OUTPUT);
+	HAL::digitalWrite(VACUUM_PIN, LOW);
 #endif
 }
 
@@ -39,7 +39,7 @@ void Vacuum::setState(uint8_t state) {
 	}
 
 #if VACUUM_PIN >- 1
-	WRITE(VACUUM_PIN, state ? HIGH : LOW);
+	HAL::digitalWrite(VACUUM_PIN, state ? HIGH : LOW);
 #endif
 
 	currentState = state;

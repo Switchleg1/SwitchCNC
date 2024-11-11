@@ -83,8 +83,8 @@ usage or for searching for memory induced errors. Switch it off for production, 
 #define ANALYZER_CH7				57 // ysig
 
 #ifdef ANALYZER
-#define ANALYZER_ON(a)              {WRITE(a,HIGH);}
-#define ANALYZER_OFF(a)             {WRITE(a,LOW);}
+#define ANALYZER_ON(a)              {HAL::digitalWrite(a,HIGH);}
+#define ANALYZER_OFF(a)             {HAL::digitalWrite(a,LOW);}
 #else
 #define ANALYZER_ON(a)
 #define ANALYZER_OFF(a)
@@ -239,7 +239,7 @@ usage or for searching for memory induced errors. Switch it off for production, 
 #include "WProgram.h"
 #define COMPAT_PRE1
 #endif
-#include "fastio.h"
+#include "src/DigitalPins/FastPort.h"
 #include "TypeDefs.h"
 #include "InterruptProtectedBlock.h"
 #include "HAL.h"

@@ -23,11 +23,11 @@ void Spindle::initialize() {
 
     if (EVENT_INITIALIZE_SPINDLE) {
 #if SPINDLE_ON_PIN > -1
-        SET_OUTPUT(SPINDLE_ON_PIN);
-        WRITE(SPINDLE_ON_PIN, !SPINDLE_ON_HIGH);
+        HAL::pinMode(SPINDLE_ON_PIN, OUTPUT);
+        HAL::digitalWrite(SPINDLE_ON_PIN, !SPINDLE_ON_HIGH);
 #endif
 #if SPINDLE_DIRECTION_PIN > -1
-        SET_OUTPUT(SPINDLE_DIRECTION_PIN);
+        HAL::pinMode(SPINDLE_DIRECTION_PIN, OUTPUT);
 #endif
     }
 }
@@ -44,7 +44,7 @@ void Spindle::turnOff(uint8_t quiet) {
         Commands::waitUntilEndOfAllMoves();
 
 #if SPINDLE_ON_PIN > -1
-        WRITE(SPINDLE_ON_PIN, !SPINDLE_ON_HIGH);
+        HAL::digitalWrite(SPINDLE_ON_PIN, !SPINDLE_ON_HIGH);
 #endif
 
         targetSpindleRpm = 0;
@@ -92,10 +92,10 @@ void Spindle::turnOn(int8_t direction, uint16_t rpm, uint8_t quiet) {
         }
 
 #if SPINDLE_DIRECTION_PIN > -1
-        WRITE(SPINDLE_DIRECTION_PIN, direction > 0 ? SPINDLE_DIRECTION_CW : SPINDLE_DIRECTION_CCW);
+        HAL::digitalWrite(SPINDLE_DIRECTION_PIN, direction > 0 ? SPINDLE_DIRECTION_CW : SPINDLE_DIRECTION_CCW);
 #endif
 #if SPINDLE_ON_PIN > -1
-        WRITE(SPINDLE_ON_PIN, SPINDLE_ON_HIGH);
+        HAL::digitalWrite(SPINDLE_ON_PIN, SPINDLE_ON_HIGH);
 #endif
 
         targetSpindleRpm = rpm;

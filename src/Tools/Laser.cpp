@@ -23,7 +23,8 @@ void Laser::initialize() {
         TCCR5B = (TCCR5B & 0xF0) | (1 << WGM52) | (1 << CS51);
         OCR5A = 0xFF;
         OCR5B = 0;  // Set PWM value to zero value
-        SET_OUTPUT(45);
+
+        HAL::pinMode(45, OUTPUT);
     }
 }
 

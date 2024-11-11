@@ -19,8 +19,7 @@ one class fits all needs. So to keep it simple, the firmware defines this genera
 interface which a motor must implement. That way we can handle any type without changing
 the main code.
 */
-class MotorDriverInterface
-{
+class MotorDriverInterface {
 public:
     virtual void initialize() = 0;
     virtual float getPosition() = 0;
@@ -35,34 +34,34 @@ public:
 Simple class to drive a stepper motor with fixed speed.
 */
 template<int stepPin, int dirPin, int enablePin,bool invertDir, bool invertEnable>
-class StepperDriver : public MotorDriverInterface
-{
+class StepperDriver : public MotorDriverInterface {
    int32_t position;
    int32_t delayUS;
    float stepsPerMM;
+
 public:
-    StepperDriver(float _stepsPerMM,float speed)
-    {
+    StepperDriver(float _stepsPerMM,float speed) {
         stepsPerMM = _stepsPerMM;
 		position = 0;
         delayUS = 500000 / (speed * stepsPerMM);
     }
+
     void initialize() {
         HAL::pinMode(enablePin, OUTPUT);
         HAL::pinMode(stepPin, OUTPUT);
         HAL::pinMode(dirPin, OUTPUT);
         HAL::digitalWrite(enablePin, !invertEnable);
     }
-    float getPosition()
-    {
+
+    float getPosition() {
         return position / stepsPerMM;
     }
-    void setCurrentAs(float newPos)
-    {
+
+    void setCurrentAs(float newPos) {
         position = floor(newPos * stepsPerMM + 0.5f);
     }
-    void gotoPosition(float newPos)
-    {
+
+    void gotoPosition(float newPos) {
         enable();
         int32_t target = floor(newPos * stepsPerMM + 0.5f) - position;
         position += target;
@@ -70,7 +69,7 @@ public:
             HAL::digitalWrite(dirPin, !invertDir);
         } else {
             target = -target;
-            HAL::digitalWrite(dirPin, invertDir);
+			HAL::digitalWrite(dirPin, invertDir);
         }
         while(target) {
             HAL::digitalWrite(stepPin, HIGH);
@@ -85,15 +84,17 @@ public:
 			}
         }
     }
-    void enable()
-    {
+
+    void enable() {
         HAL::digitalWrite(enablePin, invertEnable);
     }
-    void disable()
-    {
+
+    void disable() {
         HAL::digitalWrite(enablePin, !invertEnable);
     }
-	void home(bool goToCurrent, bool onlyIfNotHomed) {}
+
+	void home(bool goToCurrent, bool onlyIfNotHomed) {
+	}
 };
 
 /**
@@ -101,22 +102,22 @@ Simple class to drive a stepper motor with fixed speed with additional endstop.
 Min position is 0 and max. position maxDistance.
 */
 template<int stepPin, int dirPin, int enablePin,bool invertDir, bool invertEnable, int endstopPin, bool invertEndstop, bool minEndstop, bool endstopPullup>
-class StepperDriverWithEndstop : public MotorDriverInterface
-{
+class StepperDriverWithEndstop : public MotorDriverInterface {
 	int32_t position;
 	int32_t delayUS;
 	float stepsPerMM;
 	float maxDistance;
 	bool isHomed;
-	public:
-	StepperDriverWithEndstop(float _stepsPerMM,float speed,float maxDist)
-	{
+
+public:
+	StepperDriverWithEndstop(float _stepsPerMM,float speed,float maxDist) {
 		stepsPerMM = _stepsPerMM;
 		maxDistance = maxDist;
 		isHomed = false;
 		position = 0;
 		delayUS = 500000 / (speed * stepsPerMM);
 	}
+
 	void initialize() {
 		HAL::pinMode(enablePin, OUTPUT);
 		HAL::pinMode(stepPin, OUTPUT);
@@ -124,19 +125,20 @@ class StepperDriverWithEndstop : public MotorDriverInterface
 		HAL::pinMode(endstopPin, endstopPullup ? INPUT_PULLUP : INPUT);
 		HAL::digitalWrite(enablePin, !invertEnable);
 	}
+
 	bool endstopHit() {
 		return invertEndstop ? !HAL::digitalRead(endstopPin) : HAL::digitalRead(endstopPin);
 	}
-	float getPosition()
-	{
+
+	float getPosition() {
 		return position / stepsPerMM;
 	}
-	void setCurrentAs(float newPos)
-	{
+
+	void setCurrentAs(float newPos) {
 		position = floor(newPos * stepsPerMM + 0.5f);
 	}
-	void gotoPosition(float newPos)
-	{
+
+	void gotoPosition(float newPos) {
 		bool up = true;
 		if(newPos < 0)
 			newPos = 0;
@@ -175,6 +177,7 @@ class StepperDriverWithEndstop : public MotorDriverInterface
 			}
 		}
 	}
+
 	void home(bool goToCurrent, bool onlyIfNotHomed) {
 		if(onlyIfNotHomed && isHomed)
 			return;
@@ -186,15 +189,14 @@ class StepperDriverWithEndstop : public MotorDriverInterface
 			position = 0;
 			gotoPosition(maxDistance);
 		}
-		if(goToCurrent)
-			gotoPosition(origPosition);
+		if(goToCurrent) gotoPosition(origPosition);
 	}
-	void enable()
-	{
+
+	void enable() {
 		HAL::digitalWrite(enablePin, invertEnable);
 	}
-	void disable()
-	{
+
+	void disable() {
 		HAL::digitalWrite(enablePin, !invertEnable);
 	}
 };

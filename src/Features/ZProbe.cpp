@@ -8,10 +8,7 @@ void ZProbe::initialize() {
 	active = 0;
 
 #if Z_PROBE_PIN > -1
-	SET_INPUT(Z_PROBE_PIN);
-#if Z_PROBE_PULLUP && Z_PROBE_PIN > -1
-	PULLUP(Z_PROBE_PIN, HIGH);
-#endif
+	HAL::pinMode(Z_PROBE_PIN, Z_PROBE_PULLUP ? INPUT_PULLUP : INPUT);
 #endif
 }
 
