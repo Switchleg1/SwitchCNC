@@ -112,6 +112,10 @@ public:
     {
         return ((params & 1024)!=0);
     }
+    inline void setS()
+    {
+        params |= 1024;
+    }
     inline bool hasP()
     {
         return ((params & 2048)!=0);

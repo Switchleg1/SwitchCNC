@@ -21,9 +21,7 @@ void EEPROM::update(GCode *com) {
                 HAL::eprSetFloat(com->P, com->X);
             break;
         }
-    uint8_t newcheck = computeChecksum();
-    if(newcheck != HAL::eprGetByte(EPR_INTEGRITY_BYTE))
-        HAL::eprSetByte(EPR_INTEGRITY_BYTE, newcheck);
+	updateChecksum(EEPROM_MAIN_OFFSET, EEPROM_MAIN_LENGTH);
 	readDataFromEEPROM();
 #else
     Com::printErrorF(Com::tNoEEPROMSupport);
@@ -33,10 +31,6 @@ void EEPROM::update(GCode *com) {
 void EEPROM::restoreEEPROMSettingsFromConfiguration() {
 	// can only be done right if we also update permanent values not cached!
 #if EEPROM_MODE != 0
-	initalizeUncached();
-    uint8_t newcheck = computeChecksum();
-    if(newcheck != HAL::eprGetByte(EPR_INTEGRITY_BYTE))
-		HAL::eprSetByte(EPR_INTEGRITY_BYTE, newcheck);	
 	Machine::baudrate = BAUDRATE;
 	Machine::maxInactiveTime = MAX_INACTIVE_TIME * 1000L;
 	Machine::stepperInactiveTime = STEPPER_INACTIVE_TIME * 1000L;
@@ -87,7 +81,7 @@ void EEPROM::restoreEEPROMSettingsFromConfiguration() {
 #if ALLOW_PARTIAL_GCODE_AS_MOVE
 	Commands::allowPartialGCode = ALLOW_PARTIAL_GCODE_DEFAULT;
 #endif
-    initalizeUncached();
+	storeDataIntoEEPROM(true); // Store new fields for changed version
 	Machine::updateDerivedParameter();
 	Com::printInfoFLN(Com::tEPRConfigResetDefaults);
 #else
@@ -150,8 +144,8 @@ void EEPROM::storeDataIntoEEPROM(uint8_t corrupted) {
 		initalizeUncached();
     }
     // Save version and build checksum
-    HAL::eprSetByte(EPR_VERSION,EEPROM_PROTOCOL_VERSION);
-    HAL::eprSetByte(EPR_INTEGRITY_BYTE, computeChecksum());
+    HAL::eprSetByte(EPR_VERSION, EEPROM_VERSION);
+	updateChecksum(EEPROM_MAIN_OFFSET, EEPROM_MAIN_LENGTH);
 #endif
 }
 
@@ -167,6 +161,12 @@ void EEPROM::readDataFromEEPROM() {
 #if EEPROM_MODE != 0
     uint8_t version = HAL::eprGetByte(EPR_VERSION); // This is the saved version. Don't copy data nor set it to older versions!
     Com::printFLN(PSTR("Detected EEPROM version:"),(int)version);
+
+	if (version != EEPROM_VERSION) {
+		restoreEEPROMSettingsFromConfiguration();
+		Com::printFLN(PSTR("Restored values from configuration"));
+	}
+
 	Machine::baudrate = HAL::eprGetInt32(EPR_BAUDRATE);
 	Machine::maxInactiveTime = HAL::eprGetInt32(EPR_MAX_INACTIVE_TIME);
 	Machine::stepperInactiveTime = HAL::eprGetInt32(EPR_STEPPER_INACTIVE_TIME);
@@ -217,17 +217,7 @@ void EEPROM::readDataFromEEPROM() {
 #if ALLOW_PARTIAL_GCODE_AS_MOVE
 	Commands::allowPartialGCode = HAL::eprGetByte(EPR_ALLOW_PARTIAL_GCODE_AS_MOVE);
 #endif
-	if(version != EEPROM_PROTOCOL_VERSION) {
-        Com::printInfoFLN(Com::tEPRProtocolChanged);
-		if(version < 1) {
-			HAL::eprSetFloat(EPR_Z_PROBE_HEIGHT, Z_PROBE_HEIGHT);
-			HAL::eprSetFloat(EPR_Z_PROBE_SPEED, Z_PROBE_SPEED);
-			HAL::eprSetFloat(EPR_Z_PROBE_XY_SPEED, Z_PROBE_XY_SPEED);
-			HAL::eprSetByte(EPR_DISTORTION_CORRECTION_ENABLED, 0);
-		}
 
-        storeDataIntoEEPROM(false); // Store new fields for changed version
-	}
 	Machine::updateDerivedParameter();
 #endif
 }
@@ -242,13 +232,10 @@ void EEPROM::initBaudrate() {
 #endif
 }
 
-#ifndef USE_CONFIGURATION_BAUD_RATE
-#define USE_CONFIGURATION_BAUD_RATE 0
-#endif // USE_CONFIGURATION_BAUD_RATE
 void EEPROM::init() {
 #if EEPROM_MODE != 0
-    uint8_t check = computeChecksum();
-    uint8_t storedcheck = HAL::eprGetByte(EPR_INTEGRITY_BYTE);
+    uint8_t check = computeChecksum(EEPROM_MAIN_OFFSET, EEPROM_MAIN_LENGTH);
+    uint8_t storedcheck = HAL::eprGetByte(EEPROM_MAIN_OFFSET);
     if(HAL::eprGetByte(EPR_MAGIC_BYTE) == EEPROM_MODE && storedcheck == check) {
         readDataFromEEPROM();
         if (USE_CONFIGURATION_BAUD_RATE) {
@@ -256,9 +243,7 @@ void EEPROM::init() {
             if(HAL::eprGetInt32(EPR_BAUDRATE) != BAUDRATE) {
                 HAL::eprSetInt32(EPR_BAUDRATE,BAUDRATE);
 				Machine::baudrate = BAUDRATE;
-                uint8_t newcheck = computeChecksum();
-                if(newcheck != HAL::eprGetByte(EPR_INTEGRITY_BYTE))
-                    HAL::eprSetByte(EPR_INTEGRITY_BYTE,newcheck);
+				updateChecksum(EEPROM_MAIN_OFFSET, EEPROM_MAIN_LENGTH);
             }
             Com::printFLN(PSTR("EEPROM baud rate restored from configuration."));
             Com::printFLN(PSTR("RECOMPILE WITH USE_CONFIGURATION_BAUD_RATE == 0 to alter baud rate via EEPROM"));
@@ -266,8 +251,7 @@ void EEPROM::init() {
     }
     else {
         HAL::eprSetByte(EPR_MAGIC_BYTE, EEPROM_MODE); // Make data change permanent
-        initalizeUncached();
-        storeDataIntoEEPROM(storedcheck != check);
+        storeDataIntoEEPROM(true);
     }
 #endif
 }
@@ -345,7 +329,8 @@ void EEPROM::writeSettings() {
 void EEPROM::setVersion(uint8_t version) {
 	if (version != getVersion()) {
 		HAL::eprSetByte(EPR_VERSION, version);
-		updateChecksum();
+
+		updateChecksum(EEPROM_MAIN_OFFSET, EEPROM_MAIN_LENGTH);
 	}
 }
 
@@ -358,7 +343,8 @@ void EEPROM::setZProbeHeight(float mm) {
 #if EEPROM_MODE != 0
 	HAL::eprSetFloat(EPR_Z_PROBE_HEIGHT, mm);
 	Com::printFLN(PSTR("Z-Probe height set to: "), mm, 3);
-	updateChecksum();
+
+	updateChecksum(EEPROM_MAIN_OFFSET, EEPROM_MAIN_LENGTH);
 #endif
 }
 
@@ -391,7 +377,7 @@ float EEPROM::zProbeHeight() {
 void EEPROM::setZCorrectionPoints(uint8_t count) {
 	HAL::eprSetInt16(EPR_DISTORTION_POINTS, count);
 
-	updateChecksum();
+	updateChecksum(EEPROM_MAIN_OFFSET, EEPROM_MAIN_LENGTH);
 }
 
 void EEPROM::setZCorrectionMinMax(int16_t xMin, int16_t yMin, int16_t xMax, int16_t yMax) {
@@ -400,7 +386,7 @@ void EEPROM::setZCorrectionMinMax(int16_t xMin, int16_t yMin, int16_t xMax, int1
 	HAL::eprSetInt16(EPR_DISTORTION_XMAX, xMax);
 	HAL::eprSetInt16(EPR_DISTORTION_YMAX, yMax);
 
-	updateChecksum();
+	updateChecksum(EEPROM_MAIN_OFFSET, EEPROM_MAIN_LENGTH);
 }
 
 void EEPROM::setZCorrection(int32_t* data, uint16_t count) {
@@ -418,7 +404,8 @@ void EEPROM::getZCorrection(int32_t* data, uint16_t count) {
 void EEPROM::setZCorrectionEnabled(int8_t on) {
 	if (isZCorrectionEnabled() == on) return;
 	HAL::eprSetByte(EPR_DISTORTION_CORRECTION_ENABLED, on);
-	updateChecksum();
+
+	updateChecksum(EEPROM_MAIN_OFFSET, EEPROM_MAIN_LENGTH);
 }
 
 int8_t EEPROM::isZCorrectionEnabled() {
@@ -427,36 +414,115 @@ int8_t EEPROM::isZCorrectionEnabled() {
 #endif
 
 #if ALLOW_PARTIAL_GCODE_AS_MOVE && EEPROM_MODE
+
 void EEPROM::setAllowPartialGCode(uint8_t allow) {
 	if (getAllowPartialGCode() != allow) {
 		HAL::eprSetByte(EPR_ALLOW_PARTIAL_GCODE_AS_MOVE, allow);
-		updateChecksum();
+
+		updateChecksum(EEPROM_MAIN_OFFSET, EEPROM_MAIN_LENGTH);
 	}
 }
+
 uint8_t EEPROM::getAllowPartialGCode() {
 	return HAL::eprGetByte(EPR_ALLOW_PARTIAL_GCODE_AS_MOVE);
 }
+
+#endif
+
+#if AUTO_SAVE_RESTORE_STATE
+
+void EEPROM::setCurrentValidState(uint8_t isValid) {
+	if (getCurrentValidState() != isValid) {
+		HAL::eprSetByte(EPR_STATE_VALID, isValid);
+
+		updateChecksum(EEPROM_STATE_OFFSET, EEPROM_STATE_LENGTH);
+	}
+}
+
+void EEPROM::setCurrentSteps(int32_t* steps) {
+	int32_t currentSteps[A_AXIS_ARRAY];
+	getCurrentSteps(currentSteps);
+
+	uint8_t doChecksum = false;
+	for (uint8_t i = 0; i < A_AXIS_ARRAY; i++) {
+		if (steps[i] != currentSteps[i]) {
+			HAL::eprSetInt32(EPR_STATE_X_STEPS + (i * 4), steps[i]);
+			doChecksum = true;
+		}
+	}
+
+	if (doChecksum) {
+		updateChecksum(EEPROM_STATE_OFFSET, EEPROM_STATE_LENGTH);
+	}
+}
+
+void EEPROM::setCurrentOffset(float* offset) {
+	float currentOffset[Z_AXIS_ARRAY];
+	getCurrentOffset(currentOffset);
+
+	uint8_t doChecksum = false;
+	for (uint8_t i = 0; i < Z_AXIS_ARRAY; i++) {
+		if (offset[i] != currentOffset[i]) {
+			HAL::eprSetFloat(EPR_STATE_X_OFFSET + (i * 4), offset[i]);
+			doChecksum = true;
+		}
+	}
+
+	if (doChecksum) {
+		updateChecksum(EEPROM_STATE_OFFSET, EEPROM_STATE_LENGTH);
+	}
+}
+
+void EEPROM::setCurrentFlags(uint16_t flags) {
+	if (flags != getCurrentFlags()) {
+		HAL::eprSetInt16(EPR_STATE_FLAGS, flags);
+
+		updateChecksum(EEPROM_STATE_OFFSET, EEPROM_STATE_LENGTH);
+	}
+}
+
+uint8_t EEPROM::isCurrentStateChecksumValid() {
+	return computeChecksum(EEPROM_STATE_OFFSET, EEPROM_STATE_LENGTH) == HAL::eprGetByte(EEPROM_STATE_OFFSET);
+}
+
+uint8_t EEPROM::getCurrentValidState() {
+	return HAL::eprGetByte(EPR_STATE_VALID);
+}
+
+void EEPROM::getCurrentSteps(int32_t* steps) {
+	for (uint8_t i = 0; i < A_AXIS_ARRAY; i++) {
+		steps[i] = HAL::eprGetInt32(EPR_STATE_X_STEPS + (i * 4));
+	}
+}
+
+void EEPROM::getCurrentOffset(float* offset) {
+	for (uint8_t i = 0; i < Z_AXIS_ARRAY; i++) {
+		offset[i] = HAL::eprGetFloat(EPR_STATE_X_OFFSET + (i * 4));
+	}
+}
+
+uint16_t EEPROM::getCurrentFlags() {
+	return HAL::eprGetInt16(EPR_STATE_FLAGS);
+}
+
 #endif
 
 #if EEPROM_MODE != 0
 
-uint8_t EEPROM::computeChecksum() {
-    unsigned int i;
+uint8_t EEPROM::computeChecksum(uint16_t offset, uint16_t length) {
     uint8_t checksum = 0;
-    for(i = 0; i < 2048; i++)
-    {
-        if(i == EEPROM_OFFSET + EPR_INTEGRITY_BYTE) continue;
+    for(uint16_t i = offset + 1; i < offset + length; i++) {
         checksum += HAL::eprGetByte(i);
     }
     return checksum;
 }
 
-void EEPROM::updateChecksum() {
-    uint8_t newcheck = computeChecksum();
-    if(newcheck != HAL::eprGetByte(EPR_INTEGRITY_BYTE))
-        HAL::eprSetByte(EPR_INTEGRITY_BYTE,newcheck);
+void EEPROM::updateChecksum(uint16_t offset, uint16_t length) {
+	uint8_t newcheck = computeChecksum(offset, length);
+	if (newcheck != HAL::eprGetByte(offset)) {
+		HAL::eprSetByte(offset, newcheck);
+	}
 }
-
 
 void EEPROM::writeFloat(uint pos,PGM_P text,uint8_t digits) {
     Com::printF(Com::tEPR3, static_cast<int>(pos));

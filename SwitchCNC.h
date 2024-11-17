@@ -94,11 +94,11 @@ usage or for searching for memory induced errors. Switch it off for production, 
 #define Y_AXIS						1
 #define Z_AXIS						2
 #define A_AXIS						3
+
 // How big an array to hold X_AXIS..<MAX_AXIS>
 #define XY_AXIS_ARRAY				2
 #define Z_AXIS_ARRAY				3
 #define A_AXIS_ARRAY				4
-
 
 #define HOME_ORDER_XYZ				1
 #define HOME_ORDER_XZY				2

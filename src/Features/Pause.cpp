@@ -8,6 +8,9 @@ uint16_t Pause::pauseSteps;
 uint8_t Pause::pauseSteps;
 #endif
 uint8_t Pause::active;
+#if PAUSE_SUPPORT_CANCEL
+uint8_t Pause::cancel;
+#endif
 
 void Pause::initialize() {
     active = 0;
@@ -25,6 +28,13 @@ void Pause::initialize() {
 void Pause::checkPeriodic() {
 #if PAUSE_PIN > -1
     bool pausePin = (HAL::digitalRead(PAUSE_PIN) != !PAUSE_INVERTING);
+#else
+    bool pausePin = false;
+#endif
+#if PAUSE_SUPPORT_CANCEL && PAUSE_CANCEL_PIN > -1
+    cancel = (HAL::digitalRead(PAUSE_CANCEL_PIN) != !PAUSE_INVERTING);
+#endif
+    if (cancel) pausePin = true;
     if (active != pausePin) {
         if (!MachineLine::hasLines()) {
             if (pausePin) pauseSteps = PAUSE_STEPS;
@@ -36,10 +46,6 @@ void Pause::checkPeriodic() {
 
         active = pausePin;
     }
-#else
-    active = 0;
-    pauseSteps = 0;
-#endif
 }
 
 uint8_t Pause::calculateSteps(uint8_t steps) {

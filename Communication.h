@@ -22,6 +22,7 @@ public:
     FSTRINGVAR(tCapCoolantMist)
     FSTRINGVAR(tCapCoolantFlood)
     FSTRINGVAR(tCapDistortionCorrection)
+    FSTRINGVAR(tCapBacklashCompensation)
     FSTRINGVAR(tCapFanControl)
     FSTRINGVAR(tCapFan)
     FSTRINGVAR(tCapFan2)

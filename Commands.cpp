@@ -157,7 +157,7 @@ void Commands::executeGCode(GCode* com) {
     if (allowPartialGCode && lastMoveType > -1 && (!com->hasNoXYZA() || com->hasF() || com->hasS() || com->hasH())) {
         com->setG();
         com->G = lastMoveType;
-        processMove(com, lastMoveType < 2 ? 1 : 0);
+        processMove(com);
     } else 
 #endif
     {
@@ -170,7 +170,13 @@ void Commands::executeGCode(GCode* com) {
     GCodeSource::activeSource = actSource;
 }
 
-void Commands::processMove(GCode* com, uint8_t linear) {
+void Commands::processMove(GCode* com) {
+#if PAUSE_SUPPORT && PAUSE_SUPPORT_CANCEL
+    if (Pause::doCancel()) {
+        Commands::printCurrentPosition();
+        return;
+    }
+#endif
 #if LASER_SUPPORT
     if (Machine::mode == MACHINE_MODE_LASER) {
         // disable laser for G0 moves
@@ -183,22 +189,27 @@ void Commands::processMove(GCode* com, uint8_t linear) {
         }
     }
 #else
-    if (com->hasS()) Machine::setNoDestinationCheck(com->S != 0);
+    if (com->hasS()) {
+        Machine::setNoDestinationCheck(com->S != 0);
+    }
 #endif
-    if (com->hasH()) Machine::setNoDestinationCheck(com->H != 0);
+    if (com->hasH()) {
+        Machine::setNoDestinationCheck(com->H != 0);
+    }
 
-    if (linear) {
-        if (Machine::setDestinationStepsFromGCode(com)) {// For X Y Z A F
-            int32_t destinationSteps[A_AXIS_ARRAY];
-            Machine::lastCmdPosSteps(destinationSteps);
-            MachineLine::queueCartesianMove(destinationSteps, ALWAYS_CHECK_ENDSTOPS, true);
-        }
+    if (com->G < 2) {
+        processLinear(com);
     }
-#if ARC_SUPPORT
     else {
+#if ARC_SUPPORT
         processArc(com);
+#else
+        if (Machine::debugErrors()) {
+            Com::printF(Com::tUnknownCommand);
+            com->printCommand();
     }
 #endif
+    }
 
 #ifdef DEBUG_QUEUE_MOVE
     {
@@ -213,6 +224,14 @@ void Commands::processMove(GCode* com, uint8_t linear) {
             Com::printFLN(PSTR("Buffer corrupted"));
     }
 #endif
+}
+
+void Commands::processLinear(GCode* com) {
+    if (Machine::setDestinationStepsFromGCode(com)) {// For X Y Z A F
+        int32_t destinationSteps[A_AXIS_ARRAY];
+        Machine::lastCmdPosSteps(destinationSteps);
+        MachineLine::queueCartesianMove(destinationSteps, ALWAYS_CHECK_ENDSTOPS, true);
+    }
 }
 
 /**
@@ -340,6 +359,401 @@ void Commands::processArc(GCode *com) {
 }
 #endif
 
+void Commands::ProcessDwell(GCode* com) {
+    waitUntilEndOfAllMoves();
+    uint32_t timeInMS = 0;
+    if (com->hasP()) timeInMS = com->P; // milliseconds to wait
+    if (com->hasS()) timeInMS = com->S * 1000; // seconds to wait
+    timeInMS += HAL::timeInMilliseconds();  // keep track of when we started waiting
+    while ((uint32_t)(timeInMS - HAL::timeInMilliseconds()) < 2000000000) {
+        GCode::keepAlive(Processing);
+        Machine::checkForPeriodicalActions(true);
+    }
+}
+
+void Commands::ProcessHomeAxis(GCode* com) {
+    uint8_t homeAllAxis = (com->hasNoXYZ());
+    if (homeAllAxis || !com->hasNoXYZ()) {
+        Machine::homeAxis(homeAllAxis || com->hasX(), homeAllAxis || com->hasY(), homeAllAxis || com->hasZ());
+    }
+}
+
+#if Z_PROBE_SUPPORT
+
+void Commands::ProcessDisplayHallSensor(GCode* com) {
+    Endstops::update();
+    Endstops::update();
+    Com::printF(Com::tZProbeState);
+    Com::printF(Endstops::zProbe() ? Com::tHSpace : Com::tLSpace);
+    Com::println();
+}
+
+#if DISTORTION_CORRECTION_SUPPORT
+
+void Commands::ProcessDistortionCorrection(GCode* com) {
+    if (com->hasE())
+    {	// G33 E(x) enable
+        if (com->E > 0) Distortion::enable(com->hasP() && com->P == 1);
+        else Distortion::disable(com->hasP() && com->P == 1);
+    }
+    else if (com->hasL())
+    { // G33 L0 - List distortion matrix
+        Distortion::showMatrix();
+    }
+    else if (com->hasR())
+    { // G33 R0 - Reset distortion matrix
+        Distortion::resetCorrection();
+    }
+    else if (com->hasX() || com->hasY() || com->hasZ())
+    { // G33 X<xpos> Y<ypos> Z<zCorrection> - Set correction for nearest point
+        if (com->hasX() && com->hasY() && com->hasZ()) {
+            Distortion::set(com->X, com->Y, com->Z);
+        }
+        else {
+            Com::printErrorFLN(PSTR("You need to define X, Y and Z to set a point!"));
+        }
+    }
+    else if (com->hasF() && com->F > 0)
+    { //G33 F<x> - Filter amount
+        Distortion::filter(com->F);
+    }
+    else if (com->hasO() && com->O > 0 && com->O < 1)
+    { //G33 O<x> - Smooth amount
+        Distortion::smooth(com->O);
+    }
+    else if (com->hasP())
+    { //G33 P<x> - Do distortion measurements
+        Endstops::update();
+        Endstops::update(); // need to call twice for full update!
+        if (Endstops::zProbe()) {
+            Com::printErrorFLN(PSTR("probe triggered before starting G33."));
+        }
+        else {
+            if (com->hasT() && com->T > 0) {
+                Machine::updateCurrentPosition(true);
+                Distortion::resetCorrection();
+                Distortion::disable(true);
+                if (com->T > 1) {
+                    Distortion::setPoints(com->T);
+
+                    EEPROM::setZCorrectionPoints(com->T);
+                }
+
+                Distortion::XMIN = -Machine::coordinateOffset[X_AXIS];
+                Distortion::XMAX = Machine::currentPosition[X_AXIS];
+                Distortion::YMIN = -Machine::coordinateOffset[Y_AXIS];
+                Distortion::YMAX = Machine::currentPosition[Y_AXIS];
+
+                EEPROM::setZCorrectionMinMax(Distortion::XMIN, Distortion::YMIN, Distortion::XMAX, Distortion::YMAX);
+            }
+
+            float md = -10;
+            if (com->hasA() && com->A < 0) {
+                md = com->A;
+            }
+
+            int reps = Z_PROBE_REPETITIONS;
+            if (com->hasH() && com->H > 0) {
+                reps = com->H;
+            }
+
+            //remove coordinate offset while measuring distortion
+            float oldFeedrate = Machine::feedrate;
+            float oldOffsetX = Machine::coordinateOffset[X_AXIS];
+            float oldOffsetY = Machine::coordinateOffset[Y_AXIS];
+            float oldOffsetZ = Machine::coordinateOffset[Z_AXIS];
+
+            Machine::coordinateOffset[X_AXIS] = Machine::coordinateOffset[Y_AXIS] = Machine::coordinateOffset[Z_AXIS] = 0;
+
+            if (!Distortion::measure(md, reps)) {
+                Com::printErrorFLN(PSTR("G33 failed!"));
+            }
+
+            Machine::feedrate = oldFeedrate;
+            Machine::coordinateOffset[X_AXIS] = oldOffsetX;
+            Machine::coordinateOffset[Y_AXIS] = oldOffsetY;
+            Machine::coordinateOffset[Z_AXIS] = oldOffsetZ;
+        }
+    }
+    else {
+        Distortion::reportStatus();
+    }
+}
+
+#endif
+
+void Commands::ProcessToolHeight(GCode* com) {
+    if (ZProbe::start()) {
+        if (com->hasX()) {
+            float xp = ZProbe::run(X_AXIS, com->X, Z_PROBE_REPETITIONS);
+            if (xp != ILLEGAL_Z_PROBE) {
+                if (com->hasA()) {
+                    if (com->X > 0) xp -= Machine::convertToMM(com->A / 2);
+                    else xp += Machine::convertToMM(com->A / 2);
+                }
+
+                Machine::coordinateOffset[X_AXIS] = xp - Machine::currentPosition[X_AXIS];
+                Com::printF(Com::tToolOffset, xp, 3);
+                Com::printFLN(Com::tSpaceXOffset, Machine::coordinateOffset[X_AXIS], 3);
+            }
+        }
+        else if (com->hasY()) {
+            float yp = ZProbe::run(Y_AXIS, com->Y, Z_PROBE_REPETITIONS);
+            if (yp != ILLEGAL_Z_PROBE) {
+                if (com->hasA()) {
+                    if (com->Y > 0) yp -= Machine::convertToMM(com->A / 2);
+                    else yp += Machine::convertToMM(com->A / 2);
+                }
+
+                Machine::coordinateOffset[Y_AXIS] = yp - Machine::currentPosition[Y_AXIS];
+                Com::printF(Com::tToolOffset, yp, 3);
+                Com::printFLN(Com::tSpaceYOffset, Machine::coordinateOffset[Y_AXIS], 3);
+            }
+        }
+        else {
+            if (com->Z >= 0) {
+                com->Z = -10;
+            }
+
+            float zp = ZProbe::run(Z_AXIS, com->Z, Z_PROBE_REPETITIONS);
+            if (zp != ILLEGAL_Z_PROBE) {
+                if (com->hasA()) zp += Machine::convertToMM(com->A);
+                else zp += EEPROM::zProbeHeight();
+
+                Machine::coordinateOffset[Z_AXIS] = zp - Machine::currentPosition[Z_AXIS];
+                Com::printF(Com::tToolOffset, zp, 3);
+                Com::printFLN(Com::tSpaceZOffset, Machine::coordinateOffset[Z_AXIS], 3);
+#if DISTORTION_CORRECTION_SUPPORT
+                Distortion::SetStartEnd(Distortion::start, Distortion::end);
+#endif
+            }
+        }
+        ZProbe::finish();
+
+        EEPROM::setCurrentOffset(Machine::coordinateOffset);
+
+        printCurrentPosition();
+    }
+}
+#endif
+
+#if TMC_DRIVER_SUPPORT
+void Commands::processShowTMCInfo(GCode* com) {
+#if TMC_X_TYPE == TMC_2208 || TMC_X_TYPE == TMC_2209 ||TMC_X_TYPE == TMC_5160
+    Com::printF(PSTR("X Grad:"), TMC::stepperX.pwm_grad_auto(), 3);
+    Com::printFLN(PSTR(" X OFS:"), TMC::stepperX.pwm_ofs_auto(), 3);
+#endif
+#if TMC_Y_TYPE == TMC_2208 || TMC_Y_TYPE == TMC_2209 ||TMC_Y_TYPE == TMC_5160
+    Com::printF(PSTR("Y Grad:"), TMC::stepperY.pwm_grad_auto(), 3);
+    Com::printFLN(PSTR(" Y OFS:"), TMC::stepperY.pwm_ofs_auto(), 3);
+#endif
+#if TMC_Z_TYPE == TMC_2208 || TMC_Z_TYPE == TMC_2209 ||TMC_Z_TYPE == TMC_5160
+    Com::printF(PSTR("Z Grad:"), TMC::stepperZ.pwm_grad_auto(), 3);
+    Com::printFLN(PSTR(" Z OFS:"), TMC::stepperZ.pwm_ofs_auto(), 3);
+#endif
+#if TMC_A_TYPE == TMC_2208 || TMC_A_TYPE == TMC_2209 ||TMC_A_TYPE == TMC_5160
+    Com::printF(PSTR("A Grad:"), TMC::stepperA.pwm_grad_auto(), 3);
+    Com::printFLN(PSTR(" A OFS:"), TMC::stepperA.pwm_ofs_auto(), 3);
+#endif
+#if TMC_2_TYPE == TMC_2208 || TMC_2_TYPE == TMC_2209 ||TMC_2_TYPE == TMC_5160
+    Com::printF(PSTR("2 Grad:"), TMC::stepper2.pwm_grad_auto(), 3);
+    Com::printFLN(PSTR(" 2 OFS:"), TMC::stepper2.pwm_ofs_auto(), 3);
+#endif
+}
+#endif
+
+void Commands::processSetPosition(GCode* com) {
+    if (com->hasS()) {
+        if (com->hasX()) Machine::coordinateOffset[X_AXIS] = Machine::convertToMM(com->X);
+        if (com->hasY()) Machine::coordinateOffset[Y_AXIS] = Machine::convertToMM(com->Y);
+        if (com->hasZ()) Machine::coordinateOffset[Z_AXIS] = Machine::convertToMM(com->Z);
+    }
+    else {
+        if (com->hasX()) Machine::coordinateOffset[X_AXIS] = Machine::convertToMM(com->X) - Machine::currentPosition[X_AXIS];
+        if (com->hasY()) Machine::coordinateOffset[Y_AXIS] = Machine::convertToMM(com->Y) - Machine::currentPosition[Y_AXIS];
+        if (com->hasZ()) Machine::coordinateOffset[Z_AXIS] = Machine::convertToMM(com->Z) - Machine::currentPosition[Z_AXIS];
+    }
+    if (com->hasA()) {
+        Machine::lastCmdPos[A_AXIS] = Machine::currentPosition[A_AXIS] = Machine::convertToMM(com->A);
+        Machine::currentPositionSteps[A_AXIS] = static_cast<int32_t>(floor(Machine::lastCmdPos[A_AXIS] * Machine::axisStepsPerMM[A_AXIS] + 0.5f));
+    }
+   
+    if (com->hasX() || com->hasY() || com->hasZ()) {
+        Com::printF(PSTR("X_OFFSET:"), Machine::coordinateOffset[X_AXIS], 3);
+        Com::printF(PSTR(" Y_OFFSET:"), Machine::coordinateOffset[Y_AXIS], 3);
+        Com::printFLN(PSTR(" Z_OFFSET:"), Machine::coordinateOffset[Z_AXIS], 3);
+    }
+#if DISTORTION_CORRECTION_SUPPORT
+    Distortion::SetStartEnd(Distortion::start, Distortion::end);
+#endif
+
+#if AUTO_SAVE_RESTORE_STATE
+    EEPROM::setCurrentOffset(Machine::coordinateOffset);
+#endif
+}
+
+void Commands::ProcessEnableSteppers(GCode* com) {
+    uint8_t hasAxis = 0;
+
+    waitUntilEndOfAllMoves();
+    if (com->hasX()) {
+        hasAxis++;
+        Machine::enableXStepper();
+    }
+    if (com->hasY()) {
+        hasAxis++;
+        Machine::enableYStepper();
+    }
+    if (com->hasZ()) {
+        hasAxis++;
+        Machine::enableZStepper();
+    }
+    if (com->hasA()) {
+        hasAxis++;
+        Machine::enableAStepper();
+    }
+    if (!hasAxis) {
+        Machine::enableXStepper();
+        Machine::enableYStepper();
+        Machine::enableZStepper();
+        Machine::enableAStepper();
+    }
+    Machine::unsetAllSteppersDisabled();
+}
+
+void Commands::ProcessDisableSteppers(GCode* com) {
+    uint8_t hasAxis = 0;
+
+    waitUntilEndOfAllMoves();
+    if (com->hasX()) {
+        hasAxis++;
+        Machine::disableXStepper();
+    }
+    if (com->hasY()) {
+        hasAxis++;
+        Machine::disableYStepper();
+    }
+    if (com->hasZ()) {
+        hasAxis++;
+        Machine::disableZStepper();
+    }
+    if (com->hasA()) {
+        hasAxis++;
+        Machine::disableAStepper();
+    }
+    if (!hasAxis) {
+        Machine::disableXStepper();
+        Machine::disableYStepper();
+        Machine::disableZStepper();
+        Machine::disableAStepper();
+        Machine::setAllSteppersDiabled();
+    }
+    else if (hasAxis == 4) {
+        Machine::setAllSteppersDiabled();
+    }
+}
+
+void Commands::ProcessChangePinState(GCode* com) {
+    if (com->hasP()) {
+        int8_t pin_number = com->P;
+        for (uint8_t i = 0; i < (uint8_t)sizeof(sensitive_pins); i++) {
+            if (pgm_read_byte(&sensitive_pins[i]) == pin_number) {
+                pin_number = -1;
+                break;
+            }
+        }
+        if (pin_number > -1) {
+            if (com->hasS()) {
+                if (com->S >= 0 && com->S <= 255) {
+                    HAL::pinMode(pin_number, OUTPUT);
+                    HAL::digitalWrite(pin_number, com->S);
+                    HAL::analogWrite(pin_number, com->S);
+                    Com::printF(Com::tSetOutputSpace, pin_number);
+                    Com::printFLN(Com::tSpaceToSpace, (int)com->S);
+                }
+                else {
+                    Com::printErrorFLN(PSTR("Illegal S value for M42"));
+                }
+            }
+            else {
+                HAL::pinMode(pin_number, INPUT_PULLUP);
+                Com::printF(Com::tSpaceToSpace, pin_number);
+                Com::printFLN(Com::tSpaceIsSpace, digitalRead(pin_number));
+            }
+        }
+        else {
+            Com::printErrorFLN(PSTR("Pin can not be set by M42, is in sensitive pins! "));
+        }
+    }
+}
+
+void Commands::ProcessPowerCommand(uint8_t on) {
+    waitUntilEndOfAllMoves();
+    Machine::setPowerOn(on);
+    HAL::digitalWrite(PS_ON_PIN, (POWER_INVERTING ? !on : on));
+}
+
+void Commands::ProcessToolInfoRequest(GCode* com) {
+#if LASER_SUPPORT
+    if (Machine::mode == MACHINE_MODE_LASER) {
+        //print temperature
+        Com::printF(Com::tTColon, Laser::temperature());
+    }
+#endif
+#if SPINDLE_SUPPORT
+    if (Machine::mode == MACHINE_MODE_SPINDLE) {
+        //print rpm
+        Com::printF(Com::tTColon, Spindle::spindleRpm());
+    }
+#endif
+#if FEED_DIAL_SUPPORT
+    Com::printF(Com::tSpaceBColon, FeedDial::value() * 100 / FEED_DIAL_MAX_VALUE);
+#endif
+    Com::println();
+}
+
+#if FAN_CONTROL_SUPPORT
+void Commands::ProcessFanCommand(GCode* com) {
+    if (com->hasI()) {
+        if (com->I != 0) Machine::setIgnoreFanCommand(true);
+        else Machine::setIgnoreFanCommand(false);
+    }
+    if (!Machine::isIgnoreFanCommand()) {
+        if (com->hasP() && com->P == 1) FanControl::setSpeed(com->hasS() ? com->S : 255, 1);
+        else FanControl::setNextSpeed(com->hasS() ? constrain(com->S, 0, 255) : 255);
+    }
+}
+#endif
+
+void Commands::ProcessWaitForPinState(GCode* com) {
+    if (!com->hasS() || !com->hasP()) {
+        return;
+    }
+
+    uint8_t waitForState = com->S;
+    if (com->hasX()) {
+        if (com->X == 0) HAL::pinMode(com->P, INPUT);
+        else HAL::pinMode(com->P, INPUT_PULLUP);
+    }
+
+    do {
+        Machine::checkForPeriodicalActions(true);
+        GCode::keepAlive(Waiting);
+    } while (HAL::digitalRead(com->P) != waitForState);
+}
+
+#if PIEZO_PIN > -1
+void Commands::ProcessBeepCommand(GCode* com) {
+    uint8_t toneFreq = 1;
+    uint16_t beepLen = 1000;
+    if (com->hasS()) toneFreq = com->S;
+    if (com->hasP()) beepLen = com->P;
+    HAL::tone(PIEZO_PIN, toneFreq);
+    HAL::delayMilliseconds(beepLen);
+    HAL::noTone(PIEZO_PIN);
+}
+#endif
+
 /**
 \brief Execute the G command stored in com.
 */
@@ -349,34 +763,19 @@ void Commands::processGCode(GCode *com) {
         return;
     }
 
-    //random variables
-    uint8_t flag0 = 0;
-    uint32_t val0;
-    float fl0;
-
     switch(com->G) {
-    case 0: // G0 -> G1
+    case 0: // G0
 	case 1: // G1
-        flag0 = 1;
     case 2: // G2
     case 3: // G3
 #if ALLOW_PARTIAL_GCODE_AS_MOVE
         //save current gcode value
         lastMoveType = com->G;
 #endif
-
-        processMove(com, flag0);
+        processMove(com);
         break;
     case 4: // G4 dwell
-        waitUntilEndOfAllMoves();
-        val0 = 0;
-        if(com->hasP()) val0 = com->P; // milliseconds to wait
-        if(com->hasS()) val0 = com->S * 1000; // seconds to wait
-        val0 += HAL::timeInMilliseconds();  // keep track of when we started waiting
-        while((uint32_t)(val0 - HAL::timeInMilliseconds())  < 2000000000 ) {
-            GCode::keepAlive(Processing);
-            Machine::checkForPeriodicalActions(true);
-        }
+        ProcessDwell(com);
         break;
     case 20: // G20 Units to inches
         Machine::setUnitInches(1);
@@ -384,213 +783,44 @@ void Commands::processGCode(GCode *com) {
     case 21: // G21 Units to mm
         Machine::setUnitInches(0);
         break;
-    case 28: { //G28 Home all Axis one at a time
-		uint8_t homeAllAxis = (com->hasNoXYZ());
-        if(homeAllAxis || !com->hasNoXYZ())
-            Machine::homeAxis(homeAllAxis || com->hasX(), homeAllAxis || com->hasY(), homeAllAxis || com->hasZ());
-    }
-	break;
+    case 28: // G28 Home all Axis one at a time
+        ProcessHomeAxis(com);
+	    break;
 #if Z_PROBE_SUPPORT
 	case 31:  // G31 display hall sensor output
-		Endstops::update();
-		Endstops::update();
-		Com::printF(Com::tZProbeState);
-		Com::printF(Endstops::zProbe() ? Com::tHSpace : Com::tLSpace);
-		Com::println();
+        ProcessDisplayHallSensor(com);
 		break;
 #if DISTORTION_CORRECTION_SUPPORT
-	case 33:
-		if(com->hasE())
-		{	// G33 E(x) enable
-			if(com->E > 0) Distortion::enable(com->hasP() && com->P == 1);
-			else Distortion::disable(com->hasP() && com->P == 1);
-		} else if(com->hasL())
-		{ // G33 L0 - List distortion matrix
-            Distortion::showMatrix();
-		} else if(com->hasR())
-		{ // G33 R0 - Reset distortion matrix
-            Distortion::resetCorrection();
-		} else if(com->hasX() || com->hasY() || com->hasZ())
-		{ // G33 X<xpos> Y<ypos> Z<zCorrection> - Set correction for nearest point
-			if(com->hasX() && com->hasY() && com->hasZ()) {
-                Distortion::set(com->X, com->Y, com->Z);
-			} else {
-				Com::printErrorFLN(PSTR("You need to define X, Y and Z to set a point!"));
-			}
-		} else if(com->hasF() && com->F > 0)
-		{ //G33 F<x> - Filter amount
-            Distortion::filter(com->F);
-		} else if(com->hasO() && com->O > 0 && com->O < 1)
-		{ //G33 O<x> - Smooth amount
-            Distortion::smooth(com->O);
-		} else if(com->hasP())
-		{ //G33 P<x> - Do distortion measurements
-			Endstops::update();
-			Endstops::update(); // need to call twice for full update!
-			if(Endstops::zProbe()) {
-				Com::printErrorFLN(PSTR("probe triggered before starting G33."));
-			} else {
-				if(com->hasT() && com->T > 0) {
-					Machine::updateCurrentPosition(true);
-                    Distortion::resetCorrection();
-                    Distortion::disable(true);
-					if(com->T > 1) {
-                        Distortion::setPoints(com->T);
-
-                        EEPROM::setZCorrectionPoints(com->T);
-					}
-                    
-                    Distortion::XMIN = -Machine::coordinateOffset[X_AXIS];
-                    Distortion::XMAX = Machine::currentPosition[X_AXIS];
-                    Distortion::YMIN = -Machine::coordinateOffset[Y_AXIS];
-                    Distortion::YMAX = Machine::currentPosition[Y_AXIS];
-
-                    EEPROM::setZCorrectionMinMax(Distortion::XMIN, Distortion::YMIN, Distortion::XMAX, Distortion::YMAX);
-				}
-
-				float md = -10;
-				if(com->hasA() && com->A < 0)
-					md = com->A;
-
-				int reps = Z_PROBE_REPETITIONS;
-				if(com->hasH() && com->H > 0)
-					reps = com->H;
-
-                //remove coordinate offset while measuring distortion
-                float oldFeedrate = Machine::feedrate;
-                float oldOffsetX = Machine::coordinateOffset[X_AXIS];
-                float oldOffsetY = Machine::coordinateOffset[Y_AXIS];
-                float oldOffsetZ = Machine::coordinateOffset[Z_AXIS];
-
-                Machine::coordinateOffset[X_AXIS] = Machine::coordinateOffset[Y_AXIS] = Machine::coordinateOffset[Z_AXIS] = 0;
-
-                if (!Distortion::measure(md, reps)) {
-                    Com::printErrorFLN(PSTR("G33 failed!"));
-                }
-
-                Machine::feedrate = oldFeedrate;
-                Machine::coordinateOffset[X_AXIS] = oldOffsetX;
-                Machine::coordinateOffset[Y_AXIS] = oldOffsetY;
-                Machine::coordinateOffset[Z_AXIS] = oldOffsetZ;
-			}
-        }
-        else {
-            Distortion::reportStatus();
-        }
+	case 33:  // G33 - Distortion correction
+        ProcessDistortionCorrection(com);
 		break;
 #endif
 	case 38: // Tool Height G38 <axis><value> (A)<tool diameter>
-        if (ZProbe::start()) {
-            if (com->hasX()) {
-                float xp = ZProbe::run(X_AXIS, com->X, Z_PROBE_REPETITIONS);
-                if (xp != ILLEGAL_Z_PROBE) {
-                    if (com->hasA()) {
-                        if (com->X > 0) xp -= Machine::convertToMM(com->A / 2);
-                        else xp += Machine::convertToMM(com->A / 2);
-                    }
-
-                    Machine::coordinateOffset[X_AXIS] = xp - Machine::currentPosition[X_AXIS];
-                    Com::printF(Com::tToolOffset, xp, 3);
-                    Com::printFLN(Com::tSpaceXOffset, Machine::coordinateOffset[X_AXIS], 3);
-                }
-            }
-            else if (com->hasY()) {
-                float yp = ZProbe::run(Y_AXIS, com->Y, Z_PROBE_REPETITIONS);
-                if (yp != ILLEGAL_Z_PROBE) {
-                    if (com->hasA()) {
-                        if (com->Y > 0) yp -= Machine::convertToMM(com->A / 2);
-                        else yp += Machine::convertToMM(com->A / 2);
-                    }
-
-                    Machine::coordinateOffset[Y_AXIS] = yp - Machine::currentPosition[Y_AXIS];
-                    Com::printF(Com::tToolOffset, yp, 3);
-                    Com::printFLN(Com::tSpaceYOffset, Machine::coordinateOffset[Y_AXIS], 3);
-                }
-            }
-            else {
-                if (com->Z >= 0) {
-                    com->Z = -10;
-                }
-
-                float zp = ZProbe::run(Z_AXIS, com->Z, Z_PROBE_REPETITIONS);
-                if (zp != ILLEGAL_Z_PROBE) {
-                    if (com->hasA()) zp += Machine::convertToMM(com->A);
-                    else zp += EEPROM::zProbeHeight();
-
-                    Machine::coordinateOffset[Z_AXIS] = zp - Machine::currentPosition[Z_AXIS];
-                    Com::printF(Com::tToolOffset, zp, 3);
-                    Com::printFLN(Com::tSpaceZOffset, Machine::coordinateOffset[Z_AXIS], 3);
-#if DISTORTION_CORRECTION_SUPPORT
-                    Distortion::SetStartEnd(Distortion::start, Distortion::end);
-#endif
-                }
-            }
-            ZProbe::finish();
-
-            printCurrentPosition();
-        }
+        ProcessToolHeight(com);
 	    break;
 #endif
 #if TMC_DRIVER_SUPPORT
-	case 41:
-#if TMC_X_TYPE == TMC_2208 || TMC_X_TYPE == TMC_2209 ||TMC_X_TYPE == TMC_5160
-		Com::printF(PSTR("X Grad:"), TMC::stepperX.pwm_grad_auto(), 3);
-		Com::printFLN(PSTR(" X OFS:"), TMC::stepperX.pwm_ofs_auto(), 3);
-#endif
-#if TMC_Y_TYPE == TMC_2208 || TMC_Y_TYPE == TMC_2209 ||TMC_Y_TYPE == TMC_5160
-		Com::printF(PSTR("Y Grad:"), TMC::stepperY.pwm_grad_auto(), 3);
-		Com::printFLN(PSTR(" Y OFS:"), TMC::stepperY.pwm_ofs_auto(), 3);
-#endif
-#if TMC_Z_TYPE == TMC_2208 || TMC_Z_TYPE == TMC_2209 ||TMC_Z_TYPE == TMC_5160
-		Com::printF(PSTR("Z Grad:"), TMC::stepperZ.pwm_grad_auto(), 3);
-		Com::printFLN(PSTR(" Z OFS:"), TMC::stepperZ.pwm_ofs_auto(), 3);
-#endif
-#if TMC_A_TYPE == TMC_2208 || TMC_A_TYPE == TMC_2209 ||TMC_A_TYPE == TMC_5160
-        Com::printF(PSTR("A Grad:"), TMC::stepperA.pwm_grad_auto(), 3);
-        Com::printFLN(PSTR(" A OFS:"), TMC::stepperA.pwm_ofs_auto(), 3);
-#endif
-#if TMC_2_TYPE == TMC_2208 || TMC_2_TYPE == TMC_2209 ||TMC_2_TYPE == TMC_5160
-		Com::printF(PSTR("2 Grad:"), TMC::stepper2.pwm_grad_auto(), 3);
-		Com::printFLN(PSTR(" 2 OFS:"), TMC::stepper2.pwm_ofs_auto(), 3);
-#endif
+	case 41: // G41 - Show TMC driver information
+        processShowTMCInfo(com);
 	    break;
 #endif
     case 90: // G90
         Machine::setRelativeCoorinateMode(false);
-        if(com->internalCommand)
+        if (com->internalCommand) {
             Com::printInfoFLN(PSTR("Absolute positioning"));
+        }
         break;
 	case 91: // G91
 		Machine::setRelativeCoorinateMode(true);
-        if(com->internalCommand)
+        if (com->internalCommand) {
             Com::printInfoFLN(PSTR("Relative positioning"));
+        }
         break;
-	case 92: // G92
-		if(com->hasX()) Machine::coordinateOffset[X_AXIS] = Machine::convertToMM(com->X) - Machine::currentPosition[X_AXIS];
-		if(com->hasY()) Machine::coordinateOffset[Y_AXIS] = Machine::convertToMM(com->Y) - Machine::currentPosition[Y_AXIS];
-		if(com->hasZ()) Machine::coordinateOffset[Z_AXIS] = Machine::convertToMM(com->Z) - Machine::currentPosition[Z_AXIS];
-		if(com->hasA()) {
-			Machine::lastCmdPos[A_AXIS] = Machine::currentPosition[A_AXIS] = Machine::convertToMM(com->A);
-			Machine::currentPositionSteps[A_AXIS] = static_cast<int32_t>(floor(Machine::lastCmdPos[A_AXIS] * Machine::axisStepsPerMM[A_AXIS] + 0.5f));
-		}
-		if(com->hasX() || com->hasY() || com->hasZ()) {
-			Com::printF(PSTR("X_OFFSET:"), Machine::coordinateOffset[X_AXIS], 3);
-			Com::printF(PSTR(" Y_OFFSET:"), Machine::coordinateOffset[Y_AXIS], 3);
-			Com::printFLN(PSTR(" Z_OFFSET:"), Machine::coordinateOffset[Z_AXIS], 3);
-		}
-#if DISTORTION_CORRECTION_SUPPORT
-        Distortion::SetStartEnd(Distortion::start, Distortion::end);
-#endif
+	case 92: // G92 - Set position (S0:1 - set directly)
+        processSetPosition(com);
 	    break;
 	case 93: // G93
-		if(com->hasX()) Machine::coordinateOffset[X_AXIS] = Machine::convertToMM(com->X);
-		if(com->hasY()) Machine::coordinateOffset[Y_AXIS] = Machine::convertToMM(com->Y);
-		if(com->hasZ()) Machine::coordinateOffset[Z_AXIS] = Machine::convertToMM(com->Z);
-		if(com->hasX() || com->hasY() || com->hasZ()) {
-			Com::printF(PSTR("X_OFFSET:"), Machine::coordinateOffset[X_AXIS], 3);
-			Com::printF(PSTR(" Y_OFFSET:"), Machine::coordinateOffset[Y_AXIS], 3);
-			Com::printFLN(PSTR(" Z_OFFSET:"), Machine::coordinateOffset[Z_AXIS], 3);
-		}
+		
 	    break;
 #if defined(NUM_MOTOR_DRIVERS) && NUM_MOTOR_DRIVERS > 0
     case 201:
@@ -623,11 +853,6 @@ void Commands::processGCode(GCode *com) {
 void Commands::processMCode(GCode *com) {
     if(EVENT_UNHANDLED_M_CODE(com))
         return;
-
-    //random variables
-    uint8_t flag0 = 0;
-    uint32_t val0;
-    float fl0;
 
     switch (com->M) {
     case 3: // Spindle CW
@@ -684,56 +909,10 @@ void Commands::processMCode(GCode *com) {
         break;
 #endif
     case 17: //M17 is to enable named axis
-        waitUntilEndOfAllMoves();
-        if (com->hasX()) {
-            flag0 = 1;
-            Machine::enableXStepper();
-        }
-        if (com->hasY()) {
-            flag0 = 1;
-            Machine::enableYStepper();
-        }
-        if (com->hasZ()) {
-            flag0 = 1;
-            Machine::enableZStepper();
-        }
-        if (com->hasA()) {
-            flag0 = 1;
-            Machine::enableAStepper();
-        }
-        if (!flag0) {
-            Machine::enableXStepper();
-            Machine::enableYStepper();
-            Machine::enableZStepper();
-            Machine::enableAStepper();
-        }
-        Machine::unsetAllSteppersDisabled();
+        ProcessEnableSteppers(com);
         break;
     case 18: // M18 is to disable named axis
-        waitUntilEndOfAllMoves();
-        if (com->hasX()) {
-            flag0 = 1;
-            Machine::disableXStepper();
-        }
-        if (com->hasY()) {
-            flag0 = 1;
-            Machine::disableYStepper();
-        }
-        if (com->hasZ()) {
-            flag0 = 1;
-            Machine::disableZStepper();
-        }
-        if (com->hasA()) {
-            flag0 = 1;
-            Machine::disableAStepper();
-        }
-        if (!flag0) {
-            Machine::disableXStepper();
-            Machine::disableYStepper();
-            Machine::disableZStepper();
-            Machine::disableAStepper();
-            Machine::setAllSteppersDiabled();
-        }
+        ProcessDisableSteppers(com);
         break;
 #if SDCARD_SUPPORT
     case 20: // M20 - list SD card
@@ -786,50 +965,14 @@ void Commands::processMCode(GCode *com) {
         break;
 #endif
     case 42: //M42 -Change pin status via gcode
-        if (com->hasP()) {
-            int8_t pin_number = com->P;
-            for (uint8_t i = 0; i < (uint8_t)sizeof(sensitive_pins); i++) {
-                if (pgm_read_byte(&sensitive_pins[i]) == pin_number) {
-                    pin_number = -1;
-                    break;
-                }
-            }
-            if (pin_number > -1) {
-                if (com->hasS()) {
-                    if (com->S >= 0 && com->S <= 255) {
-                        HAL::pinMode(pin_number, OUTPUT);
-                        HAL::digitalWrite(pin_number, com->S);
-                        HAL::analogWrite(pin_number, com->S);
-                        Com::printF(Com::tSetOutputSpace, pin_number);
-                        Com::printFLN(Com::tSpaceToSpace, (int)com->S);
-                    }
-                    else {
-                        Com::printErrorFLN(PSTR("Illegal S value for M42"));
-                    }
-                }
-                else {
-                    HAL::pinMode(pin_number, INPUT_PULLUP);
-                    Com::printF(Com::tSpaceToSpace, pin_number);
-                    Com::printFLN(Com::tSpaceIsSpace, digitalRead(pin_number));
-                }
-            }
-            else {
-                Com::printErrorFLN(PSTR("Pin can not be set by M42, is in sensitive pins! "));
-            }
-        }
+        ProcessChangePinState(com);
         break;
 #if PS_ON_PIN > -1
     case 80: // M80 - ATX Power On
-        waitUntilEndOfAllMoves();
-        HAL::pinMode(PS_ON_PIN, OUTPUT);
-        Machine::setPowerOn(true);
-        HAL::digitalWrite(PS_ON_PIN, (POWER_INVERTING ? HIGH : LOW));
+        ProcessPowerCommand(1);
         break;
     case 81: // M81 - ATX Power Off
-        waitUntilEndOfAllMoves();
-        HAL::pinMode(PS_ON_PIN, OUTPUT);
-        Machine::setPowerOn(false);
-        HAL::digitalWrite(PS_ON_PIN, (POWER_INVERTING ? LOW : HIGH));
+        ProcessPowerCommand(0);
         break;
 #endif
     case 84: // M84
@@ -854,59 +997,17 @@ void Commands::processMCode(GCode *com) {
         if (com->hasA()) Machine::axisStepsPerMM[A_AXIS] = com->Z;
         Machine::updateDerivedParameter();
         break;
-    case 99: // M99 S<time>
-        val0 = 10000;
-        if (com->hasS()) val0 = 1000 * com->S;
-        if (com->hasX()) Machine::disableXStepper();
-        if (com->hasY()) Machine::disableYStepper();
-        if (com->hasZ()) Machine::disableZStepper();
-        if (com->hasA()) Machine::disableAStepper();
-        val0 += HAL::timeInMilliseconds();
-#ifdef DEBUG_MACHINE
-        Machine::debugWaitLoop = 2;
-#endif
-        while (val0 - HAL::timeInMilliseconds() < 100000) {
-            Machine::defaultLoopActions();
-        }
-        if (com->hasX()) Machine::enableXStepper();
-        if (com->hasY()) Machine::enableYStepper();
-        if (com->hasZ()) Machine::enableZStepper();
-        if (com->hasA()) Machine::enableAStepper();
-        break;
-    case 105: // M105  get speed. Always returns the speed or laser temp
-#if LASER_SUPPORT
-        if (Machine::mode == MACHINE_MODE_LASER) {
-            //print temperature
-            Com::printF(Com::tTColon, Laser::temperature());
-        }
-#endif
-#if SPINDLE_SUPPORT
-        if (Machine::mode == MACHINE_MODE_SPINDLE) {
-            //print rpm
-            Com::printF(Com::tTColon, Spindle::spindleRpm());
-        }
-#endif
-#if FEED_DIAL_SUPPORT
-        Com::printF(Com::tSpaceBColon, FeedDial::value() * 100 / FEED_DIAL_MAX_VALUE);
-#endif
-        Com::println();
+    case 105: // M105 provide rpm or laser temp
+        ProcessToolInfoRequest(com);
         break;
 #if FAN_CONTROL_SUPPORT
     case 106: // M106 Fan On
-        if(com->hasI()) {
-            if (com->I != 0) Machine::setIgnoreFanCommand(true);
-            else Machine::setIgnoreFanCommand(false);
-        }
-		if(!Machine::isIgnoreFanCommand()) {
-            if (com->hasP() && com->P == 1) FanControl::setSpeed(com->hasS() ? com->S : 255, 1);
-            else FanControl::setNextSpeed(com->hasS() ? constrain(com->S, 0, 255) : 255);
-        }
+        ProcessFanCommand(com);
         break;
     case 107: // M107 Fan Off
-		if(!Machine::isIgnoreFanCommand()) {
-            if (com->hasP() && com->P == 1) FanControl::setSpeed(0, 1);
-            else FanControl::setNextSpeed(0);
-        }
+        com->S = 0;
+        com->setS();
+        ProcessFanCommand(com);
         break;
 #endif
     case 111: // M111 enable/disable run time debug flags
@@ -916,19 +1017,19 @@ void Commands::processMCode(GCode *com) {
             else Machine::debugReset(static_cast<uint8_t>(-com->P));
 		}
         break;
-    case 115: // M115
-        Machine::showCapabilities();
-        break;
-	case 114: // M114
+    case 114: // M114
         Com::writeToAll = false;
-		printCurrentPosition();
-        if(com->hasS() && com->S) {
+        printCurrentPosition();
+        if (com->hasS() && com->S) {
             Com::printF(PSTR("XS:"), Machine::currentPositionSteps[X_AXIS]);
             Com::printF(PSTR(" YS:"), Machine::currentPositionSteps[Y_AXIS]);
             Com::printFLN(PSTR(" ZS:"), Machine::currentPositionSteps[Z_AXIS]);
             Com::printFLN(PSTR(" AS:"), Machine::currentPositionSteps[A_AXIS]);
         }
-		break;
+        break;
+    case 115: // M115
+        Machine::showCapabilities();
+        break;
     case 119: // M119
         Com::writeToAll = false;
         waitUntilEndOfAllMoves();
@@ -994,19 +1095,7 @@ void Commands::processMCode(GCode *com) {
 #endif
         break;
     case 226: // M226 P<pin> S<state 0/1> - Wait for pin getting state S
-        if(!com->hasS() || !com->hasP())
-            break;
-
-        flag0 = com->S;
-        if(com->hasX()) {
-            if(com->X == 0) HAL::pinMode(com->P, INPUT);
-            else HAL::pinMode(com->P, INPUT_PULLUP);
-        }
-        do {
-            Machine::checkForPeriodicalActions(true);
-            GCode::keepAlive(Waiting);
-        } while (HAL::digitalRead(com->P) != flag0);
-
+        ProcessWaitForPinState(com);
 		break;
 #if Z_HOME_DIR > 0 && MAX_HARDWARE_ENDSTOP_Z
     case 251: // M251
@@ -1040,16 +1129,9 @@ void Commands::processMCode(GCode *com) {
         Com::printInfoFLN(PSTR("Watchdog support was not compiled into this version!"));
 #endif
         break;
-#if defined(BEEPER_PIN) && BEEPER_PIN>=0
+#if PIEZO_PIN > -1
     case 300: // M300
-        flag0 = 1;
-        val0 = 1000;
-        if(com->hasS()) flag0 = com->S;
-        if(com->hasP()) val0 = com->P;
-        HAL::tone(BEEPER_PIN, flag0);
-        HAL::delayMilliseconds(val0);
-        HAL::noTone(BEEPER_PIN);
-
+        ProcessBeepCommand(com);
         break;
 #endif
 #if SERVO_SUPPORT
@@ -1187,6 +1269,14 @@ void Commands::processMCode(GCode *com) {
         }
 
         Com::printFLN(PSTR("Allowing Partial GCode:"), (int)allowPartialGCode);
+        break;
+#endif
+#if PAUSE_SUPPORT && PAUSE_SUPPORT_CANCEL && PAUSE_CANCEL_PIN == -1
+    case 902: // M902 (P<0/1>) - Cancel all move commands including what is in cache
+        if (com->hasP()) Pause::setCancel(com->P ? 1 : 0);
+        else Pause::setCancel(0);
+
+        Com::printFLN(PSTR("Cancel all moves:"), (int)Pause::doCancel());
         break;
 #endif
     case 999: // M999 (S<test>) - Stop fatal error take down

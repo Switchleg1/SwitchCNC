@@ -240,38 +240,24 @@ void Machine::updateDerivedParameter() {
     // For which directions do we need backlash compensation
     Backlash::buildDirection();
 #endif
+    char axisName[A_AXIS_ARRAY] PROGMEM  = { 'X', 'Y', 'Z', 'A' };
 	for(uint8_t i = 0; i < A_AXIS_ARRAY; i++) {
         invAxisStepsPerMM[i] = 1.0f / axisStepsPerMM[i];
 #ifdef RAMP_ACCELERATION
 		/** Acceleration in steps/s^3 in printing mode.*/
 		maxAccelerationStepsPerSquareSecond[i] = maxAccelerationMMPerSquareSecond[i] * axisStepsPerMM[i];
+
+        // For numeric stability we need to start accelerations at a minimum speed and hence ensure that the
+        // jerk is at least 2 * minimum speed.
+        float minimumSpeed = 0.5 * maxAccelerationMMPerSquareSecond[i] * sqrtf(2.0f / (axisStepsPerMM[i] * maxAccelerationMMPerSquareSecond[i]));
+        if (maxJerk[i] < 2 * minimumSpeed) {// Enforce minimum start speed if target is faster and jerk too low
+            maxJerk[i] = 2 * minimumSpeed;
+            Com::printF(PSTR(""), axisName[i]);
+            Com::printFLN(PSTR(" jerk was too low, setting to "), maxJerk[i]);
+        }
 #endif
     }
-	// For numeric stability we need to start accelerations at a minimum speed and hence ensure that the
-	// jerk is at least 2 * minimum speed.
 
-	// For xy moves the minimum speed is multiplied with 1.41 to enforce the condition also for diagonals since the
-	// driving axis is the problematic speed.
-	float minimumSpeedX = 0.5 * maxAccelerationMMPerSquareSecond[X_AXIS] * sqrtf(2.0f / (axisStepsPerMM[X_AXIS] * maxAccelerationMMPerSquareSecond[X_AXIS]));
-	if(maxJerk[X_AXIS] < 2 * minimumSpeedX) {// Enforce minimum start speed if target is faster and jerk too low
-		maxJerk[X_AXIS] = 2 * minimumSpeedX;
-		Com::printFLN(PSTR("X jerk was too low, setting to "), maxJerk[X_AXIS]);
-	}
-	float minimumSpeedY = 0.5 * maxAccelerationMMPerSquareSecond[Y_AXIS] * sqrtf(2.0f / (axisStepsPerMM[Y_AXIS] * maxAccelerationMMPerSquareSecond[Y_AXIS]));
-	if(maxJerk[Y_AXIS] < 2 * minimumSpeedY) {// Enforce minimum start speed if target is faster and jerk too low
-		maxJerk[Y_AXIS] = 2 * minimumSpeedY;
-		Com::printFLN(PSTR("Y jerk was too low, setting to "), maxJerk[Y_AXIS]);
-	}
-	float minimumSpeedZ = 0.5 * maxAccelerationMMPerSquareSecond[Z_AXIS] * sqrtf(2.0f / (axisStepsPerMM[Z_AXIS] * maxAccelerationMMPerSquareSecond[Z_AXIS]));
-	if(maxJerk[Z_AXIS] < 2 * minimumSpeedZ) {// Enforce minimum start speed if target is faster and jerk too low
-		maxJerk[Z_AXIS] = 2 * minimumSpeedZ;
-		Com::printFLN(PSTR("Z jerk was too low, setting to "), maxJerk[Z_AXIS]);
-	}
-	float minimumSpeedA = 0.5 * maxAccelerationMMPerSquareSecond[A_AXIS] * sqrtf(2.0f / (axisStepsPerMM[A_AXIS] * maxAccelerationMMPerSquareSecond[A_AXIS]));
-	if(maxJerk[A_AXIS] < 2 * minimumSpeedA) {// Enforce minimum start speed if target is faster and jerk too low
-		maxJerk[A_AXIS] = 2 * minimumSpeedA;
-		Com::printFLN(PSTR("A jerk was too low, setting to "), maxJerk[A_AXIS]);
-	}
 #if DISTORTION_CORRECTION_SUPPORT
     Distortion::updateDerived();
 #endif
@@ -280,7 +266,6 @@ void Machine::updateDerivedParameter() {
 #if AUTOMATIC_POWERUP
 void Machine::enablePowerIfNeeded() {
 	if(isPowerOn()) return;
-    HAL::pinMode(PS_ON_PIN, OUTPUT);
     setPowerOn(true);
     HAL::digitalWrite(PS_ON_PIN, (POWER_INVERTING ? HIGH : LOW));
 	HAL::delayMilliseconds(500); // Just to ensure power is up and stable
@@ -310,7 +295,6 @@ void Machine::kill(uint8_t onlySteppers) {
     unsetHomedAll();
 	if(!onlySteppers) {
 #if defined(PS_ON_PIN) && PS_ON_PIN>-1 && !defined(NO_POWER_TIMEOUT)
-        HAL::pinMode(PS_ON_PIN, OUTPUT);
         HAL::digitalWrite(PS_ON_PIN, (POWER_INVERTING ? LOW : HIGH));
         setPowerOn(false);
 #endif
@@ -606,10 +590,35 @@ void Machine::setup() {
     HAL::showStartReason();
 	// sets auto leveling in eeprom init
     EEPROM::init(); // Read settings from eeprom if wanted
-	for(uint8_t i = 0; i < A_AXIS_ARRAY; i++) {
-		currentPositionSteps[i] = 0;
-		currentPosition[i] = 0;
+
+#if AUTO_SAVE_RESTORE_STATE
+    uint8_t saveState = true;
+    if (EEPROM::isCurrentStateChecksumValid() && EEPROM::getCurrentValidState()) {
+        uint16_t savedFlags = EEPROM::getCurrentFlags();
+        uint8_t savedFlag0 = savedFlags & 0xFF;
+        uint8_t savedFlag1 = savedFlags >> 8;
+        if (savedFlag0 & MACHINE_FLAG0_RELATIVE_COORD) flag0 |= MACHINE_FLAG0_RELATIVE_COORD;
+        if (savedFlag0 & MACHINE_FLAG0_UNIT_IS_INCH) flag0 |= MACHINE_FLAG0_UNIT_IS_INCH;
+        if (savedFlag1 & MACHINE_FLAG1_NO_DESTINATION_CHECK) flag1 |= MACHINE_FLAG1_NO_DESTINATION_CHECK;
+        if (savedFlag1 & MACHINE_FLAG1_IGNORE_FAN_COMMAND) flag1 |= MACHINE_FLAG1_IGNORE_FAN_COMMAND;
+        flag1 |= MACHINE_FLAG1_X_HOMED | MACHINE_FLAG1_Y_HOMED | MACHINE_FLAG1_Z_HOMED | MACHINE_FLAG1_HOMED_ALL;
+
+        EEPROM::getCurrentSteps(currentPositionSteps);
+        EEPROM::getCurrentOffset(coordinateOffset);
+        updateCurrentPosition();
+
+        Commands::printCurrentPosition();
+        Com::printF(PSTR("X_OFFSET:"), Machine::coordinateOffset[X_AXIS], 3);
+        Com::printF(PSTR(" Y_OFFSET:"), Machine::coordinateOffset[Y_AXIS], 3);
+        Com::printFLN(PSTR(" Z_OFFSET:"), Machine::coordinateOffset[Z_AXIS], 3);
+
+        Com::printFLN(PSTR("Read Flag0: "), (int)flag0);
+        Com::printFLN(PSTR("Read Flag1: "), (int)flag1);
+    } else {
+        EEPROM::setCurrentSteps(currentPositionSteps);
+        EEPROM::setCurrentOffset(coordinateOffset);
     }
+#endif
 
 #if BACKLASH_COMPENSATION_SUPPORT
     Backlash::initialize();
@@ -1012,6 +1021,7 @@ void Machine::showCapabilities() {
     Com::cap(Com::tCapCoolantMist, COOLANT_SUPPORT && COOLANT_MIST_PIN > -1);
     Com::cap(Com::tCapCoolantFlood, COOLANT_SUPPORT && COOLANT_FLOOD_PIN > -1);
     Com::cap(Com::tCapDistortionCorrection, DISTORTION_CORRECTION_SUPPORT);
+    Com::cap(Com::tCapBacklashCompensation, BACKLASH_COMPENSATION_SUPPORT);
     Com::cap(Com::tCapVacuum, VACUUM_SUPPORT);
     Com::cap(Com::tCapSDCard, SDCARD_SUPPORT);
     Com::cap(Com::tCapFanControl, FAN_CONTROL_SUPPORT);

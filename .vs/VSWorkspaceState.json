@@ -4,9 +4,8 @@
     "\\src",
     "\\src\\DigitalPins",
     "\\src\\Drivers",
-    "\\src\\SdFat",
-    "\\src\\SdFat\\SpiDriver"
+    "\\src\\Features"
   ],
-  "SelectedNode": "\\src\\Drivers\\MotorDrivers.h",
+  "SelectedNode": "\\Motion.h",
   "PreviewInSolutionExplorer": false
 }

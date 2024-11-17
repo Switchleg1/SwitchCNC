@@ -23,9 +23,9 @@
 
 class MachineLine { // RAM usage: 24*4+15 = 113 Byte
 public:
-    static ufast8_t linesPos; // Position for executing line movement
+    static ufast8_t linesPos;       // Position for executing line movement
     static MachineLine lines[];
-    static ufast8_t linesWritePos; // Position where we write the next cached line move
+    static ufast8_t linesWritePos;  // Position where we write the next cached line move
     ufast8_t joinFlags;
     volatile ufast8_t flags;
     
@@ -39,11 +39,11 @@ public:
 private:
     static int32_t cur_errupd;
     fast8_t primaryAxis;
-    ufast8_t dir;                       ///< Direction of movement. 1 = X+, 2 = Y+, 4= Z+, values can be combined.
+    ufast8_t dir;                   ///< Direction of movement. 1 = X+, 2 = Y+, 4= Z+, 8= A+, values can be combined.
     int32_t timeInTicks;
-	int32_t delta[A_AXIS_ARRAY];                  ///< Steps we want to move.
-	int32_t error[A_AXIS_ARRAY];                  ///< Error calculation for Bresenham algorithm
-	float speed[A_AXIS_ARRAY];                   ///< Speed in x direction at fullInterval in mm/s
+	int32_t delta[A_AXIS_ARRAY];    ///< Steps we want to move.
+	int32_t error[A_AXIS_ARRAY];    ///< Error calculation for Bresenham algorithm
+	float speed[A_AXIS_ARRAY];      ///< Speed in x direction at fullInterval in mm/s
     float fullSpeed;                ///< Desired speed mm/s
     float invFullSpeed;             ///< 1.0/fullSpeed for faster computation
     float accelerationDistance2;    ///< Real 2.0*distance*acceleration mm²/s²
@@ -52,14 +52,14 @@ private:
     float endSpeed;                 ///< Exit speed in mm/s
     float minSpeed;
 	float distance;
-    ticks_t fullInterval;     ///< interval at full speed in ticks/step.
-    uint32_t accelSteps;        ///< How much steps does it take, to reach the plateau.
-    uint32_t decelSteps;        ///< How much steps does it take, to reach the end speed.
-    uint32_t accelerationPrim; ///< Acceleration along primary axis
-    uint32_t fAcceleration;    ///< accelerationPrim*262144/F_CPU
-    speed_t vMax;              ///< Maximum reached speed in steps/s.
-    speed_t vStart;            ///< Starting speed in steps/s.
-	speed_t vEnd;              ///< End speed in steps/s
+    ticks_t fullInterval;           ///< interval at full speed in ticks/step.
+    uint32_t accelSteps;            ///< How much steps does it take, to reach the plateau.
+    uint32_t decelSteps;            ///< How much steps does it take, to reach the end speed.
+    uint32_t accelerationPrim;      ///< Acceleration along primary axis
+    uint32_t fAcceleration;         ///< accelerationPrim*262144/F_CPU
+    speed_t vMax;                   ///< Maximum reached speed in steps/s.
+    speed_t vStart;                 ///< Starting speed in steps/s.
+	speed_t vEnd;                   ///< End speed in steps/s
 #ifdef DEBUG_STEPCOUNT
     int32_t totalStepsRemaining;
 #endif
@@ -271,6 +271,18 @@ public:
 	inline bool isANegativeMove() {
 		return (dir & A_STEP_DIRPOS) == ASTEP;
 	}
+    inline bool isXPositiveDir() {
+        return (dir & X_DIRPOS);
+    }
+    inline bool isYPositiveDir() {
+        return (dir & Y_DIRPOS);
+    }
+    inline bool isZPositiveDir() {
+        return (dir & Z_DIRPOS);
+    }
+    inline bool isAPositiveDir() {
+        return (dir & A_DIRPOS);
+    }
     inline bool isXMove() {
         return (dir & XSTEP);
     }
@@ -304,8 +316,14 @@ public:
     inline void setMoveOfAxis(uint8_t axis) {
         dir |= XSTEP << axis;
     }
+    inline uint8_t getMoveOfAxis(uint8_t axis) {
+        return dir & (XSTEP << axis);
+    }
     inline void setPositiveDirectionForAxis(uint8_t axis) {
         dir |= X_DIRPOS << axis;
+    }
+    inline uint8_t getPositiveDirectionForAxis(uint8_t axis) {
+        return dir & (X_DIRPOS << axis);
     }
     inline static void resetPathPlanner() {
         linesCount = 0;

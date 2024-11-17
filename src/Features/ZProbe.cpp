@@ -20,10 +20,13 @@ bool ZProbe::start() {
 
 	Commands::waitUntilEndOfAllMoves();
 
+	Machine::setZProbeActive(true);
+
     return true;
 }
 
 void ZProbe::finish() {
+	Machine::setZProbeActive(false);
 }
 
 float ZProbe::run(uint8_t axisDirection, float maxDistance, uint8_t repeat) {

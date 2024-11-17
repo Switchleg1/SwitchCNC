@@ -42,6 +42,7 @@ union floatLong {
 #define MACHINE_FLAG0_ALLKILLED             4
 #define MACHINE_FLAG0_RELATIVE_COORD        8
 #define MACHINE_FLAG0_UNIT_IS_INCH          16
+#define MACHINE_FLAG0_Z_PROBE_ACTIVE        32
 
 #define MACHINE_FLAG1_HOMED_ALL             1
 #define MACHINE_FLAG1_X_HOMED               2
@@ -60,6 +61,7 @@ union floatLong {
 #include "Endstops.h"
 #include "Analog.h"
 #include "PWM.h"
+#include "Eeprom.h"
 #include "Temperature.h"
 #include "src/Features/FanControl.h"
 
@@ -402,6 +404,7 @@ public:
 
     static INLINE void setAllSteppersDiabled() {
         flag0 |= MACHINE_FLAG0_STEPPER_DISABLED;
+
 #if FAN_CONTROL_SUPPORT
         FanControl::setSpeed(0, FAN_BOARD_INDEX);
 #endif
@@ -409,6 +412,7 @@ public:
 
     static INLINE void unsetAllSteppersDisabled() {
         flag0 &= ~MACHINE_FLAG0_STEPPER_DISABLED;
+
 #if FAN_CONTROL_SUPPORT
         FanControl::setSpeed(255, FAN_BOARD_INDEX);
 #endif
@@ -436,6 +440,10 @@ public:
 
     static INLINE void setRelativeCoorinateMode(uint8_t coord) {
         flag0 = (coord ? flag0 | MACHINE_FLAG0_RELATIVE_COORD : flag0 & ~MACHINE_FLAG0_RELATIVE_COORD);
+
+#if AUTO_SAVE_RESTORE_STATE
+        EEPROM::setCurrentFlags(flag0 | (flag1 << 8));
+#endif
     }
 
     static INLINE uint8_t isUnitInches() {
@@ -444,6 +452,18 @@ public:
 
     static INLINE void setUnitInches(uint8_t inch) {
         flag0 = (inch ? flag0 | MACHINE_FLAG0_UNIT_IS_INCH : flag0 & ~MACHINE_FLAG0_UNIT_IS_INCH);
+
+#if AUTO_SAVE_RESTORE_STATE
+        EEPROM::setCurrentFlags(flag0 | (flag1 << 8));
+#endif
+    }
+
+    static INLINE uint8_t isZProbeActive() {
+        return flag0 & MACHINE_FLAG0_Z_PROBE_ACTIVE;
+    }
+
+    static INLINE void setZProbeActive(uint8_t active) {
+        flag0 = (active ? flag0 | MACHINE_FLAG0_Z_PROBE_ACTIVE : flag0 & ~MACHINE_FLAG0_Z_PROBE_ACTIVE);
     }
 
     static INLINE uint8_t isHomedAll() {
@@ -493,6 +513,10 @@ public:
 
     static INLINE void setNoDestinationCheck(uint8_t b) {
         flag1 = (b ? flag1 | MACHINE_FLAG1_NO_DESTINATION_CHECK : flag1 & ~MACHINE_FLAG1_NO_DESTINATION_CHECK);
+
+#if AUTO_SAVE_RESTORE_STATE
+        EEPROM::setCurrentFlags(flag0 | (flag1 << 8));
+#endif
     }
 
     static INLINE uint8_t isPowerOn() {
@@ -517,6 +541,10 @@ public:
 
     static INLINE void setIgnoreFanCommand(bool enable) {
         flag1 = (enable ? flag1 | MACHINE_FLAG1_IGNORE_FAN_COMMAND : flag1 & ~MACHINE_FLAG1_IGNORE_FAN_COMMAND);
+
+#if AUTO_SAVE_RESTORE_STATE
+        EEPROM::setCurrentFlags(flag0 | (flag1 << 8));
+#endif
     }
 
     static INLINE bool isIgnoreFanCommand() {

@@ -8,7 +8,14 @@ public:
     static void initialize();
     static void checkPeriodic();
     static uint8_t calculateSteps(uint8_t steps);
-
+#if PAUSE_SUPPORT_CANCEL
+    static inline uint8_t setCancel(uint8_t state) {
+        cancel = state;
+    }
+    static inline uint8_t doCancel() {
+        return cancel;
+    }
+#endif
     static inline uint8_t isActive() {
         return active;
     }
@@ -29,6 +36,9 @@ private:
     static uint8_t pauseSteps;
 #endif
     static uint8_t active;
+#if PAUSE_SUPPORT_CANCEL
+    static uint8_t cancel;
+#endif
 };
 
 #endif

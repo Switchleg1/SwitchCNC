@@ -1004,6 +1004,9 @@ uint32_t MachineLine::bresenhamStep() {
 #endif
 		ANALYZER_OFF(ANALYZER_CH0);
         if(cur->isWarmUp()) {
+#if AUTO_SAVE_RESTORE_STATE
+            EEPROM::setCurrentValidState(false);
+#endif
             // This is a warm up move to initialize the path planner correctly. Just waste
             // a bit of time to get the planning up to date.
             if(linesCount <= cur->getWaitForXLinesFilled()) {
@@ -1021,19 +1024,19 @@ uint32_t MachineLine::bresenhamStep() {
         //Determine direction of movement,check if endstop was hit
         if (cur->isXMove()) {
             Machine::enableXStepper(false);
-            Machine::setXDirection(cur->isXPositiveMove(), false);
+            Machine::setXDirection(cur->isXPositiveDir(), false);
         }
         if (cur->isYMove()) {
             Machine::enableYStepper(false);
-            Machine::setYDirection(cur->isYPositiveMove(), false);
+            Machine::setYDirection(cur->isYPositiveDir(), false);
         }
         if (cur->isZMove()) {
             Machine::enableZStepper(false);
-            Machine::setZDirection(cur->isZPositiveMove(), false);
+            Machine::setZDirection(cur->isZPositiveDir(), false);
         }
         if (cur->isAMove()) {
             Machine::enableAStepper(false);
-            Machine::setADirection(cur->isAPositiveMove(), false);
+            Machine::setADirection(cur->isAPositiveDir(), false);
         }
 
 		cur->fixStartAndEndSpeed();
@@ -1097,7 +1100,7 @@ uint32_t MachineLine::bresenhamStep() {
             if (doHighDelay) HAL::delayMicroseconds(STEPPER_HIGH_DELAY);
             else doHighDelay = true;
 #endif
-            if (cur->isXMove())
+            if (cur->isXMove()) {
                 if ((cur->error[X_AXIS] -= cur->delta[X_AXIS]) < 0) {
                     Machine::startXStep(false);
                     cur->error[X_AXIS] += MachineLine::cur_errupd;
@@ -1105,7 +1108,8 @@ uint32_t MachineLine::bresenhamStep() {
                     cur->totalStepsRemaining--;
 #endif
                 }
-            if (cur->isYMove())
+            }
+            if (cur->isYMove()) {
                 if ((cur->error[Y_AXIS] -= cur->delta[Y_AXIS]) < 0) {
                     Machine::startYStep(false);
                     cur->error[Y_AXIS] += MachineLine::cur_errupd;
@@ -1113,7 +1117,8 @@ uint32_t MachineLine::bresenhamStep() {
                     cur->totalStepsRemaining--;
 #endif
                 }
-            if (cur->isZMove())
+            }
+            if (cur->isZMove()) {
                 if ((cur->error[Z_AXIS] -= cur->delta[Z_AXIS]) < 0) {
                     Machine::startZStep(false);
                     cur->error[Z_AXIS] += MachineLine::cur_errupd;
@@ -1121,7 +1126,8 @@ uint32_t MachineLine::bresenhamStep() {
                     cur->totalStepsRemaining--;
 #endif
                 }
-            if (cur->isAMove())
+            }
+            if (cur->isAMove()) {
                 if ((cur->error[A_AXIS] -= cur->delta[A_AXIS]) < 0) {
                     Machine::startAStep(false);
                     cur->error[A_AXIS] += MachineLine::cur_errupd;
@@ -1129,6 +1135,7 @@ uint32_t MachineLine::bresenhamStep() {
                     cur->totalStepsRemaining--;
 #endif
                 }
+            }
 
 #if STEPPER_HIGH_DELAY > 0
             HAL::delayMicroseconds(STEPPER_HIGH_DELAY);
@@ -1140,11 +1147,49 @@ uint32_t MachineLine::bresenhamStep() {
         }
 #if PAUSE_SUPPORT
     }
-#if LASER_SUPPORT
     else {
+#if LASER_SUPPORT
         Laser::setIntensity(0);
-    }
 #endif
+#if PAUSE_SUPPORT_CANCEL
+        if (Pause::doCancel()) {
+#if WATCHDOG_SUPPORT
+            uint16_t resetWatchDog = 0xFFFF;
+#endif
+            for (uint8_t i = 0; i < A_AXIS_ARRAY; i++) {
+                if (cur->isMoveOfAxis(i)) {
+                    uint32_t steps = cur->stepsRemaining;
+                    int32_t error = cur->error[i];
+                    int32_t delta = cur->delta[i];
+                    int8_t stepValue = cur->getPositiveDirectionForAxis(i) ? -1 : 1;
+                    while (steps--) {
+                        if ((error -= delta) < 0) {
+                            Machine::currentPositionSteps[i] += stepValue;
+                            error += MachineLine::cur_errupd;
+                        }
+#if WATCHDOG_SUPPORT
+                        if (!resetWatchDog--) {
+                            HAL::resetWatchdog();
+                        }
+#endif
+                    }
+                }
+            }
+            removeCurrentLineForbidInterrupt();
+            while (hasLines()) {
+                setCurrentLine();
+                for (uint8_t i = 0; i < A_AXIS_ARRAY; i++) {
+                    if (cur->getPositiveDirectionForAxis(i)) cur->delta[i] = -cur->delta[i];
+                    Machine::currentPositionSteps[i] += cur->delta[i];
+                }
+                removeCurrentLineForbidInterrupt();
+            }
+
+            Machine::updateCurrentPosition();
+            return Machine::interval;
+        }
+#endif
+    }
 #endif
 
 #if QUICK_STEP == 0
@@ -1240,6 +1285,10 @@ uint32_t MachineLine::bresenhamStep() {
 #endif
 #if COOLANT_SUPPORT && COOLANT_FLOOD_PIN > -1
             CoolantFlood::setState(CoolantFloodDriver::next());
+#endif
+#if AUTO_SAVE_RESTORE_STATE
+            EEPROM::setCurrentSteps(Machine::currentPositionSteps);
+            if(Machine::isHomedAll()) EEPROM::setCurrentValidState(true);
 #endif
         }
 
