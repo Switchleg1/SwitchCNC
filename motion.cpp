@@ -1152,7 +1152,7 @@ uint32_t MachineLine::bresenhamStep() {
         Laser::setIntensity(0);
 #endif
 #if PAUSE_SUPPORT_CANCEL
-        if (Pause::doCancel()) {
+        if (!Machine::isHoming() && Pause::doCancel()) {
 #if WATCHDOG_SUPPORT
             uint16_t resetWatchDog = 0xFFFF;
 #endif
@@ -1184,11 +1184,10 @@ uint32_t MachineLine::bresenhamStep() {
                 }
                 removeCurrentLineForbidInterrupt();
             }
-
-            Machine::updateCurrentPosition();
-            return Machine::interval;
+            Machine::updateCurrentPosition(true);
         }
 #endif
+        return Machine::interval;
     }
 #endif
 

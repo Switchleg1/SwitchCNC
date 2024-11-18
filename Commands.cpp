@@ -372,6 +372,13 @@ void Commands::ProcessDwell(GCode* com) {
 }
 
 void Commands::ProcessHomeAxis(GCode* com) {
+#if PAUSE_SUPPORT&& PAUSE_SUPPORT_CANCEL
+    if (Pause::doCancel()) {
+        Commands::printCurrentPosition();
+        return;
+    }
+#endif
+
     uint8_t homeAllAxis = (com->hasNoXYZ());
     if (homeAllAxis || !com->hasNoXYZ()) {
         Machine::homeAxis(homeAllAxis || com->hasX(), homeAllAxis || com->hasY(), homeAllAxis || com->hasZ());
@@ -391,21 +398,17 @@ void Commands::ProcessDisplayHallSensor(GCode* com) {
 #if DISTORTION_CORRECTION_SUPPORT
 
 void Commands::ProcessDistortionCorrection(GCode* com) {
-    if (com->hasE())
-    {	// G33 E(x) enable
+    if (com->hasE()) {	                                // G33 E(x) enable
         if (com->E > 0) Distortion::enable(com->hasP() && com->P == 1);
         else Distortion::disable(com->hasP() && com->P == 1);
     }
-    else if (com->hasL())
-    { // G33 L0 - List distortion matrix
+    else if (com->hasL()) {                             // G33 L0 - List distortion matrix
         Distortion::showMatrix();
     }
-    else if (com->hasR())
-    { // G33 R0 - Reset distortion matrix
+    else if (com->hasR()) {                             // G33 R0 - Reset distortion matrix
         Distortion::resetCorrection();
     }
-    else if (com->hasX() || com->hasY() || com->hasZ())
-    { // G33 X<xpos> Y<ypos> Z<zCorrection> - Set correction for nearest point
+    else if (com->hasX() || com->hasY() || com->hasZ()) { // G33 X<xpos> Y<ypos> Z<zCorrection> - Set correction for nearest point
         if (com->hasX() && com->hasY() && com->hasZ()) {
             Distortion::set(com->X, com->Y, com->Z);
         }
@@ -413,18 +416,15 @@ void Commands::ProcessDistortionCorrection(GCode* com) {
             Com::printErrorFLN(PSTR("You need to define X, Y and Z to set a point!"));
         }
     }
-    else if (com->hasF() && com->F > 0)
-    { //G33 F<x> - Filter amount
+    else if (com->hasF() && com->F > 0) {               //G33 F<x> - Filter amount
         Distortion::filter(com->F);
     }
-    else if (com->hasO() && com->O > 0 && com->O < 1)
-    { //G33 O<x> - Smooth amount
+    else if (com->hasO() && com->O > 0 && com->O < 1) { //G33 O<x> - Smooth amount
         Distortion::smooth(com->O);
     }
-    else if (com->hasP())
-    { //G33 P<x> - Do distortion measurements
+    else if (com->hasP()) {                             //G33 P<x> - Do distortion measurements
         Endstops::update();
-        Endstops::update(); // need to call twice for full update!
+        Endstops::update();                             // need to call twice for full update!
         if (Endstops::zProbe()) {
             Com::printErrorFLN(PSTR("probe triggered before starting G33."));
         }

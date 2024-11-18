@@ -236,22 +236,22 @@ void EEPROM::init() {
 #if EEPROM_MODE != 0
     uint8_t check = computeChecksum(EEPROM_MAIN_OFFSET, EEPROM_MAIN_LENGTH);
     uint8_t storedcheck = HAL::eprGetByte(EEPROM_MAIN_OFFSET);
-    if(HAL::eprGetByte(EPR_MAGIC_BYTE) == EEPROM_MODE && storedcheck == check) {
-        readDataFromEEPROM();
-        if (USE_CONFIGURATION_BAUD_RATE) {
-            // Used if eeprom gets unusable baud rate set and communication wont work at all.
-            if(HAL::eprGetInt32(EPR_BAUDRATE) != BAUDRATE) {
-                HAL::eprSetInt32(EPR_BAUDRATE,BAUDRATE);
-				Machine::baudrate = BAUDRATE;
-				updateChecksum(EEPROM_MAIN_OFFSET, EEPROM_MAIN_LENGTH);
-            }
-            Com::printFLN(PSTR("EEPROM baud rate restored from configuration."));
-            Com::printFLN(PSTR("RECOMPILE WITH USE_CONFIGURATION_BAUD_RATE == 0 to alter baud rate via EEPROM"));
+	if (HAL::eprGetByte(EPR_MAGIC_BYTE) != EEPROM_MODE || storedcheck != check) {
+		HAL::eprSetByte(EPR_MAGIC_BYTE, EEPROM_MODE); // Make data change permanent
+		restoreEEPROMSettingsFromConfiguration();
+	}
+
+    readDataFromEEPROM();
+    if (USE_CONFIGURATION_BAUD_RATE) {
+        // Used if eeprom gets unusable baud rate set and communication wont work at all.
+        if(HAL::eprGetInt32(EPR_BAUDRATE) != BAUDRATE) {
+            HAL::eprSetInt32(EPR_BAUDRATE,BAUDRATE);
+			Machine::baudrate = BAUDRATE;
+			updateChecksum(EEPROM_MAIN_OFFSET, EEPROM_MAIN_LENGTH);
         }
-    }
-    else {
-        HAL::eprSetByte(EPR_MAGIC_BYTE, EEPROM_MODE); // Make data change permanent
-        storeDataIntoEEPROM(true);
+
+        Com::printFLN(PSTR("EEPROM baud rate restored from configuration."));
+        Com::printFLN(PSTR("RECOMPILE WITH USE_CONFIGURATION_BAUD_RATE == 0 to alter baud rate via EEPROM"));
     }
 #endif
 }

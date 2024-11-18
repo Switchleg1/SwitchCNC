@@ -14,7 +14,7 @@ void ZProbe::initialize() {
 
 bool ZProbe::start() {
 	// 1. Ensure we are homed so positions make sense
-	if (!Machine::isHomedAll()) {
+	if (!Machine::isHomedAll() || Pause::doCancel()) {
 		return false;
 	}
 

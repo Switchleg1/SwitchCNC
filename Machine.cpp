@@ -605,7 +605,7 @@ void Machine::setup() {
 
         EEPROM::getCurrentSteps(currentPositionSteps);
         EEPROM::getCurrentOffset(coordinateOffset);
-        updateCurrentPosition();
+        updateCurrentPosition(true);
 
         Commands::printCurrentPosition();
         Com::printF(PSTR("X_OFFSET:"), Machine::coordinateOffset[X_AXIS], 3);
