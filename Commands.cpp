@@ -1011,10 +1011,9 @@ void Commands::processMCode(GCode *com) {
         break;
 #endif
     case 111: // M111 enable/disable run time debug flags
-        if(com->hasS()) Machine::setDebugLevel(static_cast<uint8_t>(com->S));
+        if(com->hasS()) Machine::setDebugLevel(com->S);
         if(com->hasP()) {
-            if (com->P > 0) Machine::debugSet(static_cast<uint8_t>(com->P));
-            else Machine::debugReset(static_cast<uint8_t>(-com->P));
+            if (com->P > 0) Machine::debugSet(com->P);
 		}
         break;
     case 114: // M114

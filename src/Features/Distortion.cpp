@@ -62,8 +62,8 @@ void Distortion::disable(bool permanent) {
     Com::printFLN(Com::tZCorrectionDisabled);
 }
 
-bool Distortion::measure(float maxDistance, int repetitions) {
-	fast8_t ix, iy;
+bool Distortion::measure(float maxDistance, uint8_t repetitions) {
+	uint8_t ix, iy;
 
 	resetCorrection();
 	disable(true);
@@ -258,11 +258,11 @@ uint8_t Distortion::getPoints() {
 	return points;
 }
 
-int Distortion::matrixIndex(fast8_t x, fast8_t y) {
+int Distortion::matrixIndex(uint8_t x, uint8_t y) {
 	return static_cast<int>(y) * DISTORTION_CORRECTION_POINTS + x;
 }
 
-bool Distortion::isCorner(fast8_t i, fast8_t j) {
+bool Distortion::isCorner(uint8_t i, uint8_t j) {
 	return (i == 0 || i == points - 1)
 		   && (j == 0 || j == points - 1);
 }
@@ -270,16 +270,16 @@ bool Distortion::isCorner(fast8_t i, fast8_t j) {
 /**
  Extrapolates the changes from p1 to p2 to p3 which has the same distance as p1-p2.
 */
-inline int32_t Distortion::extrapolatePoint(fast8_t x1, fast8_t y1, fast8_t x2, fast8_t y2) {
+inline int32_t Distortion::extrapolatePoint(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2) {
     return 2 * matrix[matrixIndex(x2, y2)] - matrix[matrixIndex(x1, y1)];
 }
 
-void Distortion::extrapolateCorner(fast8_t x, fast8_t y, fast8_t dx, fast8_t dy) {
+void Distortion::extrapolateCorner(uint8_t x, uint8_t y, uint8_t dx, uint8_t dy) {
     matrix[matrixIndex(x, y)] = (extrapolatePoint(x + 2 * dx, y, x + dx, y) + extrapolatePoint(x, y + 2 * dy, x, y + dy)) / 2.0f;
 }
 
 void Distortion::extrapolateCorners() {
-	fast8_t m = points - 1;
+	uint8_t m = points - 1;
     extrapolateCorner(0, 0, 1, 1);
     extrapolateCorner(0, m, 1, -1);
     extrapolateCorner(m, 0, -1, 1);

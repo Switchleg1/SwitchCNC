@@ -29,14 +29,6 @@ Level 5: Nonlinear motor step position, only for nonlinear drive systems
 #define ENSURE_POWER {}
 #endif
 
-union floatLong {
-    float f;
-    uint32_t l;
-#ifdef SUPPORT_64_BIT_MATH
-    uint64_t L;
-#endif
-};
-
 #define MACHINE_FLAG0_STEPPER_DISABLED      1
 #define MACHINE_FLAG0_HAS_LINES             2
 #define MACHINE_FLAG0_ALLKILLED             4
@@ -146,7 +138,7 @@ Step 2: Convert to RWC
 */
 class Machine {
 public:
-    static long baudrate;                                       ///< Communication speed rate.
+    static uint32_t baudrate;                                   ///< Communication speed rate.
     static millis_t previousMillisCmd;
     static millis_t maxInactiveTime;
     static millis_t stepperInactiveTime;
@@ -156,10 +148,13 @@ public:
     static float maxFeedrate[];                                 ///< Maximum feedrate in mm/s per axis.
     static float homingFeedrate[];                              // Feedrate in mm/s for homing.
 	static float maxAccelerationMMPerSquareSecond[];
-	static unsigned long maxAccelerationStepsPerSquareSecond[];
+	static uint32_t maxAccelerationStepsPerSquareSecond[];
 
-    static fast8_t stepsTillNextCalc;
-    static fast8_t stepsSinceLastCalc;
+    static uint8_t stepsTillNextCalc;
+    static uint8_t stepsSinceLastCalc;
+#if QUICK_STEP == 0
+    static uint8_t accelTimerBitShift;
+#endif
     static uint8_t mode;
     static uint32_t interval;                                   ///< Last step duration in ticks.
     static uint32_t timer;                                      ///< used for acceleration/deceleration timing
@@ -170,7 +165,7 @@ public:
 	static float lastCmdPos[A_AXIS_ARRAY];                      ///< Last coordinates (global coordinates) send by g-codes
 	static int32_t zCorrectionStepsIncluded;
 #if Z_PROBE_SUPPORT || MAX_HARDWARE_ENDSTOP_Z
-    static int32_t stepsRemainingAtZHit;
+    static uint32_t stepsRemainingAtZHit;
 #endif
 	static int32_t axisMaxSteps[Z_AXIS_ARRAY];                  ///< For software endstops, limit of move in positive direction.
 	static int32_t axisMinSteps[Z_AXIS_ARRAY];                  ///< For software endstops, limit of move in negative direction.
@@ -181,13 +176,13 @@ public:
 	static float maxJerk[A_AXIS_ARRAY];                         ///< Maximum allowed jerk in mm/s
 	static speed_t vMaxReached;                                 ///< Maximum reached speed
 #if MULTI_XENDSTOP_HOMING
-    static fast8_t multiXHomeFlags;                             // 1 = move X0, 2 = move X1
+    static uint8_t multiXHomeFlags;                             // 1 = move X0, 2 = move X1
 #endif
 #if MULTI_YENDSTOP_HOMING
-    static fast8_t multiYHomeFlags;                             // 1 = move Y0, 2 = move Y1
+    static uint8_t multiYHomeFlags;                             // 1 = move Y0, 2 = move Y1
 #endif
 #if MULTI_ZENDSTOP_HOMING
-	static fast8_t multiZHomeFlags;                             // 1 = move Z0, 2 = move Z1
+	static uint8_t multiZHomeFlags;                             // 1 = move Z0, 2 = move Z1
 #endif
 	static float memoryPosition[A_AXIS_ARRAY];
 	static float memoryF;
@@ -632,6 +627,8 @@ public:
             stepsTillNextCalc = 8;
 #if QUICK_STEP
             return vbase >> 3;
+#else
+            accelTimerBitShift = 3;
 #endif
         } else
 #endif
@@ -640,6 +637,8 @@ public:
             stepsTillNextCalc = 4;
 #if QUICK_STEP
             return vbase >> 2;
+#else
+            accelTimerBitShift = 2;
 #endif
         } else
 #endif
@@ -648,50 +647,19 @@ public:
             stepsTillNextCalc = 2;
 #if QUICK_STEP
             return vbase >> 1;
-#endif
-        } else
-#endif
-        {
-            Machine::stepsTillNextCalc = 1;
-        }
-
-        return vbase;
-    }
-    static INLINE void updateStepsPerTimerCall(speed_t vbase, ticks_t fullInterval) {
-#if MAX_STEPS_PER_CALL >= 8
-        if (vbase > STEP_DOUBLER_FREQUENCY * 4) {
-            stepsTillNextCalc = 8;
-#if QUICK_STEP
-            interval = fullInterval << 3;
 #else
-            interval = fullInterval;
-#endif
-        } else
-#endif
-#if MAX_STEPS_PER_CALL >= 4
-        if (vbase > STEP_DOUBLER_FREQUENCY * 2) {
-            stepsTillNextCalc = 4;
-#if QUICK_STEP
-            interval = fullInterval << 2;
-#else
-            interval = fullInterval;
-#endif
-        } else
-#endif
-#if MAX_STEPS_PER_CALL >= 2
-        if (vbase > STEP_DOUBLER_FREQUENCY) {
-            stepsTillNextCalc = 2;
-#if QUICK_STEP
-            interval = fullInterval << 1;
-#else
-            interval = fullInterval;
+            accelTimerBitShift = 1;
 #endif
         } else
 #endif
         {
             stepsTillNextCalc = 1;
-            interval = fullInterval;
+#if QUICK_STEP == 0
+            accelTimerBitShift = 0;
+#endif
         }
+
+        return vbase;
     }
     static INLINE void disableAllowedStepper() {
 		if(DISABLE_X) disableXStepper();

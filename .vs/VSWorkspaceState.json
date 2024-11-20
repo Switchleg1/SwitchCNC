@@ -2,10 +2,8 @@
   "ExpandedNodes": [
     "",
     "\\src",
-    "\\src\\DigitalPins",
-    "\\src\\Drivers",
-    "\\src\\Features"
+    "\\src\\GCode"
   ],
-  "SelectedNode": "\\Motion.h",
+  "SelectedNode": "\\src\\GCode\\GcodeSource.cpp",
   "PreviewInSolutionExplorer": false
 }

@@ -22,6 +22,11 @@ public:
         if (a < b) return a;
         return b;
     }
+    static inline uint32_t min(uint32_t a, uint32_t b)
+    {
+        if (a < b) return a;
+        return b;
+    }
     static inline int32_t min(int32_t a, int32_t b, int32_t c)
     {
         if (a < b) return a < c ? a : c;

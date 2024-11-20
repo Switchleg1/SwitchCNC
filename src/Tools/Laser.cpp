@@ -100,7 +100,7 @@ void Laser::setNextIntensity(uint8_t intensity, uint8_t immediately) {
     nextIntensity = intensity;
 
     if (MachineLine::linesCount == 0 || immediately) {
-        for (fast8_t i = 0; i < MACHINELINE_CACHE_SIZE; i++) {
+        for (uint8_t i = 0; i < MACHINELINE_CACHE_SIZE; i++) {
             MachineLine::lines[i].laserIntensity = intensity;
         }
 

@@ -1,20 +1,20 @@
 #include "../../SwitchCNC.h"
 
 #if BLUETOOTH_SERIAL > 0
-fast8_t GCodeSource::numSources = 2; ///< Number of data sources available
-fast8_t GCodeSource::numWriteSources = 2;
+uint8_t GCodeSource::numSources = 2; ///< Number of data sources available
+uint8_t GCodeSource::numWriteSources = 2;
 GCodeSource* GCodeSource::sources[MAX_DATA_SOURCES] = { &serial0Source, &serial1Source };
 GCodeSource* GCodeSource::writeableSources[MAX_DATA_SOURCES] = { &serial0Source, &serial1Source };
 #else
-fast8_t GCodeSource::numSources = 1; ///< Number of data sources available
-fast8_t GCodeSource::numWriteSources = 1;
+uint8_t GCodeSource::numSources = 1; ///< Number of data sources available
+uint8_t GCodeSource::numWriteSources = 1;
 GCodeSource* GCodeSource::sources[MAX_DATA_SOURCES] = { &serial0Source };
 GCodeSource* GCodeSource::writeableSources[MAX_DATA_SOURCES] = { &serial0Source };
 #endif    
 GCodeSource* GCodeSource::activeSource = &serial0Source;
 
 void GCodeSource::registerSource(GCodeSource* newSource) {
-    for (fast8_t i = 0; i < numSources; i++) { // skip register if already contained
+    for (uint8_t i = 0; i < numSources; i++) { // skip register if already contained
         if (sources[i] == newSource) {
             return;
         }
@@ -26,15 +26,14 @@ void GCodeSource::registerSource(GCodeSource* newSource) {
 }
 
 void GCodeSource::removeSource(GCodeSource* delSource) {
-    fast8_t i;
-    for (i = 0; i < numSources; i++) {
+    for (uint8_t i = 0; i < numSources; i++) {
         if (sources[i] == delSource) {
             //printAllFLN(PSTR("DelSource:"),i);
             sources[i] = sources[--numSources];
             break;
         }
     }
-    for (i = 0; i < numWriteSources; i++) {
+    for (uint8_t i = 0; i < numWriteSources; i++) {
         if (writeableSources[i] == delSource) {
             writeableSources[i] = writeableSources[--numWriteSources];
             break;
@@ -45,18 +44,16 @@ void GCodeSource::removeSource(GCodeSource* delSource) {
 }
 
 void GCodeSource::rotateSource() { ///< Move active to next source
-    fast8_t bestIdx = 0; //,oldIdx = 0;
-    fast8_t i;
-    for (i = 0; i < numSources; i++) {
+    uint8_t bestIdx = 0; //,oldIdx = 0;
+    for (uint8_t i = 0; i < numSources; i++) {
         if (sources[i] == activeSource) {
             //oldIdx = 
             bestIdx = i;
             break;
         }
     }
-    for (i = 0; i < numSources; i++) {
-        if (++bestIdx >= numSources)
-            bestIdx = 0;
+    for (uint8_t i = 0; i < numSources; i++) {
+        if (++bestIdx >= numSources) bestIdx = 0;
         if (sources[bestIdx]->dataAvailable()) break;
     }
     //if(oldIdx != bestIdx)
@@ -67,8 +64,7 @@ void GCodeSource::rotateSource() { ///< Move active to next source
 
 void GCodeSource::writeToAll(uint8_t byte) { ///< Write to all listening sources 
     if (Com::writeToAll) {
-        fast8_t i;
-        for (i = 0; i < numWriteSources; i++) {
+        for (uint8_t i = 0; i < numWriteSources; i++) {
             writeableSources[i]->writeByte(byte);
         }
     }

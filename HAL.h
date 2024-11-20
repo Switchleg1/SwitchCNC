@@ -48,7 +48,7 @@ All known Arduino boards use 64. This value is needed for the extruder timing. *
 #endif
 
 #define EEPROM_OFFSET                   0
-#define SECONDS_TO_TICKS(s)             (unsigned long)(s*(float)F_CPU)
+#define SECONDS_TO_TICKS(s)             (uint32_t)(s*(float)F_CPU)
 
 #define MAX_RAM                         32767
 
@@ -140,7 +140,7 @@ public:
                      volatile uint8_t *ucsra, volatile uint8_t *ucsrb,
                      volatile uint8_t *udr,
                      uint8_t rxen, uint8_t txen, uint8_t rxcie, uint8_t udrie, uint8_t u2x);
-    void begin(unsigned long);
+    void begin(uint32_t);
     void end();
     virtual int available(void);
     virtual int peek(void);
@@ -273,8 +273,8 @@ public:
 		return a;
     }
 
-    static inline unsigned long U16SquaredToU32(unsigned int val) {
-        long res;
+    static inline uint32_t U16SquaredToU32(uint16_t val) {
+        uint32_t res;
         __asm__ __volatile__ ( // 15 Ticks
             "mul %A1,%A1 \n\t"
             "movw %A0,r0 \n\t"
@@ -295,8 +295,8 @@ public:
         return res;
     }
 
-    static inline unsigned int ComputeV(long timer,long accel) {
-        unsigned int res;
+    static inline uint16_t ComputeV(int32_t timer, int32_t accel) {
+        uint16_t res;
         // 38 Ticks
         __asm__ __volatile__ ( // 0 = res, 1 = timer, 2 = accel %D2=0 ,%A1 are unused is free
             // Result LSB first: %A0, %B0, %A1
@@ -338,7 +338,7 @@ public:
     }
 
     // Multiply two 16 bit values and return 32 bit result
-    static inline uint32_t mulu16xu16to32(unsigned int a,unsigned int b) {
+    static inline uint32_t mulu16xu16to32(uint16_t a, uint16_t b) {
         uint32_t res;
         // 18 Ticks = 1.125 us
         __asm__ __volatile__ ( // 0 = res, 1 = timer, 2 = accel %D2=0 ,%A1 are unused is free
@@ -365,8 +365,8 @@ public:
     }
 
     // Multiply two 16 bit values and return 32 bit result
-    static inline unsigned int mulu6xu16shift16(unsigned int a,unsigned int b) {
-		unsigned int res;
+    static inline uint16_t mulu6xu16shift16(uint16_t a, uint16_t b) {
+        uint16_t res;
         // 18 Ticks = 1.125 us
         __asm__ __volatile__ ( // 0 = res, 1 = timer, 2 = accel %D2=0 ,%A1 are unused is free
             // Result LSB first: %A0, %B0, %A1
@@ -501,7 +501,7 @@ public:
         return pgm_read_word(ptr);
     }
 
-    static inline void serialSetBaudrate(long baud) {
+    static inline void serialSetBaudrate(uint32_t baud) {
         RFSERIAL.begin(baud);
     }
 

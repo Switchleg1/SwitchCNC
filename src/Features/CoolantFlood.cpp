@@ -20,7 +20,7 @@ void CoolantFlood::setNextState(uint8_t state, bool immediately) {
 
 	nextState = state;
 	if (MachineLine::linesCount == 0 || immediately) {
-		for (fast8_t i = 0; i < MACHINELINE_CACHE_SIZE; i++) {
+		for (uint8_t i = 0; i < MACHINELINE_CACHE_SIZE; i++) {
 			if (state) MachineLine::lines[i].toolFlags |= FLAG_TOOL_FLOOD_ON;
 			else MachineLine::lines[i].toolFlags &= ~FLAG_TOOL_FLOOD_ON;
 		}

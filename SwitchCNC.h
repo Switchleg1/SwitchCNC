@@ -132,6 +132,8 @@ usage or for searching for memory induced errors. Switch it off for production, 
 
 #define ILLEGAL_Z_PROBE				-888
 
+#define OVERFLOW32					0xFFFFFFFF
+
 // we can not prevent this as some configurations need a parameter and others not
 #pragma GCC diagnostic ignored		"-Wunused-parameter"
 #pragma GCC diagnostic ignored		"-Wunused-variable"

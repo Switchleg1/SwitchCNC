@@ -17,8 +17,8 @@ Available source types are:
 - flash memory
 */
 class GCodeSource {
-    static fast8_t numSources; ///< Number of data sources available
-    static fast8_t numWriteSources;
+    static uint8_t numSources; ///< Number of data sources available
+    static uint8_t numWriteSources;
     static GCodeSource* sources[MAX_DATA_SOURCES];
     static GCodeSource* writeableSources[MAX_DATA_SOURCES];
 public:

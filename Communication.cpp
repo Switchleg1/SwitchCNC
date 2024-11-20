@@ -415,7 +415,7 @@ void Com::printNumber(uint32_t n) {
     char *str = &buf[10];
     *str = '\0';
     do {
-        unsigned long m = n;
+        uint32_t m = n;
         n /= 10;
         *--str = '0' + (m - 10 * n);
     } while(n);
@@ -457,7 +457,7 @@ void Com::printFloat(float number, uint8_t digits) {
     number += rounding;
 
     // Extract the integer part of the number and print it
-    unsigned long int_part = (unsigned long)number;
+    uint32_t int_part = number;
     float remainder = number - (float)int_part;
     printNumber(int_part);
 

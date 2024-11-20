@@ -163,7 +163,7 @@ int32_t HAL::CPUDivU2(unsigned int divisor) {
         long gain = y0-pgm_read_dword_near(adr0+2);
         return y0-((gain*(divisor & 31))>>5);*/
     } else {
-        table = (unsigned short)&fast_div_lut[0];
+        table = (uint16_t)&fast_div_lut[0];
         __asm__ __volatile__( // needs 49 ticks
             "movw r18,%A1 \n\t"
             "andi r19,15 \n\t"  // divisor & 4095 in r18,r19
@@ -451,13 +451,13 @@ unsigned char HAL::i2cReadNak(void) {
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_AT90USB646__) || defined(__AVR_AT90USB1286__) || defined(__AVR_ATmega128__) || defined(__AVR_ATmega1281__) || defined(__AVR_ATmega1284P__) || defined(__AVR_ATmega2561__)
 #define SERVO2500US F_CPU/3200
 #define SERVO5000US F_CPU/1600
-unsigned int HAL::servoTimings[4] = {0, 0, 0, 0};
-unsigned int servoAutoOff[4] = {0, 0, 0, 0};
+int16_t HAL::servoTimings[4] = {0, 0, 0, 0};
+int16_t servoAutoOff[4] = {0, 0, 0, 0};
 static uint8_t servoIndex = 0;
-void HAL::servoMicroseconds(uint8_t servo, int ms, uint16_t autoOff) {
+void HAL::servoMicroseconds(uint8_t servo, int16_t ms, uint16_t autoOff) {
     if(ms < 500) ms = 0;
     if(ms > 2500) ms = 2500;
-    servoTimings[servo] = (unsigned int)(((F_CPU / 1000000) * (long)ms) >> 3);
+    servoTimings[servo] = (uint16_t)(((F_CPU / 1000000) * (int32_t)ms) >> 3);
     servoAutoOff[servo] = (ms) ? (autoOff / 20) : 0;
 }
 SIGNAL (TIMER3_COMPA_vect) {
@@ -539,7 +539,7 @@ SIGNAL (TIMER3_COMPA_vect) {
 #endif
 #endif
 
-long __attribute__((used)) stepperWait = 0;
+int32_t __attribute__((used)) stepperWait = 0;
 
 // ================== Interrupt handling ======================
 
@@ -879,7 +879,7 @@ RFHardwareSerial::RFHardwareSerial(ring_buffer *rx_buffer, ring_buffer_tx *tx_bu
 
 // Public Methods //////////////////////////////////////////////////////////////
 
-void RFHardwareSerial::begin(unsigned long baud) {
+void RFHardwareSerial::begin(uint32_t baud) {
     uint16_t baud_setting;
     bool use_u2x = true;
 

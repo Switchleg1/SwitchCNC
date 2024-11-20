@@ -21,7 +21,7 @@ void FanControl::setNextSpeed(uint8_t speed, bool immediately) {
 
 	nextSpeed = speed;
 	if (MachineLine::linesCount == 0 || immediately) {
-		for (fast8_t i = 0; i < MACHINELINE_CACHE_SIZE; i++) {
+		for (uint8_t i = 0; i < MACHINELINE_CACHE_SIZE; i++) {
 			MachineLine::lines[i].fanSpeed = speed;
 		}
 

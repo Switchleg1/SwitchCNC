@@ -58,7 +58,7 @@ float ZProbe::run(uint8_t axisDirection, float maxDistance, uint8_t repeat) {
 	}
 
 	for(int8_t r = 0; r < repeat; r++) {
-		Machine::stepsRemainingAtZHit = -1; // Marker that we did not hit z probe
+		Machine::stepsRemainingAtZHit = OVERFLOW32; // Marker that we did not hit z probe
 
 		active = true;
 		switch (axisDirection) {
@@ -75,7 +75,7 @@ float ZProbe::run(uint8_t axisDirection, float maxDistance, uint8_t repeat) {
 		}
 		active = false;
 
-        if(Machine::stepsRemainingAtZHit < 0) {
+        if(Machine::stepsRemainingAtZHit == OVERFLOW32) {
             Com::printErrorFLN(Com::tZProbeFailed);
             return ILLEGAL_Z_PROBE;
         }

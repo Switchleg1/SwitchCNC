@@ -1,6 +1,6 @@
 #include "SwitchCNC.h"
 
-long Machine::baudrate = BAUDRATE;
+uint32_t Machine::baudrate = BAUDRATE;
 //Inactivity shutdown variables
 millis_t Machine::previousMillisCmd     = 0;
 millis_t Machine::maxInactiveTime       = MAX_INACTIVE_TIME * 1000L;
@@ -15,11 +15,11 @@ float Machine::homingFeedrate[Z_AXIS_ARRAY] = {HOMING_FEEDRATE_X, HOMING_FEEDRAT
 //  float max_start_speed_units_per_second[A_AXIS_ARRAY] = MAX_START_SPEED_UNITS_PER_SECOND; ///< Speed we can use, without acceleration.
 float Machine::maxAccelerationMMPerSquareSecond[A_AXIS_ARRAY] = {MAX_ACCELERATION_UNITS_PER_SQ_SECOND_X, MAX_ACCELERATION_UNITS_PER_SQ_SECOND_Y, MAX_ACCELERATION_UNITS_PER_SQ_SECOND_Z, MAX_ACCELERATION_UNITS_PER_SQ_SECOND_A}; ///< X, Y, Z and E max acceleration in mm/s^2 for printing moves or retracts
 /** Acceleration in steps/s^3 in printing mode.*/
-unsigned long Machine::maxAccelerationStepsPerSquareSecond[A_AXIS_ARRAY];
+uint32_t Machine::maxAccelerationStepsPerSquareSecond[A_AXIS_ARRAY];
 #endif
 int32_t Machine::zCorrectionStepsIncluded   = 0;
 
-long Machine::currentPositionSteps[A_AXIS_ARRAY];
+int32_t Machine::currentPositionSteps[A_AXIS_ARRAY];
 float Machine::currentPosition[A_AXIS_ARRAY];
 float Machine::lastCmdPos[A_AXIS_ARRAY];
 float Machine::coordinateOffset[Z_AXIS_ARRAY]   = {0, 0, 0};
@@ -27,13 +27,16 @@ uint8_t Machine::flag0  = 0;
 uint8_t Machine::flag1  = 0;
 uint8_t Machine::mode   = DEFAULT_MACHINE_MODE;
 uint8_t Machine::debugLevel = 6;                    ///< Bitfield defining debug output. 1 = echo, 2 = info, 4 = error, 8 = dry run., 16 = Only communication, 32 = No moves
-fast8_t Machine::stepsTillNextCalc = 1;
-fast8_t Machine::stepsSinceLastCalc = 1;
+uint8_t Machine::stepsTillNextCalc = 1;
+uint8_t Machine::stepsSinceLastCalc = 1;
+#if QUICK_STEP == 0
+uint8_t Machine::accelTimerBitShift = 0;
+#endif
 uint32_t Machine::interval = 30000;                 ///< Last step duration in ticks.
 uint32_t Machine::timer;                            ///< used for acceleration/deceleration timing
 uint32_t Machine::stepNumber;                       ///< Step number in current move.
 #if Z_PROBE_SUPPORT || MAX_HARDWARE_ENDSTOP_Z
-int32_t Machine::stepsRemainingAtZHit;
+uint32_t Machine::stepsRemainingAtZHit;
 #endif
 int32_t Machine::axisMaxSteps[Z_AXIS_ARRAY];        ///< For software endstops, limit of move in positive direction.
 int32_t Machine::axisMinSteps[Z_AXIS_ARRAY];        ///< For software endstops, limit of move in negative direction.
@@ -49,13 +52,13 @@ float Machine::memoryF = -1;
 float Machine::maxRealJerk = 0;
 #endif
 #if MULTI_XENDSTOP_HOMING
-fast8_t Machine::multiXHomeFlags;  // 1 = move X0, 2 = move X1
+uint8_t Machine::multiXHomeFlags;  // 1 = move X0, 2 = move X1
 #endif
 #if MULTI_YENDSTOP_HOMING
-fast8_t Machine::multiYHomeFlags;  // 1 = move Y0, 2 = move Y1
+uint8_t Machine::multiYHomeFlags;  // 1 = move Y0, 2 = move Y1
 #endif
 #if MULTI_ZENDSTOP_HOMING
-fast8_t Machine::multiZHomeFlags;  // 1 = move Z0, 2 = move Z1
+uint8_t Machine::multiZHomeFlags;  // 1 = move Z0, 2 = move Z1
 #endif
 #ifdef DEBUG_MACHINE
 int Machine::debugWaitLoop = 0;
@@ -577,6 +580,9 @@ void Machine::setup() {
 	interval = 5000;
     stepsTillNextCalc = 1;
     stepsSinceLastCalc = 1;
+#if QUICK_STEP == 0
+    accelTimerBitShift = 0;
+#endif
     flag0 = MACHINE_FLAG0_STEPPER_DISABLED;
 	axisLength[X_AXIS] = X_MAX_LENGTH;
 	axisLength[Y_AXIS] = Y_MAX_LENGTH;
@@ -714,12 +720,12 @@ void Machine::GoToMemoryPosition(bool x, bool y, bool z, bool a, float feed) {
 void Machine::homeXAxis() {
     bool nocheck = isNoDestinationCheck();
     setNoDestinationCheck(true);
-    long steps;
+    int32_t steps;
 	Commands::waitUntilEndOfAllMoves();
 	setHoming(true);
     if ((MIN_HARDWARE_ENDSTOP_X && X_MIN_PIN > -1 && X_HOME_DIR == -1) || (MAX_HARDWARE_ENDSTOP_X && X_MAX_PIN > -1 && X_HOME_DIR == 1)) {
         coordinateOffset[X_AXIS] = 0;
-		long offX = 0;
+        int32_t offX = 0;
 		steps = (axisMaxSteps[X_AXIS] - axisMinSteps[X_AXIS]) * X_HOME_DIR;
 		currentPositionSteps[X_AXIS] = -steps;
         MachineLine::moveRelativeDistanceInSteps(2 * steps, 0, 0, 0, homingFeedrate[X_AXIS], true, true);
@@ -737,10 +743,10 @@ void Machine::homeXAxis() {
 }
 
 void Machine::homeYAxis() {
-    long steps;
+    int32_t steps;
     if ((MIN_HARDWARE_ENDSTOP_Y && Y_MIN_PIN > -1 && Y_HOME_DIR == -1) || (MAX_HARDWARE_ENDSTOP_Y && Y_MAX_PIN > -1 && Y_HOME_DIR == 1)) {
         coordinateOffset[Y_AXIS] = 0;
-		long offY = 0;
+        int32_t offY = 0;
 		steps = (axisMaxSteps[Y_AXIS] - axisMinSteps[Y_AXIS]) * Y_HOME_DIR;
         currentPositionSteps[Y_AXIS] = -steps;
 		setHoming(true);
@@ -814,7 +820,7 @@ this result is wrong and we need to correct by the z change between origin and c
 
 */
 void Machine::homeZAxis() { // Cartesian homing
-    long steps;
+    int32_t steps;
     if ((MIN_HARDWARE_ENDSTOP_Z && Z_MIN_PIN > -1 && Z_HOME_DIR == -1) || (MAX_HARDWARE_ENDSTOP_Z && Z_MAX_PIN > -1 && Z_HOME_DIR == 1)) {
 #if Z_HOME_DIR < 0 && Z_PROBE_PIN == Z_MIN_PIN && Z_PROBE_SUPPORT
         ZProbe::start();

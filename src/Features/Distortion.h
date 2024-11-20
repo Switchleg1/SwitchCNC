@@ -17,7 +17,7 @@ public:
     static void init();
     static void enable(bool permanent = true);
     static void disable(bool permanent = true);
-    static bool measure(float maxDistance, int repetitions);
+    static bool measure(float maxDistance, uint8_t repetitions);
 	/** \brief Compute distortion correction at given position.
 
     The current tool offset is added to the CNC position to reference the right distortion point.
@@ -50,10 +50,10 @@ public:
     static uint8_t useOffset;
 
 private:
-    static int16_t matrixIndex(fast8_t x, fast8_t y);
-    static bool isCorner(fast8_t i, fast8_t j);
-    static INLINE int32_t extrapolatePoint(fast8_t x1, fast8_t y1, fast8_t x2, fast8_t y2);
-    static void extrapolateCorner(fast8_t x, fast8_t y, fast8_t dx, fast8_t dy);
+    static int16_t matrixIndex(uint8_t x, uint8_t y);
+    static bool isCorner(uint8_t i, uint8_t j);
+    static INLINE int32_t extrapolatePoint(uint8_t x1, uint8_t y1, uint8_t x2, uint8_t y2);
+    static void extrapolateCorner(uint8_t x, uint8_t y, uint8_t dx, uint8_t dy);
     static void extrapolateCorners();
 
 	// attributes

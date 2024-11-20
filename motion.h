@@ -23,11 +23,11 @@
 
 class MachineLine { // RAM usage: 24*4+15 = 113 Byte
 public:
-    static ufast8_t linesPos;       // Position for executing line movement
+    static uint8_t linesPos;       // Position for executing line movement
     static MachineLine lines[];
-    static ufast8_t linesWritePos;  // Position where we write the next cached line move
-    ufast8_t joinFlags;
-    volatile ufast8_t flags;
+    static uint8_t linesWritePos;  // Position where we write the next cached line move
+    uint8_t joinFlags;
+    volatile uint8_t flags;
     
     uint8_t toolFlags;
 #if LASER_SUPPORT
@@ -37,29 +37,30 @@ public:
     uint8_t fanSpeed;
 #endif
 private:
-    static int32_t cur_errupd;
-    fast8_t primaryAxis;
-    ufast8_t dir;                   ///< Direction of movement. 1 = X+, 2 = Y+, 4= Z+, 8= A+, values can be combined.
-    int32_t timeInTicks;
-	int32_t delta[A_AXIS_ARRAY];    ///< Steps we want to move.
-	int32_t error[A_AXIS_ARRAY];    ///< Error calculation for Bresenham algorithm
-	float speed[A_AXIS_ARRAY];      ///< Speed in x direction at fullInterval in mm/s
-    float fullSpeed;                ///< Desired speed mm/s
-    float invFullSpeed;             ///< 1.0/fullSpeed for faster computation
-    float accelerationDistance2;    ///< Real 2.0*distance*acceleration mm²/s²
-    float maxJunctionSpeed;         ///< Max. junction speed between this and next segment
-    float startSpeed;               ///< Starting speed in mm/s
-    float endSpeed;                 ///< Exit speed in mm/s
+    static uint32_t cur_errupd;
+    uint8_t primaryAxis;
+    uint8_t dir;                        ///< Direction of movement. 1 = X+, 2 = Y+, 4= Z+, 8= A+, values can be combined.
+    uint32_t timeInTicks;
+    uint32_t delta[A_AXIS_ARRAY];       ///< Steps we want to move.
+    int32_t error[A_AXIS_ARRAY];        ///< Error calculation for Bresenham algorithm
+    float speed[A_AXIS_ARRAY];          ///< Speed in x direction at fullInterval in mm/s
+    float fullSpeed;                    ///< Desired speed mm/s
+    float invFullSpeed;                 ///< 1.0/fullSpeed for faster computation
+    float accelerationDistance2;        ///< Real 2.0*distance*acceleration mm²/s²
+    float maxJunctionSpeed;             ///< Max. junction speed between this and next segment
+    float startSpeed;                   ///< Starting speed in mm/s
+    float endSpeed;                     ///< Exit speed in mm/s
     float minSpeed;
-	float distance;
-    ticks_t fullInterval;           ///< interval at full speed in ticks/step.
-    uint32_t accelSteps;            ///< How much steps does it take, to reach the plateau.
-    uint32_t decelSteps;            ///< How much steps does it take, to reach the end speed.
-    uint32_t accelerationPrim;      ///< Acceleration along primary axis
-    uint32_t fAcceleration;         ///< accelerationPrim*262144/F_CPU
-    speed_t vMax;                   ///< Maximum reached speed in steps/s.
-    speed_t vStart;                 ///< Starting speed in steps/s.
-	speed_t vEnd;                   ///< End speed in steps/s
+    float distance;
+    uint8_t stepsPerCalcFullInterval;   ///< steps to take between calculations at full interval
+    uint32_t fullInterval;              ///< interval at full speed in ticks/step.
+    uint32_t accelSteps;                ///< How much steps does it take, to reach the plateau.
+    uint32_t decelSteps;                ///< How much steps does it take, to reach the end speed.
+    uint32_t accelerationPrim;          ///< Acceleration along primary axis
+    uint32_t fAcceleration;             ///< accelerationPrim*262144/F_CPU
+    speed_t vMax;                       ///< Maximum reached speed in steps/s.
+    speed_t vStart;                     ///< Starting speed in steps/s.
+    speed_t vEnd;                       ///< End speed in steps/s
 #ifdef DEBUG_STEPCOUNT
     int32_t totalStepsRemaining;
 #endif
@@ -67,9 +68,9 @@ private:
     static void queueCartesianSegmentTo(int32_t* segmentSteps, uint8_t addDistortion, uint8_t checkEndstops, uint8_t pathOptimize);
 
 public:
-    int32_t stepsRemaining;            ///< Remaining steps, until move is finished
+    uint32_t stepsRemaining;            ///< Remaining steps, until move is finished
     static MachineLine *cur;
-    static volatile ufast8_t linesCount; // Number of lines cached 0 = nothing to do
+    static volatile uint8_t linesCount; // Number of lines cached 0 = nothing to do
     inline bool areParameterUpToDate() {
         return joinFlags & FLAG_JOIN_STEPPARAMS_COMPUTED;
     }
@@ -236,16 +237,16 @@ public:
     }
 
 	inline void setXMoveFinished() {
-		dir &= ~16;
+		dir &= ~XSTEP;
     }
 	inline void setYMoveFinished() {
-		dir &= ~32;
+		dir &= ~YSTEP;
 	}
 	inline void setZMoveFinished() {
-		dir &= ~64;
+		dir &= ~ZSTEP;
     }
     inline void setXYMoveFinished() {
-        dir &= ~48;
+        dir &= ~XY_STEP;
     }
     inline bool isXPositiveMove() {
         return (dir & X_STEP_DIRPOS) == X_STEP_DIRPOS;
@@ -334,13 +335,16 @@ public:
             return true;
         }
 
-        if(stepsRemaining <= static_cast<int32_t>(decelSteps)) {
+        if(stepsRemaining <= decelSteps) {
             if (!(flags & FLAG_DECELERATING)) {
                 Machine::timer = 0;
                 flags |= FLAG_DECELERATING;
             }
+
             return true;
-        } else return false;
+        }
+        
+        return false;
     }
     INLINE bool moveAccelerating() {
         if (flags & FLAG_ACCELERATING) {
@@ -355,13 +359,13 @@ public:
     }
 
     void updateStepsParameter();
-    float safeSpeed(fast8_t drivingAxis);
-    void calculateMove(float* axisDistanceMM, fast8_t drivingAxis);
+    float safeSpeed(uint8_t drivingAxis);
+    void calculateMove(float* axisDistanceMM, uint8_t drivingAxis);
     void logLine();
-    INLINE long getWaitTicks() {
+    INLINE uint32_t getWaitTicks() {
         return timeInTicks;
     }
-    INLINE void setWaitTicks(long wait) {
+    INLINE void setWaitTicks(uint32_t wait) {
         timeInTicks = wait;
     }
 
@@ -393,8 +397,8 @@ public:
     static inline void computeMaxJunctionSpeed(MachineLine *previous, MachineLine *current);
     static uint32_t bresenhamStep();
     static void waitForXFreeLines(uint8_t b = 1, bool allowMoves = false);
-    static inline void forwardPlanner(ufast8_t p);
-    static inline void backwardPlanner(ufast8_t p, ufast8_t last);
+    static inline void forwardPlanner(uint8_t p);
+    static inline void backwardPlanner(uint8_t p, uint8_t last);
     static void updateTrapezoids();
     static uint8_t insertWaitMovesIfNeeded(uint8_t pathOptimize, uint8_t waitExtraLines);
 	static void queueCartesianMove(int32_t *destinationSteps, uint8_t checkEndstops, uint8_t pathOptimize);
@@ -403,10 +407,10 @@ public:
 #if ARC_SUPPORT
     static void queueArc(float *position, float *target, float *offset, float radius, uint8_t isclockwise);
 #endif
-    static INLINE void previousPlannerIndex(ufast8_t &p) {
+    static INLINE void previousPlannerIndex(uint8_t &p) {
         p = (p ? p - 1 : MACHINELINE_CACHE_SIZE - 1);
     }
-    static INLINE void nextPlannerIndex(ufast8_t& p) {
+    static INLINE void nextPlannerIndex(uint8_t &p) {
         p = (p >= MACHINELINE_CACHE_SIZE - 1 ? 0 : p + 1);
     }
 };

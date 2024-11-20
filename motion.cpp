@@ -25,10 +25,10 @@
 
 MachineLine MachineLine::lines[MACHINELINE_CACHE_SIZE]; ///< Cache for print moves.
 MachineLine *MachineLine::cur = NULL;               ///< Current printing line
-ufast8_t MachineLine::linesWritePos = 0;            ///< Position where we write the next cached line move.
-volatile ufast8_t MachineLine::linesCount = 0;      ///< Number of lines cached 0 = nothing to do.
-ufast8_t MachineLine::linesPos = 0;                 ///< Position for executing line movement.
-int32_t MachineLine::cur_errupd = 0;
+uint8_t MachineLine::linesWritePos = 0;            ///< Position where we write the next cached line move.
+volatile uint8_t MachineLine::linesCount = 0;      ///< Number of lines cached 0 = nothing to do.
+uint8_t MachineLine::linesPos = 0;                 ///< Position for executing line movement.
+uint32_t MachineLine::cur_errupd = 0;
 uint8_t toolFlags;
 
 /**
@@ -151,13 +151,19 @@ void MachineLine::queueCartesianSegmentTo(int32_t *segmentSteps, uint8_t addDist
 	p->flags = (checkEndstops ? FLAG_CHECK_ENDSTOPS : 0) | FLAG_ACCELERATING;
     p->joinFlags = 0;
     if(!pathOptimize) p->setEndSpeedFixed(true);
-    p->dir = 0;
+
     //Find direction
-    //Machine::zCorrectionStepsIncluded = 0;
+    p->dir = 0;
 	for(uint8_t axis = 0; axis < A_AXIS_ARRAY; axis++) {
-		p->delta[axis] = segmentSteps[axis] - Machine::currentPositionSteps[axis];
-        if(p->delta[axis] >= 0) p->setPositiveDirectionForAxis(axis);
-        else p->delta[axis] = -p->delta[axis];
+        int32_t delta = segmentSteps[axis] - Machine::currentPositionSteps[axis];
+
+        if (delta >= 0) {
+            p->setPositiveDirectionForAxis(axis);
+            p->delta[axis] = delta;
+        }
+        else {
+            p->delta[axis] = -delta;
+        }
         axisDistanceMM[axis] = p->delta[axis] * Machine::invAxisStepsPerMM[axis];
         if(p->delta[axis]) p->setMoveOfAxis(axis);
         Machine::currentPositionSteps[axis] = segmentSteps[axis];
@@ -208,17 +214,17 @@ void MachineLine::queueCartesianSegmentTo(int32_t *segmentSteps, uint8_t addDist
 		p->dir &= XYZA_DIRPOS; // x,y,z and a are already correct
 		for(uint8_t i = 0; i < A_AXIS_ARRAY; i++) {
             float f = back_diff[i] * Machine::axisStepsPerMM[i];
-            p->delta[i] = abs((long)f);
+            p->delta[i] = abs((int32_t)f);
             if(p->delta[i]) p->dir |= XSTEP << i;
 		}
         Backlash::dir = (Backlash::dir & 240) | (p2->dir & XYZA_DIRPOS);
 
-		//Define variables that are needed for the Bresenham algorithm.
-		if(p->delta[Y_AXIS] > p->delta[X_AXIS] && p->delta[Y_AXIS] > p->delta[Z_AXIS] && p->delta[Y_AXIS] > p->delta[A_AXIS]) p->primaryAxis = Y_AXIS;
-		else if(p->delta[X_AXIS] > p->delta[Z_AXIS] && p->delta[X_AXIS] > p->delta[A_AXIS]) p->primaryAxis = X_AXIS;
-		else if(p->delta[Z_AXIS] > p->delta[A_AXIS]) p->primaryAxis = Z_AXIS;
-		else p->primaryAxis = A_AXIS;
-		p->stepsRemaining = p->delta[p->primaryAxis];
+        //Define variables that are needed for the Bresenham algorithm.
+        if (p->delta[X_AXIS] > p->delta[Y_AXIS] && p->delta[X_AXIS] > p->delta[Z_AXIS] && p->delta[X_AXIS] > p->delta[A_AXIS]) p->primaryAxis = X_AXIS;
+        else if (p->delta[Y_AXIS] > p->delta[Z_AXIS] && p->delta[Y_AXIS] > p->delta[A_AXIS]) p->primaryAxis = Y_AXIS;
+        else if (p->delta[Z_AXIS] > p->delta[A_AXIS]) p->primaryAxis = Z_AXIS;
+        else p->primaryAxis = A_AXIS;
+        p->stepsRemaining = p->delta[p->primaryAxis];
 
 		//Feedrate calc based on XYZA travel distance
 		if(p->isXMove()) xydist2 += back_diff[X_AXIS] * back_diff[X_AXIS];
@@ -234,8 +240,8 @@ void MachineLine::queueCartesianSegmentTo(int32_t *segmentSteps, uint8_t addDist
 #endif
 
     //Define variables that are needed for the Bresenham algorithm.
-	if(p->delta[Y_AXIS] > p->delta[X_AXIS] && p->delta[Y_AXIS] > p->delta[Z_AXIS] && p->delta[Y_AXIS] > p->delta[A_AXIS]) p->primaryAxis = Y_AXIS;
-	else if(p->delta[X_AXIS] > p->delta[Z_AXIS] && p->delta[X_AXIS] > p->delta[A_AXIS]) p->primaryAxis = X_AXIS;
+	if(p->delta[X_AXIS] > p->delta[Y_AXIS] && p->delta[X_AXIS] > p->delta[Z_AXIS] && p->delta[X_AXIS] > p->delta[A_AXIS]) p->primaryAxis = X_AXIS;
+	else if(p->delta[Y_AXIS] > p->delta[Z_AXIS] && p->delta[Y_AXIS] > p->delta[A_AXIS]) p->primaryAxis = Y_AXIS;
 	else if(p->delta[Z_AXIS] > p->delta[A_AXIS]) p->primaryAxis = Z_AXIS;
 	else p->primaryAxis = A_AXIS;
 	p->stepsRemaining = p->delta[p->primaryAxis];
@@ -281,7 +287,7 @@ void MachineLine::queueCartesianMove(int32_t *destinationSteps, uint8_t checkEnd
 #if ALWAYS_SPLIT_LINES
 	// we are inside correction height so we split all moves in lines of max. 10 mm and add them
 	// including a z correction
-	for(fast8_t i = 0; i < A_AXIS_ARRAY; i++) {
+	for(uint8_t i = 0; i < A_AXIS_ARRAY; i++) {
 		float lenAxis = Machine::invAxisStepsPerMM[i] * deltaSteps[i];
         moveLen += lenAxis * lenAxis;
 	}
@@ -297,7 +303,7 @@ void MachineLine::queueCartesianMove(int32_t *destinationSteps, uint8_t checkEnd
         deltaSteps[Z_AXIS] = destinationSteps[Z_AXIS] - Machine::currentPositionSteps[Z_AXIS];
         deltaSteps[A_AXIS] = destinationSteps[A_AXIS] - Machine::currentPositionSteps[A_AXIS];
 
-        for (fast8_t i = 0; i < XY_AXIS_ARRAY; i++) {
+        for (uint8_t i = 0; i < XY_AXIS_ARRAY; i++) {
             float lenAxis = Machine::invAxisStepsPerMM[i] * deltaSteps[i];
             moveLen += lenAxis * lenAxis;
         }
@@ -370,8 +376,8 @@ void MachineLine::queueCartesianMove(int32_t *destinationSteps, uint8_t checkEnd
 #endif
 }
 
-void MachineLine::calculateMove(float* axisDistanceMM, fast8_t drivingAxis) {
-	long axisInterval[A_AXIS_ARRAY];
+void MachineLine::calculateMove(float* axisDistanceMM, uint8_t drivingAxis) {
+	int32_t axisInterval[A_AXIS_ARRAY];
     //float timeForMove = (float)(F_CPU)*distance / (isXOrYMove() ? RMath::max(Machine::minimumSpeed, Machine::feedrate) : Machine::feedrate); // time is in ticks
     float timeForMove = (float)(F_CPU) * distance / Machine::feedrate; // time is in ticks
     //bool critical = ZProbe::isActive();
@@ -441,14 +447,14 @@ void MachineLine::calculateMove(float* axisDistanceMM, fast8_t drivingAxis) {
 
     fullSpeed = distance * inverseTimeS;
 
-    //long interval = axis_interval[primary_axis]; // time for every step in ticks with full speed
+    //int32_t interval = axis_interval[primary_axis]; // time for every step in ticks with full speed
     //If acceleration is enabled, do some Bresenham calculations depending on which axis will lead it.
 #if RAMP_ACCELERATION
     // slowest time to accelerate from v0 to limitInterval determines used acceleration
     // t = (v_end-v_start)/a
     float slowestAxisPlateauTimeRepro = 1e15; // 1/time to reduce division Unit: 1/s
 	uint32_t *accel = Machine::maxAccelerationStepsPerSquareSecond;
-	for(fast8_t i = 0; i < A_AXIS_ARRAY ; i++) {
+	for(uint8_t i = 0; i < A_AXIS_ARRAY ; i++) {
         if (isMoveOfAxis(i)) {
             // v = a * t => t = v/a = F_CPU/(c*a) => 1/t = c*a/F_CPU
             slowestAxisPlateauTimeRepro = RMath::min(slowestAxisPlateauTimeRepro, (float)axisInterval[i] * (float)accel[i]); //  steps/s^2 * step/tick  Ticks/s^2
@@ -471,13 +477,40 @@ void MachineLine::calculateMove(float* axisDistanceMM, fast8_t drivingAxis) {
     }
 
 	vMax = F_CPU / fullInterval; // maximum steps per second, we can reach
-    // if(p->vMax>46000)  // gets overflow in N computation
-    //   p->vMax = 46000;
-	//p->plateauN = (p->vMax*p->vMax/p->accelerationPrim)>>1;
+
+    //calculate how many steps to take per timer interrupt while at full speed
+#if MAX_STEPS_PER_CALL >= 8
+    if (vMax > STEP_DOUBLER_FREQUENCY * 4) {
+        stepsPerCalcFullInterval = 8;
+#if QUICK_STEP
+        fullInterval = fullInterval << 3;
+#endif
+    }
+    else
+#endif
+#if MAX_STEPS_PER_CALL >= 4
+    if (vMax > STEP_DOUBLER_FREQUENCY * 2) {
+        stepsPerCalcFullInterval = 4;
+    #if QUICK_STEP
+        fullInterval = fullInterval << 2;
+    #endif
+    }
+    else
+#endif
+#if MAX_STEPS_PER_CALL >= 2
+    if (vMax > STEP_DOUBLER_FREQUENCY) {
+        stepsPerCalcFullInterval = 2;
+#if QUICK_STEP
+        fullInterval = fullInterval << 1;
+#endif
+    }
+    else
+#endif
+    {
+        stepsPerCalcFullInterval = 1;
+    }
 
 	updateTrapezoids();
-    // how much steps on primary axis do we need to reach target feedrate
-	//p->plateauSteps = (long) (((float)p->acceleration *0.5f / slowest_axis_plateau_time_repro + p->vMin) *1.01f/slowest_axis_plateau_time_repro);
 #endif
 
 #ifdef DEBUG_STEPCOUNT
@@ -509,13 +542,13 @@ The first 2 entries in the queue are not checked. The first is the one that is a
 The method is called before lines_count is increased!
 */
 void MachineLine::updateTrapezoids() {
-    ufast8_t first = linesWritePos;
+    uint8_t first = linesWritePos;
     MachineLine *firstLine;
     MachineLine *act = &lines[linesWritePos];
     InterruptProtectedBlock noInts;
 
     // First we find out how far back we could go with optimization.
-    ufast8_t maxfirst = linesPos; // first non fixed segment we might change
+    uint8_t maxfirst = linesPos; // first non fixed segment we might change
     if(maxfirst != linesWritePos)
         nextPlannerIndex(maxfirst); // don't touch the line printing
     // Now ignore enough segments to gain enough time for path planning
@@ -554,7 +587,7 @@ void MachineLine::updateTrapezoids() {
     firstLine = &lines[first];
     firstLine->block(); // don't let printer touch this or following segments during update
     noInts.unprotect();
-    ufast8_t previousIndex = linesWritePos;
+    uint8_t previousIndex = linesWritePos;
     previousPlannerIndex(previousIndex);
     MachineLine *previous = &lines[previousIndex]; // segment before the one we are inserting
 	computeMaxJunctionSpeed(previous, act); // Set maximum junction speed if we have a real move before
@@ -649,20 +682,20 @@ void MachineLine::updateStepsParameter() {
 	accelSteps = ((vmax2 - HAL::U16SquaredToU32(vStart)) / (accelerationPrim << 1)) + 1; // Always add 1 for missing precision
 	decelSteps = ((vmax2 - HAL::U16SquaredToU32(vEnd))  / (accelerationPrim << 1)) + 1;
 
-    if(static_cast<int32_t>(accelSteps + decelSteps) >= stepsRemaining) { // can't reach limit speed
+    if(accelSteps + decelSteps >= stepsRemaining) { // can't reach limit speed
         uint32_t red = (accelSteps + decelSteps - stepsRemaining) >> 1;
-        accelSteps = accelSteps - RMath::min(static_cast<int32_t>(accelSteps), static_cast<int32_t>(red));
-        decelSteps = decelSteps - RMath::min(static_cast<int32_t>(decelSteps), static_cast<int32_t>(red));
+        accelSteps = accelSteps - RMath::min(accelSteps, red);
+        decelSteps = decelSteps - RMath::min(decelSteps, red);
     }
     setParameterUpToDate();
 #ifdef DEBUG_QUEUE_MOVE
     if(Machine::debugEcho()) {
-        Com::printFLN(Com::tDBGId, (int)this);
-        Com::printF(Com::tDBGVStartEnd, (long)vStart);
-        Com::printFLN(Com::tSlash, (long)vEnd);
-        Com::printF(Com::tDBAccelSteps, (long)accelSteps);
-        Com::printF(Com::tSlash, (long)decelSteps);
-        Com::printFLN(Com::tSlash, (long)stepsRemaining);
+        Com::printFLN(Com::tDBGId, (int16_t)this);
+        Com::printF(Com::tDBGVStartEnd, (int32_t)vStart);
+        Com::printFLN(Com::tSlash, (int32_t)vEnd);
+        Com::printF(Com::tDBAccelSteps, (int32_t)accelSteps);
+        Com::printF(Com::tSlash, (int32_t)decelSteps);
+        Com::printFLN(Com::tSlash, (int32_t)stepsRemaining);
         Com::printF(Com::tDBGStartEndSpeed, startSpeed, 1);
         Com::printFLN(Com::tSlash, endSpeed, 1);
         Com::printFLN(Com::tDBGFlags, (uint32_t)flags);
@@ -678,7 +711,7 @@ The backwards planner traverses the moves from last to first looking at decelera
 start = last line inserted
 last = last element until we check
 */
-inline void MachineLine::backwardPlanner(ufast8_t start, ufast8_t last) {
+inline void MachineLine::backwardPlanner(uint8_t start, uint8_t last) {
     MachineLine *act = &lines[start], *previous;
     float lastJunctionSpeed = act->endSpeed; // Start always with safe speed
 
@@ -715,7 +748,7 @@ inline void MachineLine::backwardPlanner(ufast8_t start, ufast8_t last) {
     } // while loop
 }
 
-void MachineLine::forwardPlanner(ufast8_t first) {
+void MachineLine::forwardPlanner(uint8_t first) {
     MachineLine *act;
     MachineLine *next = &lines[first];
     float vmaxRight;
@@ -761,8 +794,7 @@ void MachineLine::forwardPlanner(ufast8_t first) {
 }
 
 
-inline float MachineLine::safeSpeed(fast8_t drivingAxis)
-{
+inline float MachineLine::safeSpeed(uint8_t drivingAxis) {
 	float xMin = Machine::maxJerk[X_AXIS] * 0.5;
 	float yMin = Machine::maxJerk[Y_AXIS] * 0.5;
 	float zMin = Machine::maxJerk[Z_AXIS] * 0.5;
@@ -770,43 +802,33 @@ inline float MachineLine::safeSpeed(fast8_t drivingAxis)
 	float safe;
 	bool safeFound = 0;
 
-	if(isXMove())
-	{
+	if(isXMove()) {
 		safe = xMin;
 		safeFound = true;
 	}
 
-	if(isYMove())
-	{
-		if(safeFound)
-		{
+	if(isYMove()) {
+		if(safeFound) {
 			safe = RMath::min(safe, yMin * fullSpeed / fabs(speed[Y_AXIS]));
-		} else
-		{
+		} else {
 			safe = yMin;
 			safeFound = true;
 		}
 	}
 
-	if(isZMove())
-	{
-		if(safeFound)
-		{
+	if(isZMove()) {
+		if(safeFound) {
 			safe = RMath::min(safe, zMin * fullSpeed / fabs(speed[Z_AXIS]));
-		} else
-		{
+		} else {
 			safe = zMin;
 			safeFound = true;
 		}
 	}
 
-	if(isAMove())
-	{
-		if(safeFound)
-		{
+	if(isAMove()) {
+		if(safeFound) {
 			safe = RMath::min(safe, aMin * fullSpeed / fabs(speed[A_AXIS]));
-		} else
-		{
+		} else {
 			safe = aMin;
 		}
 	}
@@ -1013,9 +1035,9 @@ uint32_t MachineLine::bresenhamStep() {
 				cur = NULL;
                 return 2000;
             }
-            long wait = cur->getWaitTicks();
+            uint32_t wait = cur->getWaitTicks();
             removeCurrentLineForbidInterrupt();
-            return(wait); // waste some time for path optimization to fill up
+            return wait; // waste some time for path optimization to fill up
         } // End if WARMUP
 
         HAL::forbidInterrupts();
@@ -1153,26 +1175,11 @@ uint32_t MachineLine::bresenhamStep() {
 #endif
 #if PAUSE_SUPPORT_CANCEL
         if (!Machine::isHoming() && Pause::doCancel()) {
-#if WATCHDOG_SUPPORT
-            uint16_t resetWatchDog = 0xFFFF;
-#endif
             for (uint8_t i = 0; i < A_AXIS_ARRAY; i++) {
                 if (cur->isMoveOfAxis(i)) {
-                    uint32_t steps = cur->stepsRemaining;
-                    int32_t error = cur->error[i];
-                    int32_t delta = cur->delta[i];
-                    int8_t stepValue = cur->getPositiveDirectionForAxis(i) ? -1 : 1;
-                    while (steps--) {
-                        if ((error -= delta) < 0) {
-                            Machine::currentPositionSteps[i] += stepValue;
-                            error += MachineLine::cur_errupd;
-                        }
-#if WATCHDOG_SUPPORT
-                        if (!resetWatchDog--) {
-                            HAL::resetWatchdog();
-                        }
-#endif
-                    }
+                    int32_t stepValue = -floor(((float)cur->error[i] - ((float)cur->stepsRemaining * (float)cur->delta[i])) / (float)MachineLine::cur_errupd);
+                    if(cur->getPositiveDirectionForAxis(i)) Machine::currentPositionSteps[i] -= stepValue;
+                    else Machine::currentPositionSteps[i] += stepValue;
                 }
             }
             removeCurrentLineForbidInterrupt();
@@ -1217,11 +1224,11 @@ uint32_t MachineLine::bresenhamStep() {
 		Machine::vMaxReached = HAL::ComputeV(Machine::timer, cur->fAcceleration) + cur->vStart; // v = v0 + a * t
         if(Machine::vMaxReached > cur->vMax) Machine::vMaxReached = cur->vMax;
         speed_t v = Machine::updateStepsPerTimerCall(Machine::vMaxReached);
-		Machine::interval   = HAL::CPUDivU2(v);
+		Machine::interval = HAL::CPUDivU2(v);
 #if QUICK_STEP
         Machine::timer += Machine::interval;
 #else
-        Machine::timer += Machine::interval * Machine::stepsTillNextCalc;
+        Machine::timer += Machine::interval << Machine::accelTimerBitShift;
 #endif
         Machine::stepNumber += Machine::stepsSinceLastCalc; // only used for moveAccelerating
 	} else if (cur->moveDecelerating()) { // time to slow down
@@ -1237,26 +1244,31 @@ uint32_t MachineLine::bresenhamStep() {
 #if QUICK_STEP
         Machine::timer += Machine::interval;
 #else
-        Machine::timer += Machine::interval * Machine::stepsTillNextCalc;
+        Machine::timer += Machine::interval << Machine::accelTimerBitShift;
 #endif
     } else 
 #endif
     { // full speed reached
-        Machine::updateStepsPerTimerCall(cur->vMax, cur->fullInterval);
+        Machine::interval = cur->fullInterval;
+        Machine::stepsTillNextCalc = cur->stepsPerCalcFullInterval;
     }
 
+    //calculate how many steps to take before calculating final speed
     if (Machine::stepsTillNextCalc > cur->stepsRemaining) {
         Machine::stepsTillNextCalc = cur->stepsRemaining;
     }
     Machine::stepsSinceLastCalc = Machine::stepsTillNextCalc;
 
+    //adjust speed by pause button or feed dial
 #if PAUSE_SUPPORT
 	if(Pause::steps()) Machine::interval += Machine::interval * Pause::steps() / PAUSE_SLOPE;
 #endif
 #if FEED_DIAL_SUPPORT
     if (FeedDial::value() != FEED_DIAL_MAX_VALUE) Machine::interval = (Machine::interval << FEED_DIAL_BITS) / FeedDial::value();
 #endif
-	if(cur->stepsRemaining <= 0 || cur->isNoMove()) { // line finished
+
+    //is the line finished?
+	if(!cur->stepsRemaining || cur->isNoMove()) {
 #ifdef DEBUG_STEPCOUNT
         if(cur->totalStepsRemaining) {
             Com::printF(Com::tDBGMissedSteps, cur->totalStepsRemaining);
@@ -1266,6 +1278,7 @@ uint32_t MachineLine::bresenhamStep() {
         uint32_t interval = Machine::interval;
         removeCurrentLineForbidInterrupt();
         Machine::disableAllowedStepper();
+
         //At the end of all moves set all drivers to current state except the laser we want set to minimum intensity
 		if(linesCount == 0) {
 #if LASER_SUPPORT
