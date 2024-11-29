@@ -575,7 +575,7 @@ void Commands::processSetPosition(GCode* com) {
     }
     if (com->hasA()) {
         Machine::lastCmdPos[A_AXIS] = Machine::currentPosition[A_AXIS] = Machine::convertToMM(com->A);
-        Machine::currentPositionSteps[A_AXIS] = static_cast<int32_t>(floor(Machine::lastCmdPos[A_AXIS] * Machine::axisStepsPerMM[A_AXIS] + 0.5f));
+        Machine::currentPositionSteps[A_AXIS] = floor(Machine::lastCmdPos[A_AXIS] * Machine::axisStepsPerMM[A_AXIS] + 0.5f);
     }
    
     if (com->hasX() || com->hasY() || com->hasZ()) {

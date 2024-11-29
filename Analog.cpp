@@ -1,5 +1,4 @@
 #include "SwitchCNC.h"
-#include <compat/twi.h>
 
 #if ANALOG_INPUTS > 0
 

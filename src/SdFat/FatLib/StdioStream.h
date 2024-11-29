@@ -1,5 +1,4 @@
-﻿/**
- * Copyright (c) 20011-2017 Bill Greiman
+/*Copyright (c) 20011-2017 Bill Greiman
  * This file is part of the SdFat library for SD memory cards.
  *
  * MIT License

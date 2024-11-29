@@ -1,4 +1,4 @@
-﻿#include "SwitchCNC.h"
+#include "SwitchCNC.h"
 
 // ================ Sanity checks ================
 #ifndef STEP_DOUBLER_FREQUENCY
@@ -200,7 +200,6 @@ void MachineLine::queueCartesianSegmentTo(int32_t *segmentSteps, uint8_t addDist
         return; // No steps included
     }
 
-	float xydist2 = 0;
 #if BACKLASH_COMPENSATION_SUPPORT
     if((p->isXYZAMove()) && ((p->dir & XYZA_DIRPOS) ^ (Backlash::dir & XYZA_DIRPOS)) & (Backlash::dir >> 4)) { // We need to compensate backlash, add a move
         MachineLine::waitForXFreeLines(2);
@@ -218,41 +217,13 @@ void MachineLine::queueCartesianSegmentTo(int32_t *segmentSteps, uint8_t addDist
             if(p->delta[i]) p->dir |= XSTEP << i;
 		}
         Backlash::dir = (Backlash::dir & 240) | (p2->dir & XYZA_DIRPOS);
-
-        //Define variables that are needed for the Bresenham algorithm.
-        if (p->delta[X_AXIS] > p->delta[Y_AXIS] && p->delta[X_AXIS] > p->delta[Z_AXIS] && p->delta[X_AXIS] > p->delta[A_AXIS]) p->primaryAxis = X_AXIS;
-        else if (p->delta[Y_AXIS] > p->delta[Z_AXIS] && p->delta[Y_AXIS] > p->delta[A_AXIS]) p->primaryAxis = Y_AXIS;
-        else if (p->delta[Z_AXIS] > p->delta[A_AXIS]) p->primaryAxis = Z_AXIS;
-        else p->primaryAxis = A_AXIS;
-        p->stepsRemaining = p->delta[p->primaryAxis];
-
-		//Feedrate calc based on XYZA travel distance
-		if(p->isXMove()) xydist2 += back_diff[X_AXIS] * back_diff[X_AXIS];
-		if(p->isYMove()) xydist2 += back_diff[Y_AXIS] * back_diff[Y_AXIS];
-		if(p->isZMove()) xydist2 += back_diff[Z_AXIS] * back_diff[Z_AXIS];
-		if(p->isAMove()) xydist2 += back_diff[A_AXIS] * back_diff[A_AXIS];
-
-		p->distance = sqrtf(xydist2);
-		p->calculateMove(back_diff, p->primaryAxis);
+		p->calculateMove(back_diff);
 
         p = p2; // use saved instance for the real move
     }
 #endif
 
-    //Define variables that are needed for the Bresenham algorithm.
-	if(p->delta[X_AXIS] > p->delta[Y_AXIS] && p->delta[X_AXIS] > p->delta[Z_AXIS] && p->delta[X_AXIS] > p->delta[A_AXIS]) p->primaryAxis = X_AXIS;
-	else if(p->delta[Y_AXIS] > p->delta[Z_AXIS] && p->delta[Y_AXIS] > p->delta[A_AXIS]) p->primaryAxis = Y_AXIS;
-	else if(p->delta[Z_AXIS] > p->delta[A_AXIS]) p->primaryAxis = Z_AXIS;
-	else p->primaryAxis = A_AXIS;
-	p->stepsRemaining = p->delta[p->primaryAxis];
-
-	if(p->isXMove()) xydist2 += axisDistanceMM[X_AXIS] * axisDistanceMM[X_AXIS];
-	if(p->isYMove()) xydist2 += axisDistanceMM[Y_AXIS] * axisDistanceMM[Y_AXIS];
-	if(p->isZMove()) xydist2 += axisDistanceMM[Z_AXIS] * axisDistanceMM[Z_AXIS];
-	if(p->isAMove()) xydist2 += axisDistanceMM[A_AXIS] * axisDistanceMM[A_AXIS];
-
-	p->distance = sqrtf(xydist2);
-    p->calculateMove(axisDistanceMM, p->primaryAxis);
+    p->calculateMove(axisDistanceMM);
 }
 
 /**
@@ -376,7 +347,22 @@ void MachineLine::queueCartesianMove(int32_t *destinationSteps, uint8_t checkEnd
 #endif
 }
 
-void MachineLine::calculateMove(float* axisDistanceMM, uint8_t drivingAxis) {
+void MachineLine::calculateMove(float* axisDistanceMM) {
+    //Define variables that are needed for the Bresenham algorithm.
+    if (delta[X_AXIS] > delta[Y_AXIS] && delta[X_AXIS] > delta[Z_AXIS] && delta[X_AXIS] > delta[A_AXIS]) primaryAxis = X_AXIS;
+    else if (delta[Y_AXIS] > delta[Z_AXIS] && delta[Y_AXIS] > delta[A_AXIS]) primaryAxis = Y_AXIS;
+    else if (delta[Z_AXIS] > delta[A_AXIS]) primaryAxis = Z_AXIS;
+    else primaryAxis = A_AXIS;
+    stepsRemaining = delta[primaryAxis];
+
+    float xydist2 = 0;
+    if (isXMove()) xydist2 += axisDistanceMM[X_AXIS] * axisDistanceMM[X_AXIS];
+    if (isYMove()) xydist2 += axisDistanceMM[Y_AXIS] * axisDistanceMM[Y_AXIS];
+    if (isZMove()) xydist2 += axisDistanceMM[Z_AXIS] * axisDistanceMM[Z_AXIS];
+    if (isAMove()) xydist2 += axisDistanceMM[A_AXIS] * axisDistanceMM[A_AXIS];
+
+    distance = sqrtf(xydist2);
+
 	int32_t axisInterval[A_AXIS_ARRAY];
     //float timeForMove = (float)(F_CPU)*distance / (isXOrYMove() ? RMath::max(Machine::minimumSpeed, Machine::feedrate) : Machine::feedrate); // time is in ticks
     float timeForMove = (float)(F_CPU) * distance / Machine::feedrate; // time is in ticks
@@ -468,7 +454,7 @@ void MachineLine::calculateMove(float* axisDistanceMM, uint8_t drivingAxis) {
 	//Now we can calculate the new primary axis acceleration, so that the slowest axis max acceleration is not violated
 	fAcceleration = 262144.0f * (float)accelerationPrim / F_CPU; // will overflow without float!
 	accelerationDistance2 = 2.0f * distance * slowestAxisPlateauTimeRepro * fullSpeed / ((float)F_CPU); // mm^2/s^2
-    startSpeed = endSpeed = minSpeed = safeSpeed(drivingAxis);
+    startSpeed = endSpeed = minSpeed = safeSpeed(primaryAxis);
     if(startSpeed > Machine::feedrate)
         startSpeed = endSpeed = minSpeed = Machine::feedrate;
     // Can accelerate to full speed within the line

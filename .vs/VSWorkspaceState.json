@@ -2,8 +2,12 @@
   "ExpandedNodes": [
     "",
     "\\src",
+    "\\src\\Boards",
+    "\\src\\Boards\\AVR",
+    "\\src\\Boards\\STM32",
+    "\\src\\DigitalPins",
     "\\src\\GCode"
   ],
-  "SelectedNode": "\\src\\GCode\\GcodeSource.cpp",
+  "SelectedNode": "\\HAL.h",
   "PreviewInSolutionExplorer": false
 }

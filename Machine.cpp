@@ -235,8 +235,8 @@ void Machine::reportPrinterMode() {
 
 void Machine::updateDerivedParameter() {
 	for(uint8_t i = 0; i < Z_AXIS_ARRAY; i++) {
-		axisMaxSteps[i] = static_cast<int32_t>(axisStepsPerMM[i] * (axisMin[i] + axisLength[i]));
-		axisMinSteps[i] = static_cast<int32_t>(axisStepsPerMM[i] * axisMin[i]);
+		axisMaxSteps[i] = axisStepsPerMM[i] * (axisMin[i] + axisLength[i]);
+		axisMinSteps[i] = axisStepsPerMM[i] * axisMin[i];
 	}
 
 #if BACKLASH_COMPENSATION_SUPPORT
@@ -323,10 +323,10 @@ void Machine::moveToReal(float x, float y, float z, float a, float f, bool pathO
 
     // There was conflicting use of IGNOR_COORDINATE
     int32_t destinationSteps[A_AXIS_ARRAY] = {
-        static_cast<int32_t>(floor(x * axisStepsPerMM[X_AXIS] + 0.5f)),
-        static_cast<int32_t>(floor(y * axisStepsPerMM[Y_AXIS] + 0.5f)),
-        static_cast<int32_t>(floor(z * axisStepsPerMM[Z_AXIS] + 0.5f)),
-        static_cast<int32_t>(floor(a * axisStepsPerMM[A_AXIS] + 0.5f))
+        (int32_t)floor(x * axisStepsPerMM[X_AXIS] + 0.5f),
+        (int32_t)floor(y * axisStepsPerMM[Y_AXIS] + 0.5f),
+        (int32_t)floor(z * axisStepsPerMM[Z_AXIS] + 0.5f),
+        (int32_t)floor(a * axisStepsPerMM[A_AXIS] + 0.5f)
     };
     
     if (f != IGNORE_COORDINATE) {
@@ -351,10 +351,10 @@ void Machine::updateCurrentPosition(bool copyLastCmd) {
 }
 
 void Machine::updateCurrentPositionSteps() {
-	currentPositionSteps[X_AXIS] = static_cast<int32_t>(floor(currentPosition[X_AXIS] * axisStepsPerMM[X_AXIS] + 0.5f));
-	currentPositionSteps[Y_AXIS] = static_cast<int32_t>(floor(currentPosition[Y_AXIS] * axisStepsPerMM[Y_AXIS] + 0.5f));
-	currentPositionSteps[Z_AXIS] = static_cast<int32_t>(floor(currentPosition[Z_AXIS] * axisStepsPerMM[Z_AXIS] + 0.5f));
-	currentPositionSteps[A_AXIS] = static_cast<int32_t>(floor(currentPosition[A_AXIS] * axisStepsPerMM[A_AXIS] + 0.5f));
+	currentPositionSteps[X_AXIS] = floor(currentPosition[X_AXIS] * axisStepsPerMM[X_AXIS] + 0.5f);
+	currentPositionSteps[Y_AXIS] = floor(currentPosition[Y_AXIS] * axisStepsPerMM[Y_AXIS] + 0.5f);
+	currentPositionSteps[Z_AXIS] = floor(currentPosition[Z_AXIS] * axisStepsPerMM[Z_AXIS] + 0.5f);
+	currentPositionSteps[A_AXIS] = floor(currentPosition[A_AXIS] * axisStepsPerMM[A_AXIS] + 0.5f);
 	zCorrectionStepsIncluded = 0;
 }
 

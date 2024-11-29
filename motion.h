@@ -1,5 +1,5 @@
-﻿#ifndef MOTION_H_INCLUDED
-#define MOTION_H_INCLUDED
+#ifndef MOTION_H
+#define MOTION_H
 
 /** Marks the first step of a new move */
 #define FLAG_WARMUP             1
@@ -360,7 +360,7 @@ public:
 
     void updateStepsParameter();
     float safeSpeed(uint8_t drivingAxis);
-    void calculateMove(float* axisDistanceMM, uint8_t drivingAxis);
+    void calculateMove(float* axisDistanceMM);
     void logLine();
     INLINE uint32_t getWaitTicks() {
         return timeInTicks;
@@ -417,4 +417,4 @@ public:
 
 
 
-#endif // MOTION_H_INCLUDED
+#endif

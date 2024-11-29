@@ -690,10 +690,10 @@ public:
         positionArray[A_AXIS] = currentPosition[A_AXIS];
     }
     static INLINE void lastCmdPosSteps(int32_t *positionArray) {
-        positionArray[X_AXIS] = static_cast<int32_t>(floor(lastCmdPos[X_AXIS] * axisStepsPerMM[X_AXIS] + 0.5f));
-        positionArray[Y_AXIS] = static_cast<int32_t>(floor(lastCmdPos[Y_AXIS] * axisStepsPerMM[Y_AXIS] + 0.5f));
-        positionArray[Z_AXIS] = static_cast<int32_t>(floor(lastCmdPos[Z_AXIS] * axisStepsPerMM[Z_AXIS] + 0.5f));
-        positionArray[A_AXIS] = static_cast<int32_t>(floor(lastCmdPos[A_AXIS] * axisStepsPerMM[A_AXIS] + 0.5f));
+        positionArray[X_AXIS] = floor(lastCmdPos[X_AXIS] * axisStepsPerMM[X_AXIS] + 0.5f);
+        positionArray[Y_AXIS] = floor(lastCmdPos[Y_AXIS] * axisStepsPerMM[Y_AXIS] + 0.5f);
+        positionArray[Z_AXIS] = floor(lastCmdPos[Z_AXIS] * axisStepsPerMM[Z_AXIS] + 0.5f);
+        positionArray[A_AXIS] = floor(lastCmdPos[A_AXIS] * axisStepsPerMM[A_AXIS] + 0.5f);
     }
 	static void updateDerivedParameter();
     /** If we are not homing or destination check being disabled, this will reduce _destinationSteps_ to a
